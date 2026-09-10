@@ -111,7 +111,7 @@ Disassembly and symbol extraction from `gemstone.exe` reveals the authentic Micr
 
 ### Library & Wayfinding
 - **`GemLibraryArtistScene` / `GemLibraryArtistAlbumListContent`**: Artist drilldown.
-- **`GemLibraryLetterPickerScene`**: The signature right-edge alphabet jump rail (`ui/components/AlphabetJumpRail.kt`).
+- **`GemLibraryLetterPickerScene`**: The signature right-edge alphabet jump rail (`design/components/KineticList.kt`, `AlphabetRail` / `AlphabetIndex`).
 - **`GemLibraryAlbumGridContent`**: Album art square grid.
 - **`GemLibrarySongScene` / `LibrarySongListContent`**: Vertical kinetic song list.
 

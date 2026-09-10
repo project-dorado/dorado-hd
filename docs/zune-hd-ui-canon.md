@@ -130,6 +130,13 @@ Ratings (tri-state heart, from the Zune desktop/HD family):
 - Crossbar pivot switch: horizontal slide, no bounce.
 - Kinetic lists: fling, then long deceleration to rest.
 - Everything fast: Metro is "designed to feel fast and responsive".
+- The device's touch/kinetic parameters are the `XuiTouchSettings` values the
+  shell applied (`gemstone.exe` VA `0x1C900`–`0x1CB64`, handed to
+  `XuiSetTouchSettings`). Dorado-HD consumes the corroborated fields:
+  the drag/skip deadband `25.0` (`0x10` → `DoradoTokens.SKIP_DRAG_PX`) and the
+  per-frame kinetic velocity retention `0.95` (`0x1C` →
+  `DoradoMotion.KINETIC_FRAME_RETENTION`). Full extraction:
+  `docs/zune-hd-touch-settings.md`.
 
 ## 7. Banned in Dorado-HD (invariant list, mirrors Dorado)
 - `RoundedCornerShape` / any nonzero corner radius on UI chrome.
@@ -168,4 +175,7 @@ Ratings (tri-state heart, from the Zune desktop/HD family):
   `scripts/disassemble_zune_hd.py` from `PavoBaseline.Cab`. Reconstructs the
   native `gemstone.exe` shell, `xuidll.dll` XUI runtime, and authentic scene
   hierarchy (`GemStartScene`, `GemTiltScene`, `GemPivotScene`, `GemNowPlayingScene`).
+- Touch & kinetic ground truth (`docs/zune-hd-touch-settings.md`) — the
+  80-byte `XuiTouchSettings` struct (`xuidll.dll` VA `0x41874314`), its XUI
+  defaults, and the shell's effective `gemstone.exe` values.
 - Period reviews, Sept 2009 (listed above) for interaction ground truth.

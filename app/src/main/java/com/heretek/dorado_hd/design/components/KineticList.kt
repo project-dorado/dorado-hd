@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -95,6 +96,7 @@ fun <T> KineticList(
             state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = bottomPadding),
+            flingBehavior = rememberZuneFlingBehavior(),
         ) {
             itemsIndexed(
                 items,
@@ -230,8 +232,26 @@ private fun AlphabetRail(
     onDragEnd: () -> Unit,
 ) {
     val colors = LocalDoradoColors.current
-    Column(modifier = modifier) {
-        present.sorted().forEach { letterChar ->
+    val letters = remember(present) { present.sorted() }
+    Column(
+        modifier = modifier.pointerInput(letters) {
+            if (letters.isEmpty()) return@pointerInput
+            fun letterAt(y: Float): Char {
+                val idx = ((y / size.height) * letters.size).toInt()
+                return letters[idx.coerceIn(0, letters.size - 1)]
+            }
+            detectDragGestures(
+                onDragStart = { offset -> onLetterFocus(letterAt(offset.y)) },
+                onDrag = { change, _ ->
+                    change.consume()
+                    onLetterFocus(letterAt(change.position.y))
+                },
+                onDragEnd = { onDragEnd() },
+                onDragCancel = { onDragEnd() },
+            )
+        },
+    ) {
+        letters.forEach { letterChar ->
             Box(
                 modifier = Modifier
                     .weight(1f, fill = true)

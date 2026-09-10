@@ -60,7 +60,9 @@ object DoradoTokens {
     const val TYPE_SAVER_ALBUM = 16
 
     // Drag thresholds (px in device-mode design units).
-    const val SKIP_DRAG_PX = 24
+    // 25 is the shell's XuiTouchSettings[0x10] deadband (XUI default and the
+    // gemstone.exe effective value agree). docs/zune-hd-touch-settings.md §3.
+    const val SKIP_DRAG_PX = 25
 
     // Now Playing idle behavior (canon §4).
     const val IDLE_SCREENSAVER_MS = 5_000L
