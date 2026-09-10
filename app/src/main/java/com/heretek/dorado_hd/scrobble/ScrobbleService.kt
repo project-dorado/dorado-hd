@@ -11,11 +11,23 @@ class ScrobbleService(
     private val sink: ScrobbleSink,
     private val enabled: suspend () -> Boolean,
     private val nowSec: () -> Long = { System.currentTimeMillis() / 1000 },
+    /**
+     * Best-effort mirror of each completed play to the Dorado Cloud social feed
+     * (the live cross-device Zune Card). Independent of the Last.fm gate: it
+     * fires whenever the cloud is enabled, and never blocks or fails a play.
+     */
+    private val cloudListen: (suspend (String, String, String) -> Unit)? = null,
 ) {
 
     /** Queues a play if scrobbling is on and the fields are usable. */
     suspend fun record(artist: String, title: String, album: String, durationSeconds: Int): Boolean {
         if (artist.isBlank() || title.isBlank()) return false
+
+        val listener = cloudListen
+        if (listener != null) {
+            runCatching { listener.invoke(artist, title, album) }
+        }
+
         if (!enabled()) return false
         store.enqueue(Scrobble(artist, title, album, durationSeconds, nowSec()))
         return true

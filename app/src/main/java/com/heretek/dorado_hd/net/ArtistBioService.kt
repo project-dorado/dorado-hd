@@ -12,12 +12,30 @@ import kotlinx.coroutines.withContext
  * plain-language extract from Wikipedia's REST summary API keyed by artist
  * name, cached on disk for a week like the artist photography.
  */
-class ArtistBioService(private val context: Context) {
+class ArtistBioService(
+    private val context: Context,
+    private val cloud: com.heretek.dorado_hd.cloud.CloudMetadataSource? = null,
+) {
     private val memory = mutableMapOf<String, String>()
 
     suspend fun bioFor(artist: String): String? = withContext(Dispatchers.IO) {
         val key = artist.trim().lowercase()
         memory[key]?.let { return@withContext it }
+
+        // Cloud-first when enabled; a thin disambiguation still beats nothing.
+        if (cloud?.isEnabled() == true) {
+            try {
+                val cloudBio = cloud.artistBio(artist)
+                if (!cloudBio.isNullOrBlank()) {
+                    cloudBio.takeIf { it.length > 80 }?.let {
+                        memory[key] = it
+                        return@withContext it
+                    }
+                }
+            } catch (_: Exception) {
+                // fall through to Wikipedia
+            }
+        }
 
         val dir = File(context.filesDir, "artist_bios").apply { mkdirs() }
         val file = File(dir, key.replace(Regex("[^a-z0-9]"), "_") + ".txt")

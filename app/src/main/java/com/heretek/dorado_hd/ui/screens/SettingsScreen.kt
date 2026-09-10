@@ -203,6 +203,37 @@ fun SettingsScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                 onClick = { scope.launch { graph.scrobble.flush() } },
             )
 
+            SectionLabel("dorado cloud")
+            SettingsToggle(
+                label = "cloud services",
+                subLabel = "catalog, artwork, podcasts, updates and the live zune card",
+                value = settings.cloudEnabled,
+            ) { enabled ->
+                scope.launch { graph.settings.setCloudEnabled(enabled) }
+            }
+            SettingsRow(
+                label = "cloud url",
+                subLabel = settings.cloudBaseUrl.ifBlank { "not configured" },
+                onClick = {
+                    menus.showPrompt("dorado cloud url", "https://cloud.example.org") { value ->
+                        scope.launch { graph.settings.setCloudBaseUrl(value) }
+                    }
+                },
+            )
+            if (settings.cloudAccessToken.isBlank()) {
+                SettingsRow(
+                    label = "sign in",
+                    subLabel = "open the browser to authorize this device (oauth + pkce)",
+                    onClick = { scope.launch { graph.cloudSignIn.signIn() } },
+                )
+            } else {
+                SettingsRow(
+                    label = "sign out",
+                    subLabel = "signed in to the dorado cloud",
+                    onClick = { scope.launch { graph.cloudSignIn.signOut() } },
+                )
+            }
+
             SectionLabel("about")
             SettingsRow(
                 label = "dorado hd ${BuildConfig.VERSION_NAME}",

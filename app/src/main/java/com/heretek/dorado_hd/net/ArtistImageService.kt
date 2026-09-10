@@ -21,11 +21,11 @@ class ArtistImageService(
     private val context: Context,
     private val db: DoradoDatabase,
     private val settings: SettingsRepository,
+    private val cloud: com.heretek.dorado_hd.cloud.CloudMetadataSource? = null,
 ) {
     private val mbidCache = mutableMapOf<String, String>()
 
     suspend fun backgroundFor(artist: String): File? = withContext(Dispatchers.IO) {
-        val config = currentTemplate() ?: return@withContext null
         val key = artist.trim().lowercase()
         val dir = File(context.filesDir, "artist_images").apply { mkdirs() }
         val cached = db.artistImageDao().get(key)
@@ -35,6 +35,25 @@ class ArtistImageService(
                 return@withContext file
             }
         }
+
+        // Cloud-first: hydrate from the Dorado Cloud artwork CDN when enabled.
+        if (cloud?.isEnabled() == true) {
+            try {
+                val bytes = cloud.artistImage(artist)
+                if (bytes != null && bytes.size > 1024) {
+                    val file = File(dir, "cloud_" + key.replace(Regex("[^a-z0-9]"), "_") + ".img")
+                    file.writeBytes(bytes)
+                    db.artistImageDao().put(
+                        ArtistImageEntity(artistKey = key, imagePath = file.absolutePath, fetchedAt = System.currentTimeMillis()),
+                    )
+                    return@withContext file
+                }
+            } catch (_: Exception) {
+                // fall through to the configured template
+            }
+        }
+
+        val config = currentTemplate() ?: return@withContext null
 
         return@withContext try {
             val mbid = lookupMbid(artist) ?: return@withContext null

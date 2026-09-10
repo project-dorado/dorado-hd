@@ -1,5 +1,6 @@
 package com.heretek.dorado_hd
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,5 +20,20 @@ class MainActivity : ComponentActivity() {
                 DoradoRoot()
             }
         }
+        handleCloudRedirect(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleCloudRedirect(intent)
+    }
+
+    /** Completes a suspended PKCE sign-in when the browser redirects back. */
+    private fun handleCloudRedirect(intent: Intent?) {
+        val data = intent?.data ?: return
+        if (!data.scheme.equals("doradohd", ignoreCase = true)) return
+        val params = data.queryParameterNames.associateWith { data.getQueryParameter(it) ?: "" }
+        (application as DoradoApp).graph.cloudSignInCallback.onRedirect(data.scheme, params)
     }
 }

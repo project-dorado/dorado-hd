@@ -43,9 +43,11 @@ class DoradoGraph(
     val games: com.heretek.dorado_hd.data.repo.GameRepository,
     val deviceLink: com.heretek.dorado_hd.data.repo.DeviceLinkRepository,
     val analysis: com.heretek.dorado_hd.analysis.AudioAnalysisService,
-    val mixes: com.heretek.dorado_hd.analysis.DynamicMixService,
+    val mixes: com.heretek.dorado_hd.analysis.CloudMixService,
     val scrobble: com.heretek.dorado_hd.scrobble.ScrobbleService,
     val lyrics: com.heretek.dorado_hd.net.LrcLibService,
+    val cloudSignIn: com.heretek.dorado_hd.cloud.CloudSignIn,
+    val cloudSignInCallback: com.heretek.dorado_hd.cloud.CloudSignInCallback,
 )
 
 class DoradoApp : Application() {
@@ -68,15 +70,19 @@ class DoradoApp : Application() {
             secret = { latestSettings.get().lastFmApiSecret },
             sessionKey = { latestSettings.get().lastFmSessionKey },
         )
+        val cloudMetadata = com.heretek.dorado_hd.cloud.CloudMetadataSource(settings = { latestSettings.get() })
         val scrobble = com.heretek.dorado_hd.scrobble.ScrobbleService(
             store = scrobbleStore,
             sink = scrobbleSink,
             enabled = { latestSettings.get().scrobbleEnabled },
+            cloudListen = { artist, title, album ->
+                if (cloudMetadata.isEnabled()) cloudMetadata.recordListen(artist, title, album)
+            },
         )
         val controller = PlaybackController(this, library, quickplay, scrobble)
         val nav = DoradoNav()
-        val artistImages = ArtistImageService(this, db, settings)
-        val artistBios = com.heretek.dorado_hd.net.ArtistBioService(this)
+        val artistImages = ArtistImageService(this, db, settings, cloudMetadata)
+        val artistBios = com.heretek.dorado_hd.net.ArtistBioService(this, cloudMetadata)
         val notes = com.heretek.dorado_hd.data.repo.NotesRepository(db)
         val calendar = com.heretek.dorado_hd.data.repo.CalendarRepository(db)
         val alarms = com.heretek.dorado_hd.data.repo.AlarmRepository(db)
@@ -87,12 +93,32 @@ class DoradoApp : Application() {
         val featureStore = com.heretek.dorado_hd.data.repo.RoomFeatureStore(db.trackFeatureDao())
         val analyzer = com.heretek.dorado_hd.analysis.PcmFeatureAnalyzer(this)
         val analysis = com.heretek.dorado_hd.analysis.AudioAnalysisService(featureStore, analyzer)
-        val mixes = com.heretek.dorado_hd.analysis.DynamicMixService(analysis)
+        val cloudMixSource = com.heretek.dorado_hd.cloud.CloudMixSource(settings = { latestSettings.get() })
+        val mixes = com.heretek.dorado_hd.analysis.CloudMixService(
+            com.heretek.dorado_hd.analysis.DynamicMixService(analysis),
+            cloudMixSource,
+        )
         val lyrics = com.heretek.dorado_hd.net.LrcLibService()
+
+        // Interactive OAuth 2.0 (PKCE) sign-in: browser + deep-link callback.
+        val cloudSignInCallback = com.heretek.dorado_hd.cloud.CloudSignInCallback()
+        val cloudSignIn = com.heretek.dorado_hd.cloud.CloudSignIn(
+            currentSettings = { latestSettings.get() },
+            setEnabled = { settings.setCloudEnabled(it) },
+            setToken = { settings.setCloudAccessToken(it) },
+            launchBrowser = { url ->
+                startActivity(
+                    android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            },
+            awaitRedirect = { _, timeoutMs -> cloudSignInCallback.await(timeoutMs) },
+        )
 
         graph = DoradoGraph(
             library, quickplay, settings, settings.settings, controller, nav,
             artistImages, artistBios, notes, calendar, alarms, radio, podcasts, games, deviceLink, analysis, mixes, scrobble, lyrics,
+            cloudSignIn, cloudSignInCallback,
         )
 
         appScope.launch {

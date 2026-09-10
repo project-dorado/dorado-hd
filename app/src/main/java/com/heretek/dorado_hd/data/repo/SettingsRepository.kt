@@ -32,6 +32,10 @@ data class DoradoSettings(
     val lastFmApiKey: String = "",
     val lastFmApiSecret: String = "",
     val lastFmSessionKey: String = "",
+    /** Dorado Cloud — community services (catalog/directory/updates/social). */
+    val cloudEnabled: Boolean = false,
+    val cloudBaseUrl: String = "",
+    val cloudAccessToken: String = "",
 )
 
 class SettingsRepository(private val context: Context) {
@@ -51,6 +55,9 @@ class SettingsRepository(private val context: Context) {
         val LASTFM_API_KEY = stringPreferencesKey("lastfm_api_key")
         val LASTFM_API_SECRET = stringPreferencesKey("lastfm_api_secret")
         val LASTFM_SESSION_KEY = stringPreferencesKey("lastfm_session_key")
+        val CLOUD_ENABLED = booleanPreferencesKey("cloud_enabled")
+        val CLOUD_BASE_URL = stringPreferencesKey("cloud_base_url")
+        val CLOUD_ACCESS_TOKEN = stringPreferencesKey("cloud_access_token")
     }
 
     val settings: Flow<DoradoSettings> = context.dataStore.data.map { p ->
@@ -70,6 +77,9 @@ class SettingsRepository(private val context: Context) {
             lastFmApiKey = p[Keys.LASTFM_API_KEY] ?: "",
             lastFmApiSecret = p[Keys.LASTFM_API_SECRET] ?: "",
             lastFmSessionKey = p[Keys.LASTFM_SESSION_KEY] ?: "",
+            cloudEnabled = p[Keys.CLOUD_ENABLED] ?: false,
+            cloudBaseUrl = p[Keys.CLOUD_BASE_URL] ?: "",
+            cloudAccessToken = p[Keys.CLOUD_ACCESS_TOKEN] ?: "",
         )
     }
 
@@ -90,4 +100,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setLastFmApiKey(value: String) = context.dataStore.edit { it[Keys.LASTFM_API_KEY] = value }
     suspend fun setLastFmApiSecret(value: String) = context.dataStore.edit { it[Keys.LASTFM_API_SECRET] = value }
     suspend fun setLastFmSessionKey(value: String) = context.dataStore.edit { it[Keys.LASTFM_SESSION_KEY] = value }
+    suspend fun setCloudEnabled(enabled: Boolean) = context.dataStore.edit { it[Keys.CLOUD_ENABLED] = enabled }
+    suspend fun setCloudBaseUrl(value: String) = context.dataStore.edit { it[Keys.CLOUD_BASE_URL] = value }
+    suspend fun setCloudAccessToken(value: String) = context.dataStore.edit { it[Keys.CLOUD_ACCESS_TOKEN] = value }
 }

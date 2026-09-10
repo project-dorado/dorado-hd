@@ -111,4 +111,41 @@ class ScrobbleTest {
             db.close()
         }
     }
+
+    @Test
+    fun `record mirrors the listen to the cloud independent of the scrobble gate`() = runBlocking {
+        val store = FakeStore()
+        val listens = mutableListOf<Triple<String, String, String>>()
+        val service = ScrobbleService(
+            store,
+            ScrobbleSink { true },
+            enabled = { false }, // Last.fm scrobbling off
+            nowSec = { 1_000L },
+            cloudListen = { artist, title, album -> listens += Triple(artist, title, album) },
+        )
+
+        val queued = service.record("Artist", "Title", "Album", 180)
+
+        assertFalse("Last.fm is off so nothing is queued", queued)
+        assertEquals(1, listens.size)
+        assertEquals(Triple("Artist", "Title", "Album"), listens[0])
+    }
+
+    @Test
+    fun `record swallows a cloud mirror failure`() = runBlocking {
+        val store = FakeStore()
+        val service = ScrobbleService(
+            store,
+            ScrobbleSink { true },
+            enabled = { true },
+            nowSec = { 1_000L },
+            cloudListen = { _, _, _ -> error("cloud down") },
+        )
+
+        // The cloud throwing must not prevent the local Last.fm queue.
+        val queued = service.record("Artist", "Title", "Album", 180)
+
+        assertTrue(queued)
+        assertEquals(1, store.rows.size)
+    }
 }
