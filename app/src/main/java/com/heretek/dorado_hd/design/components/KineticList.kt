@@ -5,6 +5,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -63,6 +65,7 @@ fun <T> KineticList(
     modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState(),
     bottomPadding: Dp = 0.dp,
+    showAlphabet: Boolean = true,
 ) {
     val colors = LocalDoradoColors.current
     val scope = rememberCoroutineScope()
@@ -101,13 +104,13 @@ fun <T> KineticList(
             }
         }
 
-        if (letters.isNotEmpty()) {
+        if (showAlphabet && letters.isNotEmpty()) {
             AlphabetRail(
                 present = present,
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .fillMaxHeight()
-                    .width(18.dp),
+                    .width(32.dp),
                 onLetterTap = { indexOpen = true },
                 onLetterFocus = { letterChar ->
                     draggingLetter = letterChar
@@ -180,23 +183,33 @@ private fun AlphabetIndex(
             },
         contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            alphabet.chunked(3).forEach { rowLetters ->
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(12.dp),
+        ) {
+            alphabet.chunked(4).forEach { rowLetters ->
                 Row {
                     rowLetters.forEach { letterChar ->
+                        val isPresent = letterChar in present
                         Box(
                             modifier = Modifier
-                                .size(width = 56.dp, height = 28.dp)
-                                .clickable(enabled = letterChar in present) { onPick(letterChar) },
+                                .size(width = 54.dp, height = 44.dp)
+                                .padding(2.dp)
+                                .background(if (isPresent) colors.elevated else colors.background)
+                                .border(
+                                    width = 0.5.dp,
+                                    color = if (isPresent) colors.border else colors.border.copy(alpha = 0.25f),
+                                )
+                                .clickable(enabled = isPresent) { onPick(letterChar) },
                             contentAlignment = Alignment.Center,
                         ) {
                             BasicText(
                                 text = letterChar.toString(),
                                 style = TextStyle(
                                     fontFamily = Selawik,
-                                    fontWeight = FontWeight.Light,
+                                    fontWeight = if (isPresent) FontWeight.Normal else FontWeight.Light,
                                     fontSize = DoradoTokens.TYPE_CROSSBAR.sp,
-                                    color = if (letterChar in present) colors.textPrimary else colors.textInactive,
+                                    color = if (isPresent) colors.textPrimary else colors.textInactive,
                                     textAlign = TextAlign.Center,
                                 ),
                             )
@@ -222,13 +235,7 @@ private fun AlphabetRail(
             Box(
                 modifier = Modifier
                     .weight(1f, fill = true)
-                    .clickable { onLetterTap() }
-                    .draggable(
-                        state = rememberDraggableState { },
-                        orientation = Orientation.Vertical,
-                        onDragStarted = { onLetterFocus(letterChar) },
-                        onDragStopped = { onDragEnd() },
-                    ),
+                    .clickable { onLetterTap() },
                 contentAlignment = Alignment.Center,
             ) {
                 BasicText(

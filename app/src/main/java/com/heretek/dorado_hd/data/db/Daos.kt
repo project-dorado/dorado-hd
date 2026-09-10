@@ -249,6 +249,9 @@ interface AlarmDao {
     @Query("UPDATE alarms SET enabled = :enabled WHERE id = :id")
     suspend fun setEnabled(id: Long, enabled: Boolean)
 
+    @Query("UPDATE alarms SET hour = :hour, minute = :minute WHERE id = :id")
+    suspend fun setTime(id: Long, hour: Int, minute: Int)
+
     @Query("DELETE FROM alarms WHERE id = :id")
     suspend fun delete(id: Long)
 }

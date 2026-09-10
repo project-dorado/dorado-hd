@@ -59,22 +59,24 @@ fun MarketplaceScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
         initialPage = 0,
         pageCount = { 5 },
     )
-    Column(Modifier.fillMaxSize()) {
-        CrossbarBar(
-            labels = listOf("music", "videos", "podcasts", "apps", "games"),
-            selected = pagerState.currentPage,
-            onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index) } },
-        )
-        androidx.compose.foundation.pager.HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize(),
-        ) { page ->
-            when (page) {
-                0 -> MarketplaceMusic()
-                1 -> MarketplaceVideos()
-                2 -> MarketplacePodcasts()
-                3 -> AppsPivot()
-                else -> GamesPivot()
+    DetailScaffold(title = "marketplace") {
+        Column(Modifier.fillMaxSize()) {
+            CrossbarBar(
+                labels = listOf("music", "videos", "podcasts", "apps", "games"),
+                selected = pagerState.currentPage,
+                onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index) } },
+            )
+            androidx.compose.foundation.pager.HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+            ) { page ->
+                when (page) {
+                    0 -> MarketplaceMusic()
+                    1 -> MarketplaceVideos()
+                    2 -> MarketplacePodcasts()
+                    3 -> AppsPivot()
+                    else -> GamesPivot()
+                }
             }
         }
     }
@@ -98,13 +100,14 @@ private fun MarketplaceVideos() {
                     android.provider.MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
                 ),
                 null, null,
-                "${android.provider.MediaStore.Video.Media.DATE_ADDED} DESC LIMIT 50",
+                "${android.provider.MediaStore.Video.Media.DATE_ADDED} DESC",
             )
             cursor?.use { c ->
                 val idCol = c.getColumnIndexOrThrow(android.provider.MediaStore.Video.Media._ID)
                 val titleCol = c.getColumnIndexOrThrow(android.provider.MediaStore.Video.Media.TITLE)
                 val bucketCol = c.getColumnIndexOrThrow(android.provider.MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
-                while (c.moveToNext()) {
+                // Cap while reading: MediaProvider rejects `LIMIT` in sortOrder.
+                while (list.size < 50 && c.moveToNext()) {
                     val id = c.getLong(idCol)
                     list += VideoItem(
                         id = id,

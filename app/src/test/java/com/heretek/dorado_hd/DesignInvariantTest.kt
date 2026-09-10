@@ -3,21 +3,18 @@ package com.heretek.dorado_hd
 import java.io.File
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 
 /**
  * Design-invariant audit, ported from Dorado's approach. Scans the UI
  * sources for violations of the Zune HD canon (docs/zune-hd-ui-canon.md §7).
  */
-@RunWith(RobolectricTestRunner::class)
 class DesignInvariantTest {
 
     private val appDir: File
         get() = if (File("src/main/java").exists()) File(".") else File("..")
 
     private val repoRoot: File
-        get() = appDir.absoluteFile.normalize().parentFile
+        get() = appDir.absoluteFile.normalize().parentFile ?: File(".")
 
     private fun sources(dir: String): List<File> {
         val root = File(appDir, "src/main/java/com/heretek/dorado_hd/$dir")

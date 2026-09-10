@@ -93,14 +93,15 @@ fun VideosScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                     MediaStore.Video.Media.DISPLAY_NAME,
                     MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
                 ),
-                null, null, "${MediaStore.Video.Media.DATE_ADDED} DESC LIMIT 200",
+                null, null, "${MediaStore.Video.Media.DATE_ADDED} DESC",
             )
             cursor?.use { c ->
                 val idCol = c.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
                 val titleCol = c.getColumnIndexOrThrow(MediaStore.Video.Media.TITLE)
                 val artistCol = c.getColumnIndexOrThrow(MediaStore.Video.Media.ARTIST)
                 val bucketCol = c.getColumnIndexOrThrow(MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
-                while (c.moveToNext()) {
+                // Cap while reading: MediaProvider rejects `LIMIT` in sortOrder.
+                while (list.size < 200 && c.moveToNext()) {
                     val id = c.getLong(idCol)
                     list += VideoItem(
                         id = id,
@@ -348,14 +349,15 @@ fun PicturesScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                     MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
                     MediaStore.Images.Media.DATE_TAKEN,
                 ),
-                null, null, "${MediaStore.Images.Media.DATE_ADDED} DESC LIMIT 500",
+                null, null, "${MediaStore.Images.Media.DATE_ADDED} DESC",
             )
             cursor?.use { c ->
                 val idCol = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
                 val nameCol = c.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
                 val bucketCol = c.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
                 val dateCol = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
-                while (c.moveToNext()) {
+                // Cap while reading: MediaProvider rejects `LIMIT` in sortOrder.
+                while (byBucket.values.sumOf { it.size } < 500 && c.moveToNext()) {
                     val id = c.getLong(idCol)
                     val item = PictureItem(
                         id = id,

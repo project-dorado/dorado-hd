@@ -62,6 +62,7 @@ import com.heretek.dorado_hd.design.DoradoMotion
 import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.design.components.AlbumArt
 import com.heretek.dorado_hd.design.components.EdgeCropText
+import com.heretek.dorado_hd.design.components.SpectrumVisualizer
 import com.heretek.dorado_hd.data.model.RepeatMode
 import com.heretek.dorado_hd.data.model.Rating
 import com.heretek.dorado_hd.data.model.Track
@@ -139,10 +140,11 @@ fun NowPlayingScreen(canvasWidth: Dp) {
                     detectTapGestures(onTap = {
                         screensaver = false
                         overlay = true
+                        interactionKey++
                     })
                 }
             }
-            .pointerInput(Unit) {
+            .pointerInput(overlay, screensaver) {
                 if (!overlay && !screensaver) {
                     var totalDrag = 0f
                     detectHorizontalDragGestures(
@@ -173,17 +175,22 @@ fun NowPlayingScreen(canvasWidth: Dp) {
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .padding(start = DoradoTokens.EDGE.dp, top = 8.dp),
+                        .padding(start = (DoradoTokens.EDGE - 13).coerceAtLeast(0).dp, top = 2.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_back),
-                        contentDescription = "back",
-                        tint = colors.textPrimary.copy(alpha = 0.85f),
+                    Box(
                         modifier = Modifier
-                            .size(22.dp)
+                            .size(48.dp)
                             .clickable { graph.nav.pop() },
-                    )
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_back),
+                            contentDescription = "back",
+                            tint = colors.textPrimary.copy(alpha = 0.85f),
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
                 }
 
                 Spacer(Modifier.height(12.dp))
@@ -313,12 +320,13 @@ fun NowPlayingScreen(canvasWidth: Dp) {
                         detectTapGestures(
                             onTap = {
                                 screensaver = false
+                                overlay = true
                                 interactionKey++
                             },
                         )
                     },
             ) {
-                ScreensaverLayer(current, positionMs, durationMs)
+                ScreensaverLayer(current, positionMs, durationMs, isPlaying)
             }
         }
 
@@ -401,7 +409,12 @@ private fun BackdropLayer(
 }
 
 @Composable
-private fun ScreensaverLayer(track: Track, positionMs: Long, durationMs: Long) {
+private fun ScreensaverLayer(
+    track: Track,
+    positionMs: Long,
+    durationMs: Long,
+    isPlaying: Boolean,
+) {
     val colors = LocalDoradoColors.current
     val transition = rememberInfiniteTransition(label = "saver-drift")
     val drift by transition.animateFloat(
@@ -437,6 +450,13 @@ private fun ScreensaverLayer(track: Track, positionMs: Long, durationMs: Long) {
                 modifier = Modifier.padding(top = 8.dp),
             )
         }
+        SpectrumVisualizer(
+            isPlaying = isPlaying,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(start = DoradoTokens.EDGE.dp, end = 84.dp, bottom = DoradoTokens.EDGE.dp),
+        )
         AlbumArt(
             model = track.albumArtUri,
             contentDescription = null,
@@ -459,7 +479,8 @@ private fun TransportOverlay(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    val controller = LocalDoradoGraph.current.controller
+    val graph = LocalDoradoGraph.current
+    val controller = graph.controller
     val colors = LocalDoradoColors.current
     val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     var volumePulse by remember { mutableStateOf(0) }
@@ -491,6 +512,22 @@ private fun TransportOverlay(
                 )
             },
     ) {
+        // Back arrow (top-left)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = (DoradoTokens.EDGE - 13).coerceAtLeast(0).dp, top = 2.dp)
+                .size(48.dp)
+                .clickable { graph.nav.pop() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_back),
+                contentDescription = "back",
+                tint = colors.textPrimary.copy(alpha = 0.85f),
+                modifier = Modifier.size(22.dp),
+            )
+        }
         // Volume up (top)
         Box(
             Modifier

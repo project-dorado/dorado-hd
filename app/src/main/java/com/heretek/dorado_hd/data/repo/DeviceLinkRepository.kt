@@ -99,14 +99,15 @@ class DeviceLinkRepository(private val context: Context) {
                 MediaStore.Video.Media.DATE_ADDED,
             ),
             null, null,
-            "${MediaStore.Video.Media.DATE_ADDED} DESC LIMIT 500",
+            "${MediaStore.Video.Media.DATE_ADDED} DESC",
         )
         cursor?.use { c ->
             val idCol = c.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
             val titleCol = c.getColumnIndexOrThrow(MediaStore.Video.Media.TITLE)
             val sizeCol = c.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
             val addedCol = c.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED)
-            while (c.moveToNext()) {
+            // Cap while reading: MediaProvider rejects `LIMIT` in sortOrder.
+            while (list.size < 500 && c.moveToNext()) {
                 val id = c.getLong(idCol)
                 list += SyncVideo(
                     id = id.toString(),
@@ -132,7 +133,7 @@ class DeviceLinkRepository(private val context: Context) {
                 MediaStore.Images.Media.DATE_ADDED,
             ),
             null, null,
-            "${MediaStore.Images.Media.DATE_ADDED} DESC LIMIT 500",
+            "${MediaStore.Images.Media.DATE_ADDED} DESC",
         )
         cursor?.use { c ->
             val idCol = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
@@ -140,7 +141,8 @@ class DeviceLinkRepository(private val context: Context) {
             val bucketCol = c.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
             val sizeCol = c.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
             val addedCol = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
-            while (c.moveToNext()) {
+            // Cap while reading: MediaProvider rejects `LIMIT` in sortOrder.
+            while (list.size < 500 && c.moveToNext()) {
                 val id = c.getLong(idCol)
                 list += SyncPhoto(
                     id = id.toString(),

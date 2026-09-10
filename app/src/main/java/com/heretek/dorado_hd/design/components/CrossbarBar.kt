@@ -10,11 +10,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.heretek.dorado_hd.design.LocalDoradoColors
 import com.heretek.dorado_hd.design.Selawik
@@ -34,6 +39,12 @@ fun CrossbarBar(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalDoradoColors.current
+    val requesters = remember(labels.size) { List(labels.size) { BringIntoViewRequester() } }
+
+    LaunchedEffect(selected) {
+        requesters.getOrNull(selected)?.bringIntoView()
+    }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -43,14 +54,17 @@ fun CrossbarBar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         labels.forEachIndexed { index, label ->
-            val target = if (index == selected) colors.textPrimary else colors.textInactive
+            val isSelected = index == selected
+            val target = if (isSelected) colors.textPrimary else colors.textInactive
             val color by animateColorAsState(target, label = "crossbar")
             // EdgeCropText implements the device's right-edge signature clipping.
             EdgeCropText(
                 text = label,
                 fontSize = DoradoTokens.TYPE_CROSSBAR.dp,
                 color = color,
+                fontWeight = if (isSelected) FontWeight.Normal else FontWeight.Light,
                 modifier = Modifier
+                    .bringIntoViewRequester(requesters[index])
                     .clickable(onClick = { onSelect(index) })
                     .padding(end = 22.dp),
             )

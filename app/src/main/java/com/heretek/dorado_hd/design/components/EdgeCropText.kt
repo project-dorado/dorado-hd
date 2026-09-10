@@ -1,7 +1,11 @@
 package com.heretek.dorado_hd.design.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,10 +18,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -28,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.heretek.dorado_hd.design.LocalDoradoColors
 import com.heretek.dorado_hd.design.Selawik
+import com.heretek.dorado_hd.design.DoradoMotion
 import com.heretek.dorado_hd.design.DoradoTokens
 
 /**
@@ -94,7 +102,9 @@ fun CroppedHeader(
             maxLines = 1,
             softWrap = false,
             overflow = TextOverflow.Clip,
-            modifier = Modifier.offset(y = (visibleHeight - fontSize).coerceAtLeast(0.dp)),
+            // Negative: push the glyphs up so the *bottom* of the heading shows
+            // and the top is clipped by the screen edge, exactly as on device.
+            modifier = Modifier.offset(y = visibleHeight - fontSize),
         )
         // Faint right-edge back arrow — mirrors the device's explicit
         // back affordance on Now Playing (canon §3.4). Equivalently the
@@ -104,12 +114,11 @@ fun CroppedHeader(
             style = TextStyle(
                 fontFamily = Selawik,
                 fontSize = DoradoTokens.TYPE_NOW_META.sp,
-                color = colors.accent.copy(alpha = 0.6f),
+                color = colors.accent.copy(alpha = 0.85f),
             ),
             modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = DoradoTokens.EDGE.dp)
-                .offset(y = (visibleHeight - DoradoTokens.TYPE_NOW_META.dp).coerceAtLeast(0.dp) / 2),
+                .align(Alignment.BottomEnd)
+                .padding(end = DoradoTokens.EDGE.dp, bottom = 2.dp),
         )
     }
 }
@@ -124,13 +133,27 @@ fun HomeMenuItem(
     modifier: Modifier = Modifier,
     alpha: Float = 1f,
 ) {
+    // The device magnifies the item under the finger — the signature
+    // "big typography reacts to touch" gesture.
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 1.08f else 1f,
+        animationSpec = tween(140, easing = DoradoMotion.Decelerate),
+        label = "menu-magnify",
+    )
     EdgeCropText(
         text = label,
         fontSize = DoradoTokens.TYPE_MENU_ITEM.dp,
-        alpha = alpha,
+        alpha = if (pressed) 1f else alpha,
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
+            }
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .padding(start = DoradoTokens.EDGE.dp, top = 10.dp, bottom = 10.dp),
     )
 }

@@ -33,6 +33,7 @@ import com.heretek.dorado_hd.data.model.PinKind
 import com.heretek.dorado_hd.design.components.KineticList
 import com.heretek.dorado_hd.design.components.firstLetterOf
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
+import com.heretek.dorado_hd.ui.components.DetailScaffold
 import com.heretek.dorado_hd.ui.components.LocalContextMenu
 import com.heretek.dorado_hd.ui.components.MenuAction
 import com.heretek.dorado_hd.ui.components.TrackRow
@@ -49,23 +50,25 @@ fun MusicScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { PIVOTS.size })
     val selected = pagerState.currentPage
 
-    Column(Modifier.fillMaxSize()) {
-        CrossbarBar(
-            labels = PIVOTS,
-            selected = selected,
-            onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index) } },
-        )
-        HorizontalPager(
-            state = pagerState,
-            beyondViewportPageCount = 1,
-            modifier = Modifier.fillMaxSize(),
-        ) { page ->
-            when (page) {
-                0 -> AlbumsTab()
-                1 -> ArtistsTab()
-                2 -> PlaylistsTab()
-                3 -> SongsTab()
-                else -> GenresTab()
+    DetailScaffold(title = "music") {
+        Column(Modifier.fillMaxSize()) {
+            CrossbarBar(
+                labels = PIVOTS,
+                selected = selected,
+                onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index) } },
+            )
+            HorizontalPager(
+                state = pagerState,
+                beyondViewportPageCount = 1,
+                modifier = Modifier.fillMaxSize(),
+            ) { page ->
+                when (page) {
+                    0 -> AlbumsTab()
+                    1 -> ArtistsTab()
+                    2 -> PlaylistsTab()
+                    3 -> SongsTab()
+                    else -> GenresTab()
+                }
             }
         }
     }

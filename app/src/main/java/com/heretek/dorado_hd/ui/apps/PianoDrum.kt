@@ -94,8 +94,9 @@ fun DrumMachineApp() {
     var bpm by remember { mutableStateOf(120) }
     var playing by remember { mutableStateOf(false) }
     val trackNames = remember { listOf("kick", "snare", "hat") }
+    // Snapshot-backed so step toggles recompose the grid.
     val grid = remember {
-        Array(trackNames.size) { BooleanArray(16) }
+        mutableStateListOf<Boolean>().apply { repeat(trackNames.size * 16) { add(false) } }
     }
 
     DisposableEffect(Unit) {
@@ -109,8 +110,8 @@ fun DrumMachineApp() {
             for (s in 0 until 16) {
                 if (!isActive) return@LaunchedEffect
                 delay(period)
-                grid.forEachIndexed { r, row ->
-                    if (row[s]) synth.playSamples(
+                for (r in trackNames.indices) {
+                    if (grid[r * 16 + s]) synth.playSamples(
                         when (r) {
                             0 -> kickDrum()
                             1 -> snareDrum()
@@ -152,10 +153,11 @@ fun DrumMachineApp() {
                             Modifier
                                 .size(width = 18.dp, height = 24.dp)
                                 .padding(horizontal = 1.dp)
-                                .background(if (grid[rowIdx][stepIdx]) colors.accent else colors.tile)
+                                .background(if (grid[rowIdx * 16 + stepIdx]) colors.accent else colors.tile)
                                 .pointerInput(Unit) {
                                     detectTapGestures {
-                                        grid[rowIdx][stepIdx] = !grid[rowIdx][stepIdx]
+                                        val i = rowIdx * 16 + stepIdx
+                                        grid[i] = !grid[i]
                                     }
                                 },
                         )

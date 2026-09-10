@@ -126,7 +126,7 @@ private val BASIC_KEYS = listOf(
     listOf("4", "5", "6", "*"),
     listOf("1", "2", "3", "-"),
     listOf("0", ".", "(", ")"),
-    listOf("C", "bksp", "±", "="),
+    listOf("+", "±", "C", "bksp", "="),
     listOf("sci"),
 )
 
@@ -135,7 +135,7 @@ private val SCIENTIFIC_KEYS = listOf(
     listOf("4", "5", "6", "*"),
     listOf("1", "2", "3", "-"),
     listOf("0", ".", "(", ")"),
-    listOf("C", "bksp", "±", "="),
+    listOf("+", "±", "C", "bksp", "="),
     listOf("sci"),
     listOf("sin", "cos", "tan", "%"),
     listOf("log", "ln", "sqrt", "^"),
@@ -785,10 +785,13 @@ fun AlarmClockApp() {
                                     menus.show(
                                         title = alarm.label,
                                         actions = listOf(
+                                            // Bump the hour in place (no time-picker surface yet);
+                                            // do NOT duplicate the alarm.
                                             MenuAction("edit time") {
                                                 scope.launch {
-                                                    graph.alarms.setEnabled(alarm.id, false)
-                                                    graph.alarms.add(alarm.copy(id = 0, hour = (alarm.hour + 1) % 24))
+                                                    val hour = (alarm.hour + 1) % 24
+                                                    graph.alarms.setTime(alarm.id, hour, alarm.minute)
+                                                    schedule(alarm.copy(hour = hour))
                                                 }
                                             },
                                             MenuAction("delete") {

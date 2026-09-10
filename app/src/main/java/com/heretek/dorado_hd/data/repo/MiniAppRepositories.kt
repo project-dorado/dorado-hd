@@ -35,6 +35,7 @@ class AlarmRepository(private val db: DoradoDatabase) {
     suspend fun byId(id: Long): AlarmEntity? = db.alarmDao().byId(id)
     suspend fun add(alarm: AlarmEntity): Long = db.alarmDao().insert(alarm)
     suspend fun setEnabled(id: Long, enabled: Boolean) = db.alarmDao().setEnabled(id, enabled)
+    suspend fun setTime(id: Long, hour: Int, minute: Int) = db.alarmDao().setTime(id, hour, minute)
     suspend fun delete(id: Long) = db.alarmDao().delete(id)
 }
 

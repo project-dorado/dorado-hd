@@ -81,12 +81,11 @@ fun DoradoRoot() {
     val lifecycleOwner = LocalLifecycleOwner.current
 
     // Wake shade (canon §5): cover the UI after the app leaves the foreground;
-    // clear the shade when the app returns to the foreground.
+    // user slides the shade up to reveal the interface.
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_PAUSE -> shaded = true
-                Lifecycle.Event.ON_RESUME -> shaded = false
                 else -> Unit
             }
         }

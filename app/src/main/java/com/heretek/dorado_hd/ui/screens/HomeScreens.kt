@@ -17,8 +17,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -108,13 +111,15 @@ fun HomeMenuScreen(canvasWidth: Dp) {
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             Spacer(Modifier.height(48.dp))
-            // The kinetic list of menu entries. The right-edge alphabet rail
-            // (canon §3.5) comes for free via KineticList.
+            // The kinetic list of menu entries. The home menu is not a long
+            // alphabetical list, so the canon §3.5 alphabet rail is suppressed
+            // (the device home screen had no rail).
             KineticList(
                 items = HOME_ENTRIES,
                 key = { it.id },
                 letter = { firstLetterOf(it.label) },
                 modifier = Modifier.weight(1f),
+                showAlphabet = false,
                 rowContent = { entry, _ ->
                     HomeMenuItem(
                         label = entry.label,
@@ -147,7 +152,11 @@ fun QuickplayScreen(canvasWidth: Dp) {
     val pins by graph.quickplay.pins().collectAsState(initial = emptyList())
     val history by graph.quickplay.history(12).collectAsState(initial = emptyList())
 
-    Column(Modifier.fillMaxSize()) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+    ) {
         Spacer(Modifier.height(DoradoTokens.EDGE.dp))
         SectionLabel("now playing")
 
@@ -207,6 +216,8 @@ fun QuickplayScreen(canvasWidth: Dp) {
         Spacer(Modifier.height(8.dp))
         SectionLabel("new")
         NewRow()
+
+        Spacer(Modifier.height((DoradoTokens.MINI_PLAYER_HEIGHT + DoradoTokens.EDGE * 2).dp))
     }
 }
 
@@ -309,7 +320,8 @@ private fun QuickplayRow(graph: DoradoGraph, scope: CoroutineScope, cards: List<
         contentPadding = PaddingValues(horizontal = DoradoTokens.EDGE.dp),
         horizontalArrangement = Arrangement.spacedBy(DoradoTokens.GRID_GUTTER.dp),
     ) {
-        items(cards, key = { "${it.kind}:${it.refId}:${it.label}" }) { card ->
+        // History legitimately repeats a track, so qualify the key by index.
+        itemsIndexed(cards, key = { index, card -> "$index:${card.kind}:${card.refId}:${card.label}" }) { _, card ->
             Column(
                 Modifier
                     .width(72.dp)
