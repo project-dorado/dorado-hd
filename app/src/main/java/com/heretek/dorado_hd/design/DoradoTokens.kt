@@ -12,6 +12,7 @@ object DoradoTokens {
     // Spacing
     const val EDGE = 16
     const val CROSSBAR_LEAD = 24
+    const val HEADER_HEIGHT = 48
     const val CROSSBAR_HEIGHT = 34
     const val ROW_HEIGHT = 40
     const val ALBUM_TILE = 92
@@ -21,9 +22,7 @@ object DoradoTokens {
     // Type (design-unit dp)
     const val TYPE_MENU_ITEM = 34
     const val TYPE_HEADER_CROPPED = 40
-    // The device shows the *bottom* sliver of the magnified heading (its top
-    // is cut off by the screen edge). ~66% of the line is visible.
-    const val TYPE_HEADER_CROP_VISIBLE = 26
+    const val TYPE_HEADER_CROP_VISIBLE = 48
     const val TYPE_CROSSBAR = 18
     const val TYPE_NOW_TITLE = 26
     const val TYPE_NOW_META = 15

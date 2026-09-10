@@ -121,7 +121,7 @@ import com.heretek.dorado_hd.ui.components.DetailScaffold
     DetailScaffold(title = "msn money") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             EdgeCropText(text = "dow jones (frozen)", fontSize = DoradoTokens.TYPE_NOW_META.dp, alpha = 0.6f)
-            EdgeCropText(text = "13,583.93 +27.59", fontSize = DoradoTokens.TYPE_HEADER_CROP_VISIBLE.dp * 1.4f)
+            EdgeCropText(text = "13,583.93 +27.59", fontSize = DoradoTokens.TYPE_NOW_TITLE.dp * 1.4f)
             Spacer(Modifier.height(8.dp))
             listOf(
                 "tech" to "Microsoft announces the end of Zune hardware sales.",

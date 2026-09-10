@@ -35,7 +35,7 @@ in screens are an invariant violation.
 | Role | Size | Weight | Case |
 |---|---|---|---|
 | Home menu item | 34 | Light | lowercase |
-| Cropped screen header (back-tap) | 40 | Light | lowercase |
+| Screen header (back-tap) | 40 | Light | lowercase |
 | Crossbar pivot | 18 | Light | lowercase |
 | Now Playing title | 26 | Light | lowercase |
 | Now Playing artist/album | 15 | Light | lowercase |
@@ -53,6 +53,7 @@ in screens are an invariant violation.
 ## Geometry
 - Device canvas: 480 x 272 design units.
 - Screen margins: 16 (edges), 24 (crossbar leading).
+- Header height: 48.
 - Crossbar strip height: 34.
 - List row height: 40; album grid tile: 92 with 8 gutter.
 - Mini-app tiles (marketplace > apps): 92, shared with album tile.

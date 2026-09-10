@@ -69,16 +69,15 @@ fun EdgeCropText(
 }
 
 /**
- * The oversized cropped screen header. Only the bottom sliver of the text is
- * visible (the bottom of "SETT" on Settings) — tapping it navigates back.
- * This is the Zune HD's substitute for a hardware back button.
+ * Screen header: oversized lowercase typography cropped at the right edge,
+ * functioning as the back button (canon §3.4). Tapping it navigates back.
  */
 @Composable
 fun CroppedHeader(
     text: String,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    visibleHeight: Dp = DoradoTokens.TYPE_HEADER_CROP_VISIBLE.dp,
+    visibleHeight: Dp = DoradoTokens.HEADER_HEIGHT.dp,
     fontSize: Dp = DoradoTokens.TYPE_HEADER_CROPPED.dp,
 ) {
     val colors = LocalDoradoColors.current
@@ -102,13 +101,13 @@ fun CroppedHeader(
             maxLines = 1,
             softWrap = false,
             overflow = TextOverflow.Clip,
-            // Negative: push the glyphs up so the *bottom* of the heading shows
-            // and the top is clipped by the screen edge, exactly as on device.
-            modifier = Modifier.offset(y = visibleHeight - fontSize),
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = DoradoTokens.EDGE.dp, end = (DoradoTokens.EDGE * 2 + 12).dp),
         )
         // Faint right-edge back arrow — mirrors the device's explicit
         // back affordance on Now Playing (canon §3.4). Equivalently the
-        // user may tap the cropped header text.
+        // user may tap the header text.
         BasicText(
             text = "<-",
             style = TextStyle(
@@ -117,8 +116,8 @@ fun CroppedHeader(
                 color = colors.accent.copy(alpha = 0.85f),
             ),
             modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = DoradoTokens.EDGE.dp, bottom = 2.dp),
+                .align(Alignment.CenterEnd)
+                .padding(end = DoradoTokens.EDGE.dp),
         )
     }
 }

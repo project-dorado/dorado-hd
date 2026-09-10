@@ -68,7 +68,7 @@ fun CalculatorApp() {
                 style = TextStyle(
                     fontFamily = Selawik,
                     fontWeight = FontWeight.Light,
-                    fontSize = DoradoTokens.TYPE_HEADER_CROP_VISIBLE.sp * 1.4f,
+                    fontSize = DoradoTokens.TYPE_NOW_TITLE.sp * 1.4f,
                     color = if (result != null) colors.accent else colors.textPrimary,
                 ),
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
@@ -389,7 +389,7 @@ fun MetronomeApp() {
                 style = TextStyle(
                     fontFamily = Selawik,
                     fontWeight = FontWeight.Light,
-                    fontSize = DoradoTokens.TYPE_HEADER_CROP_VISIBLE.sp * 2,
+                    fontSize = DoradoTokens.TYPE_NOW_TITLE.sp * 2,
                     color = colors.textPrimary,
                 ),
                 modifier = Modifier.fillMaxWidth(),
@@ -673,7 +673,7 @@ fun MusicQuizApp() {
                 style = TextStyle(
                     fontFamily = Selawik,
                     fontWeight = FontWeight.Light,
-                    fontSize = DoradoTokens.TYPE_HEADER_CROP_VISIBLE.sp * 1.2f,
+                    fontSize = DoradoTokens.TYPE_NOW_TITLE.sp * 1.2f,
                     color = LocalDoradoColors.current.textPrimary,
                 ),
                 modifier = Modifier.fillMaxWidth(),
