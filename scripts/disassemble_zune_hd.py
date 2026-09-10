@@ -164,16 +164,9 @@ def reconstruct_pe(name, raw, img_start, e32_off, o32_off, ft_low):
         _,
     ) = struct.unpack("<HHIIHHIIHH", raw[e32_rva : e32_rva + 28])
 
-    data_dirs = []
-    for d in range(9):
-        rva, sz = struct.unpack("<II", raw[e32_rva + 28 + d * 8 : e32_rva + 28 + (d + 1) * 8])
-        if d == 4:
-            data_dirs.append((0, 0))
-        else:
-            data_dirs.append((rva, sz))
-    while len(data_dirs) < 16:
-        data_dirs.append((0, 0))
-
+    # In WinCE e32_rom, e32_unit entries are shifted by 1 relative to standard PE:
+    # unit[0] is (0, timestamp), unit[1]=Export, unit[2]=Import, unit[3]=Resource,
+    # unit[4]=Exception, unit[5]=Security, unit[6]=Reloc, unit[7]=Debug
     o32_rva = (o32_off & 0x7FFFFFFF) - img_start
     sections = []
     for o in range(objcnt):
@@ -183,6 +176,36 @@ def reconstruct_pe(name, raw, img_start, e32_off, o32_off, ft_low):
         data_off = (dataptr & 0x7FFFFFFF) - img_start
         sdata = raw[data_off : data_off + psz]
         sections.append((vsz, rva, psz, flags, sdata))
+
+    raw_dirs = []
+    for d in range(1, 9):
+        rva, sz = struct.unpack("<II", raw[e32_rva + 28 + d * 8 : e32_rva + 28 + (d + 1) * 8])
+        raw_dirs.append((rva, sz))
+
+    data_dirs = [
+        raw_dirs[0],  # 0: Export
+        raw_dirs[1],  # 1: Import
+        raw_dirs[2],  # 2: Resource
+        raw_dirs[3],  # 3: Exception
+        (0, 0),       # 4: Security (clear: PE expects file offset)
+        raw_dirs[5],  # 5: Base Relocation
+        raw_dirs[6],  # 6: Debug
+    ]
+    while len(data_dirs) < 16:
+        data_dirs.append((0, 0))
+
+    # Zero out data directory entries whose RVAs fall outside section bounds
+    valid_dirs = []
+    for rva, sz in data_dirs:
+        if rva == 0 or sz == 0:
+            valid_dirs.append((0, 0))
+            continue
+        in_section = any(s[1] <= rva < s[1] + s[0] for s in sections)
+        if in_section:
+            valid_dirs.append((rva, sz))
+        else:
+            valid_dirs.append((0, 0))
+    data_dirs = valid_dirs
 
     dos_hdr = bytearray(0x80)
     dos_hdr[0:2] = b"MZ"
