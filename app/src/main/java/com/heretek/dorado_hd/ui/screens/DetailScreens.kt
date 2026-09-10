@@ -1,6 +1,7 @@
 package com.heretek.dorado_hd.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
@@ -47,7 +48,9 @@ import com.heretek.dorado_hd.ui.components.DetailScaffold
 import com.heretek.dorado_hd.ui.components.LocalContextMenu
 import com.heretek.dorado_hd.ui.components.MenuAction
 import com.heretek.dorado_hd.ui.components.TrackRow
+import com.heretek.dorado_hd.ui.components.trackMenuActions
 import com.heretek.dorado_hd.ui.nav.DoradoDestination
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -109,24 +112,21 @@ fun AlbumDetailScreen(albumId: Long, canvasWidth: androidx.compose.ui.unit.Dp) {
                             fontSize = DoradoTokens.TYPE_LIST.dp,
                             color = LocalDoradoColors.current.accent,
                             modifier = Modifier
-                                .combinedClickable(onClick = {
+                                .clickable {
                                     tracks.firstOrNull()?.let { graph.controller.play(tracks, 0) }
-                                }, onLongClick = {})
+                                }
                                 .padding(end = 16.dp),
                         )
                         EdgeCropText(
                             text = "shuffle",
                             fontSize = DoradoTokens.TYPE_LIST.dp,
                             color = LocalDoradoColors.current.accent,
-                            modifier = Modifier.combinedClickable(
-                                onClick = {
-                                    tracks.firstOrNull()?.let {
-                                        graph.controller.play(tracks, 0)
-                                        graph.controller.setShuffle(true)
-                                    }
-                                },
-                                onLongClick = {},
-                            ),
+                            modifier = Modifier.clickable {
+                                tracks.firstOrNull()?.let {
+                                    graph.controller.play(tracks, 0)
+                                    graph.controller.setShuffle(true)
+                                }
+                            },
                         )
                     }
                 }
@@ -146,12 +146,7 @@ fun AlbumDetailScreen(albumId: Long, canvasWidth: androidx.compose.ui.unit.Dp) {
                         onLongClick = {
                             menus.show(
                                 title = track.title,
-                                actions = listOf(
-                                    MenuAction("pin to quickplay") {
-                                        scope.launch {
-                                            graph.quickplay.pin(PinKind.TRACK, track.mediaId, track.title, track.artist, track.albumId)
-                                        }
-                                    },
+                                actions = trackMenuActions(graph, scope, track) + listOf(
                                     MenuAction("view artist") { graph.nav.push(DoradoDestination.Artist(track.artistId)) },
                                 ),
                             )
@@ -184,7 +179,14 @@ fun ArtistDetailScreen(artistId: Long, canvasWidth: androidx.compose.ui.unit.Dp)
         tracks = graph.library.tracksByArtist(artistId)
         albums = graph.library.albumsByArtist(artistId)
         artistName = tracks.firstOrNull()?.artist
-        related = graph.library.relatedArtists(artistId)
+        // On-device audio similarity first (M9), genre overlap as fallback.
+        related = graph.analysis.relatedArtists(
+            seedArtistId = artistId,
+            artists = graph.library.artists().first(),
+            library = graph.library.tracks().first(),
+            count = 12,
+        )
+        if (related.isEmpty()) related = graph.library.relatedArtists(artistId)
         loaded = true
     }
 
@@ -317,6 +319,8 @@ private fun ArtistPhotos(artistName: String?) {
 private fun ArtistRelated(related: List<com.heretek.dorado_hd.data.model.Artist>, artistName: String? = null) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val graph = LocalDoradoGraph.current
+    val menus = LocalContextMenu.current
+    val scope = rememberCoroutineScope()
     if (related.isEmpty()) {
         // The Zune HD surfaced 'similar artists' from Last.fm + your friends'
         // listening history. We have neither offline, so the empty state
@@ -332,7 +336,7 @@ private fun ArtistRelated(related: List<com.heretek.dorado_hd.data.model.Artist>
                 color = LocalDoradoColors.current.textSecondary,
             )
             EdgeCropText(
-                text = "your zune would have drawn these from the social feed and last.fm similarity. without those signals, the only related artists we can show are the ones who share genres with this one in your library — a thin slice.",
+                text = "related artists are ranked by on-device audio similarity. this artist has no comparable tracks in your library yet.",
                 fontSize = DoradoTokens.TYPE_CAPTION.dp,
                 color = LocalDoradoColors.current.textSecondary,
                 alpha = 0.6f,
@@ -368,7 +372,18 @@ private fun ArtistRelated(related: List<com.heretek.dorado_hd.data.model.Artist>
                     .height(DoradoTokens.ROW_HEIGHT.dp)
                     .combinedClickable(
                         onClick = { graph.nav.push(DoradoDestination.Artist(artist.artistId)) },
-                        onLongClick = {},
+                        onLongClick = {
+                            menus.show(
+                                title = artist.name,
+                                actions = listOf(
+                                    MenuAction("pin to quickplay") {
+                                        scope.launch {
+                                            graph.quickplay.pin(PinKind.ARTIST, artist.artistId, artist.name, "${artist.albumCount} albums", 0)
+                                        }
+                                    },
+                                ),
+                            )
+                        },
                     )
                     .padding(horizontal = DoradoTokens.EDGE.dp),
                 contentAlignment = Alignment.CenterStart,
@@ -387,6 +402,8 @@ private fun ArtistRelated(related: List<com.heretek.dorado_hd.data.model.Artist>
 @Composable
 private fun ArtistAlbums(albums: List<Album>) {
     val graph = LocalDoradoGraph.current
+    val menus = LocalContextMenu.current
+    val scope = rememberCoroutineScope()
     LazyRow(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(DoradoTokens.EDGE.dp),
         horizontalArrangement = Arrangement.spacedBy(DoradoTokens.GRID_GUTTER.dp),
@@ -397,7 +414,18 @@ private fun ArtistAlbums(albums: List<Album>) {
                 Modifier
                     .combinedClickable(
                         onClick = { graph.nav.push(DoradoDestination.Album(album.albumId)) },
-                        onLongClick = {},
+                        onLongClick = {
+                            menus.show(
+                                title = album.title,
+                                actions = listOf(
+                                    MenuAction("pin to quickplay") {
+                                        scope.launch {
+                                            graph.quickplay.pin(PinKind.ALBUM, album.albumId, album.title, album.artist, album.albumId)
+                                        }
+                                    },
+                                ),
+                            )
+                        },
                     )
                     .width(92.dp),
             ) {
@@ -426,6 +454,7 @@ private fun ArtistSongs(
     graph: com.heretek.dorado_hd.DoradoGraph,
 ) {
     val nowPlayingId by graph.controller.nowPlaying.collectAsState()
+    val scope = rememberCoroutineScope()
     KineticList(
         items = tracks,
         key = { it.mediaId },
@@ -438,7 +467,7 @@ private fun ArtistSongs(
                 onLongClick = {
                     menus.show(
                         title = track.title,
-                        actions = listOf(
+                        actions = trackMenuActions(graph, scope, track) + listOf(
                             MenuAction("view album") { graph.nav.push(DoradoDestination.Album(track.albumId)) },
                         ),
                     )
@@ -452,6 +481,8 @@ private fun ArtistSongs(
 @Composable
 fun GenreScreen(genre: String, canvasWidth: androidx.compose.ui.unit.Dp) {
     val graph = LocalDoradoGraph.current
+    val menus = LocalContextMenu.current
+    val scope = rememberCoroutineScope()
     var tracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     val nowPlayingId by graph.controller.nowPlaying.collectAsState()
 
@@ -469,7 +500,15 @@ fun GenreScreen(genre: String, canvasWidth: androidx.compose.ui.unit.Dp) {
                     track = track,
                     playing = nowPlayingId?.mediaId == track.mediaId,
                     onClick = { graph.controller.play(tracks, index) },
-                    onLongClick = {},
+                    onLongClick = {
+                        menus.show(
+                            title = track.title,
+                            actions = trackMenuActions(graph, scope, track) + listOf(
+                                MenuAction("view album") { graph.nav.push(DoradoDestination.Album(track.albumId)) },
+                                MenuAction("view artist") { graph.nav.push(DoradoDestination.Artist(track.artistId)) },
+                            ),
+                        )
+                    },
                 )
             },
         )
@@ -481,6 +520,7 @@ fun GenreScreen(genre: String, canvasWidth: androidx.compose.ui.unit.Dp) {
 fun PlaylistDetailScreen(playlistId: Long, canvasWidth: androidx.compose.ui.unit.Dp) {
     val graph = LocalDoradoGraph.current
     val scope = rememberCoroutineScope()
+    val menus = LocalContextMenu.current
     var tracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     val nowPlayingId by graph.controller.nowPlaying.collectAsState()
 
@@ -508,10 +548,17 @@ fun PlaylistDetailScreen(playlistId: Long, canvasWidth: androidx.compose.ui.unit
                         playing = nowPlayingId?.mediaId == track.mediaId,
                         onClick = { graph.controller.play(tracks, index) },
                         onLongClick = {
-                            scope.launch {
-                                graph.library.removeFromPlaylist(playlistId, track.mediaId)
-                                tracks = graph.library.tracksInPlaylist(playlistId)
-                            }
+                            menus.show(
+                                title = track.title,
+                                actions = trackMenuActions(graph, scope, track) + listOf(
+                                    MenuAction("remove from playlist") {
+                                        scope.launch {
+                                            graph.library.removeFromPlaylist(playlistId, track.mediaId)
+                                            tracks = graph.library.tracksInPlaylist(playlistId)
+                                        }
+                                    },
+                                ),
+                            )
                         },
                     )
                 },

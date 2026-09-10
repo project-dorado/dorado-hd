@@ -8,6 +8,7 @@ import android.provider.MediaStore
 import android.webkit.WebView
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -149,6 +150,9 @@ fun VideosScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
 
 @Composable
 private fun VideoListContent(videos: List<VideoItem>, onPlay: (VideoItem) -> Unit) {
+    val graph = LocalDoradoGraph.current
+    val menus = com.heretek.dorado_hd.ui.components.LocalContextMenu.current
+    val scope = rememberCoroutineScope()
     if (videos.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             EdgeCropText(
@@ -168,7 +172,28 @@ private fun VideoListContent(videos: List<VideoItem>, onPlay: (VideoItem) -> Uni
                 Modifier
                     .fillMaxWidth()
                     .height(DoradoTokens.ROW_HEIGHT.dp)
-                    .combinedClickable(onClick = { onPlay(v) }, onLongClick = {})
+                    .combinedClickable(
+                        onClick = { onPlay(v) },
+                        onLongClick = {
+                            menus.show(
+                                title = v.title,
+                                actions = listOf(
+                                    com.heretek.dorado_hd.ui.components.MenuAction("play") { onPlay(v) },
+                                    com.heretek.dorado_hd.ui.components.MenuAction("pin to quickplay") {
+                                        scope.launch {
+                                            graph.quickplay.pin(
+                                                com.heretek.dorado_hd.data.model.PinKind.VIDEO,
+                                                v.id,
+                                                v.title,
+                                                v.uri.toString(),
+                                                0,
+                                            )
+                                        }
+                                    },
+                                ),
+                            )
+                        },
+                    )
                     .padding(horizontal = DoradoTokens.EDGE.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -183,7 +208,7 @@ private fun VideoListContent(videos: List<VideoItem>, onPlay: (VideoItem) -> Uni
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun VideoPlayerScreen(item: VideoItem, onExit: () -> Unit) {
+fun VideoPlayerScreen(item: VideoItem, onExit: () -> Unit) {
     val context = LocalContext.current
     val player = remember { androidx.media3.exoplayer.ExoPlayer.Builder(context).build() }
     var positionMs by remember { mutableStateOf(0L) }
@@ -223,7 +248,7 @@ private fun VideoPlayerScreen(item: VideoItem, onExit: () -> Unit) {
                     Modifier
                         .align(Alignment.TopStart)
                         .padding(8.dp)
-                        .combinedClickable(onClick = onExit, onLongClick = {}),
+                        .clickable(onClick = onExit),
                 ) {
                     EdgeCropText(text = "<- back", fontSize = DoradoTokens.TYPE_LIST.dp, color = LocalDoradoColors.current.accent)
                 }
@@ -243,12 +268,9 @@ private fun VideoPlayerScreen(item: VideoItem, onExit: () -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Box(
                         Modifier
-                            .combinedClickable(
-                                onClick = {
-                                    if (player.isPlaying) player.pause() else player.play()
-                                },
-                                onLongClick = {},
-                            )
+                            .clickable {
+                                if (player.isPlaying) player.pause() else player.play()
+                            }
                             .padding(end = 12.dp),
                     ) {
                         EdgeCropText(
@@ -269,11 +291,7 @@ private fun VideoPlayerScreen(item: VideoItem, onExit: () -> Unit) {
                     Modifier
                         .fillMaxWidth()
                         .height(6.dp)
-                        .background(LocalDoradoColors.current.tile)
-                        .combinedClickable(
-                            onClick = {},
-                            onLongClick = {},
-                        ),
+                        .background(LocalDoradoColors.current.tile),
                 ) {
                     val frac = if (durationMs > 0) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
                     Box(
@@ -371,17 +389,14 @@ fun PicturesScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                 Modifier
                     .align(Alignment.BottomEnd)
                     .padding(8.dp)
-                    .combinedClickable(
-                        onClick = {
-                            val item = viewing.items[pagerStateBucket.currentPage]
-                            scope.launch { graph.quickplay.pin(com.heretek.dorado_hd.data.model.PinKind.PICTURE, item.id, item.displayName, item.uri.toString(), 0) }
-                        },
-                        onLongClick = {},
-                    ),
+                    .clickable {
+                        val item = viewing.items[pagerStateBucket.currentPage]
+                        scope.launch { graph.quickplay.pin(com.heretek.dorado_hd.data.model.PinKind.PICTURE, item.id, item.displayName, item.uri.toString(), 0) }
+                    },
             ) {
                 EdgeCropText(text = "pin", fontSize = DoradoTokens.TYPE_LIST.dp, color = LocalDoradoColors.current.accent)
             }
-            Box(Modifier.align(Alignment.TopStart).padding(8.dp).combinedClickable(onClick = { selectedBucket = null }, onLongClick = {})) {
+            Box(Modifier.align(Alignment.TopStart).padding(8.dp).clickable { selectedBucket = null }) {
                 EdgeCropText(text = "<- albums", fontSize = DoradoTokens.TYPE_LIST.dp, color = LocalDoradoColors.current.accent)
             }
         }
@@ -407,10 +422,7 @@ fun PicturesScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                                 Modifier
                                     .fillMaxWidth()
                                     .height(DoradoTokens.ROW_HEIGHT.dp)
-                                    .combinedClickable(
-                                        onClick = { selectedBucket = bucket; viewerIndex = 0 },
-                                        onLongClick = {},
-                                    )
+                                    .clickable { selectedBucket = bucket; viewerIndex = 0 }
                                     .padding(horizontal = DoradoTokens.EDGE.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
@@ -437,6 +449,9 @@ fun PicturesScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
 
 @Composable
 private fun PictureListContent(pictures: List<PictureItem>, onPicture: (PictureItem) -> Unit) {
+    val graph = LocalDoradoGraph.current
+    val menus = com.heretek.dorado_hd.ui.components.LocalContextMenu.current
+    val scope = rememberCoroutineScope()
     if (pictures.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             EdgeCropText(
@@ -456,7 +471,28 @@ private fun PictureListContent(pictures: List<PictureItem>, onPicture: (PictureI
                 Modifier
                     .fillMaxWidth()
                     .height(DoradoTokens.ROW_HEIGHT.dp)
-                    .combinedClickable(onClick = { onPicture(p) }, onLongClick = {})
+                    .combinedClickable(
+                        onClick = { onPicture(p) },
+                        onLongClick = {
+                            menus.show(
+                                title = p.displayName,
+                                actions = listOf(
+                                    com.heretek.dorado_hd.ui.components.MenuAction("view") { onPicture(p) },
+                                    com.heretek.dorado_hd.ui.components.MenuAction("pin to quickplay") {
+                                        scope.launch {
+                                            graph.quickplay.pin(
+                                                com.heretek.dorado_hd.data.model.PinKind.PICTURE,
+                                                p.id,
+                                                p.displayName,
+                                                p.uri.toString(),
+                                                0,
+                                            )
+                                        }
+                                    },
+                                ),
+                            )
+                        },
+                    )
                     .padding(horizontal = DoradoTokens.EDGE.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -499,11 +535,8 @@ fun InternetScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(DoradoTokens.EDGE.dp)) {
                 // Back / forward in-page navigation (canon §3.6).
                 Box(
-                    Modifier.combinedClickable(
-                        enabled = canBack,
-                        onClick = { webViewRef.value?.goBack() },
-                        onLongClick = {},
-                    ).padding(end = 6.dp),
+                    Modifier.clickable(enabled = canBack, onClick = { webViewRef.value?.goBack() })
+                        .padding(end = 6.dp),
                 ) {
                     EdgeCropText(
                         text = "<",
@@ -512,11 +545,8 @@ fun InternetScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                     )
                 }
                 Box(
-                    Modifier.combinedClickable(
-                        enabled = canForward,
-                        onClick = { webViewRef.value?.goForward() },
-                        onLongClick = {},
-                    ).padding(end = 6.dp),
+                    Modifier.clickable(enabled = canForward, onClick = { webViewRef.value?.goForward() })
+                        .padding(end = 6.dp),
                 ) {
                     EdgeCropText(
                         text = ">",
@@ -535,20 +565,17 @@ fun InternetScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                 Box(
                     Modifier
                         .padding(start = 6.dp)
-                        .combinedClickable(
-                            onClick = { navigate(input) },
-                            onLongClick = {},
-                        ),
+                        .clickable { navigate(input) },
                 ) {
                     EdgeCropText(text = "go", fontSize = DoradoTokens.TYPE_LIST.dp, color = LocalDoradoColors.current.accent)
                 }
                 Box(
                     Modifier
                         .padding(start = 6.dp)
-                        .combinedClickable(
-                            onClick = { navigate(currentUrl); if (bookmarks.lastOrNull() != currentUrl) bookmarks.add(currentUrl) },
-                            onLongClick = {},
-                        ),
+                        .clickable {
+                            navigate(currentUrl)
+                            if (bookmarks.lastOrNull() != currentUrl) bookmarks.add(currentUrl)
+                        },
                 ) {
                     EdgeCropText(text = "*", fontSize = DoradoTokens.TYPE_LIST.dp, color = LocalDoradoColors.current.accent)
                 }

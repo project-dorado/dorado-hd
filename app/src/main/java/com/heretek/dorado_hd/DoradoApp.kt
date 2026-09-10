@@ -41,6 +41,11 @@ class DoradoGraph(
     val radio: com.heretek.dorado_hd.data.repo.RadioRepository,
     val podcasts: com.heretek.dorado_hd.data.repo.PodcastRepository,
     val games: com.heretek.dorado_hd.data.repo.GameRepository,
+    val deviceLink: com.heretek.dorado_hd.data.repo.DeviceLinkRepository,
+    val analysis: com.heretek.dorado_hd.analysis.AudioAnalysisService,
+    val mixes: com.heretek.dorado_hd.analysis.DynamicMixService,
+    val scrobble: com.heretek.dorado_hd.scrobble.ScrobbleService,
+    val lyrics: com.heretek.dorado_hd.net.LrcLibService,
 )
 
 class DoradoApp : Application() {
@@ -56,7 +61,19 @@ class DoradoApp : Application() {
         val library = LibraryRepository(this, db)
         val quickplay = QuickplayRepository(db)
         val settings = SettingsRepository(this)
-        val controller = PlaybackController(this, library, quickplay)
+        val latestSettings = java.util.concurrent.atomic.AtomicReference(com.heretek.dorado_hd.data.repo.DoradoSettings())
+        val scrobbleStore = com.heretek.dorado_hd.data.repo.RoomScrobbleStore(db.scrobbleDao())
+        val scrobbleSink = com.heretek.dorado_hd.net.LastFmClient(
+            apiKey = { latestSettings.get().lastFmApiKey },
+            secret = { latestSettings.get().lastFmApiSecret },
+            sessionKey = { latestSettings.get().lastFmSessionKey },
+        )
+        val scrobble = com.heretek.dorado_hd.scrobble.ScrobbleService(
+            store = scrobbleStore,
+            sink = scrobbleSink,
+            enabled = { latestSettings.get().scrobbleEnabled },
+        )
+        val controller = PlaybackController(this, library, quickplay, scrobble)
         val nav = DoradoNav()
         val artistImages = ArtistImageService(this, db, settings)
         val artistBios = com.heretek.dorado_hd.net.ArtistBioService(this)
@@ -66,20 +83,40 @@ class DoradoApp : Application() {
         val radio = com.heretek.dorado_hd.data.repo.RadioRepository(db)
         val podcasts = com.heretek.dorado_hd.data.repo.PodcastRepository(db)
         val games = com.heretek.dorado_hd.data.repo.GameRepository(db)
+        val deviceLink = com.heretek.dorado_hd.data.repo.DeviceLinkRepository(this)
+        val featureStore = com.heretek.dorado_hd.data.repo.RoomFeatureStore(db.trackFeatureDao())
+        val analyzer = com.heretek.dorado_hd.analysis.PcmFeatureAnalyzer(this)
+        val analysis = com.heretek.dorado_hd.analysis.AudioAnalysisService(featureStore, analyzer)
+        val mixes = com.heretek.dorado_hd.analysis.DynamicMixService(analysis)
+        val lyrics = com.heretek.dorado_hd.net.LrcLibService()
 
         graph = DoradoGraph(
             library, quickplay, settings, settings.settings, controller, nav,
-            artistImages, artistBios, notes, calendar, alarms, radio, podcasts, games,
+            artistImages, artistBios, notes, calendar, alarms, radio, podcasts, games, deviceLink, analysis, mixes, scrobble, lyrics,
         )
 
         appScope.launch {
             controller.connect()
         }
 
+        // Hydrate the M9.3 audio-feature cache from Room so similarity queries
+        // immediately use previously analyzed tracks.
+        appScope.launch {
+            runCatching { analysis.preload() }
+        }
+
         // Keep the artist-image service aware of the user's settings.
         settings.settings
-            .onEach { artistImages.settingsSnapshot = it }
+            .onEach {
+                artistImages.settingsSnapshot = it
+                latestSettings.set(it)
+            }
             .launchIn(appScope)
+
+        // Flush any scrobbles queued while offline (no-op until enabled + configured).
+        appScope.launch {
+            runCatching { scrobble.flush() }
+        }
 
         // Opt-in MediaStore watcher (Settings > collection > watch media store).
         // Debounced 2 s to coalesce bursts (e.g. mass-transfer).

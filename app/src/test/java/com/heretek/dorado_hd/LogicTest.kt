@@ -85,8 +85,21 @@ class LogicTest {
     @Test
     fun `pin kinds cover quickplay surfaces`() {
         assertTrue(PinKind.TRACK.name == "TRACK")
-        // TRACK / ALBUM / ARTIST / PLAYLIST (canonical 4) + PICTURE / RADIO (Phase 5).
-        assertEquals(6, PinKind.entries.size)
+        // TRACK / ALBUM / ARTIST / PLAYLIST (canonical 4) + PICTURE / RADIO (Phase 5)
+        // + GENRE / VIDEO / APP / PODCAST / EPISODE (M4 pin-completeness pass).
+        assertEquals(11, PinKind.entries.size)
+        assertTrue(
+            "M4 pin-completeness must cover every Quickplay surface",
+            PinKind.entries.map { it.name }.containsAll(
+                listOf(
+                    "TRACK", "ALBUM", "ARTIST", "PLAYLIST", "PICTURE", "RADIO",
+                    "GENRE", "VIDEO", "APP", "PODCAST", "EPISODE",
+                ),
+            ),
+        )
+        // String-keyed surfaces get a deterministic refId so pin/unpin round-trips.
+        assertEquals(PinKind.stableId("Rock"), PinKind.stableId("rock"))
+        assertTrue(PinKind.stableId("Rock") != PinKind.stableId("Jazz"))
     }
 
     /* ============ Phase 1 / Smart DJ ============ */

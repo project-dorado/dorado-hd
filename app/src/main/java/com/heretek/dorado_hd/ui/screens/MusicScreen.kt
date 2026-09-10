@@ -1,6 +1,7 @@
 package com.heretek.dorado_hd.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,6 +36,7 @@ import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.components.LocalContextMenu
 import com.heretek.dorado_hd.ui.components.MenuAction
 import com.heretek.dorado_hd.ui.components.TrackRow
+import com.heretek.dorado_hd.ui.components.trackMenuActions
 import com.heretek.dorado_hd.ui.nav.DoradoDestination
 import kotlinx.coroutines.launch
 
@@ -199,11 +201,16 @@ private fun PlaylistsTab() {
                             onLongClick = {
                                 menus.show(
                                     title = playlist.name,
-                                    actions = listOf(
-                                        MenuAction("delete playlist") {
-                                            scope.launch { graph.library.deletePlaylist(playlist.id) }
-                                        },
-                                    ),
+                                actions = listOf(
+                                    MenuAction("pin to quickplay") {
+                                        scope.launch {
+                                            graph.quickplay.pin(PinKind.PLAYLIST, playlist.id, playlist.name, "${playlist.trackCount} songs", 0)
+                                        }
+                                    },
+                                    MenuAction("delete playlist") {
+                                        scope.launch { graph.library.deletePlaylist(playlist.id) }
+                                    },
+                                ),
                                 )
                             },
                         )
@@ -230,14 +237,11 @@ private fun PlaylistsTab() {
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
-                .combinedClickable(
-                    onClick = {
-                        menus.showPrompt("new playlist", "name") { name ->
-                            scope.launch { graph.library.createPlaylist(name) }
-                        }
-                    },
-                    onLongClick = {},
-                )
+                .clickable {
+                    menus.showPrompt("new playlist", "name") { name ->
+                        scope.launch { graph.library.createPlaylist(name) }
+                    }
+                }
                 .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 12.dp),
         )
     }
@@ -266,12 +270,7 @@ private fun SongsTab() {
                 onLongClick = {
                     menus.show(
                         title = track.title,
-                        actions = listOf(
-                            MenuAction("pin to quickplay") {
-                                scope.launch {
-                                    graph.quickplay.pin(PinKind.TRACK, track.mediaId, track.title, track.artist, track.albumId)
-                                }
-                            },
+                        actions = trackMenuActions(graph, scope, track) + listOf(
                             MenuAction("add to playlist") {
                                 menus.show(
                                     title = "add to playlist",
@@ -303,6 +302,8 @@ private fun SongsTab() {
 @Composable
 private fun GenresTab() {
     val graph = LocalDoradoGraph.current
+    val menus = LocalContextMenu.current
+    val scope = rememberCoroutineScope()
     val genres by graph.library.genres().collectAsState(initial = emptyList())
 
     KineticList(
@@ -316,7 +317,24 @@ private fun GenresTab() {
                     .height(DoradoTokens.ROW_HEIGHT.dp)
                     .combinedClickable(
                         onClick = { graph.nav.push(DoradoDestination.Genre(genre.name)) },
-                        onLongClick = {},
+                        onLongClick = {
+                            menus.show(
+                                title = genre.name,
+                                actions = listOf(
+                                    MenuAction("pin to quickplay") {
+                                        scope.launch {
+                                            graph.quickplay.pin(
+                                                PinKind.GENRE,
+                                                PinKind.stableId(genre.name),
+                                                genre.name,
+                                                "${genre.trackCount} songs",
+                                                0,
+                                            )
+                                        }
+                                    },
+                                ),
+                            )
+                        },
                     )
                     .padding(horizontal = DoradoTokens.EDGE.dp),
                 verticalAlignment = Alignment.CenterVertically,

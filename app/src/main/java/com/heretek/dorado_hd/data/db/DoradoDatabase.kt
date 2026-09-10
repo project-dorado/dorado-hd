@@ -21,8 +21,10 @@ import androidx.room.RoomDatabase
         PodcastFeedEntity::class,
         PodcastEpisodeEntity::class,
         GameScoreEntity::class,
+        TrackFeatureEntity::class,
+        ScrobbleEntity::class,
     ],
-    version = 2,
+    version = 4,
     exportSchema = false,
 )
 abstract class DoradoDatabase : RoomDatabase() {
@@ -38,6 +40,8 @@ abstract class DoradoDatabase : RoomDatabase() {
     abstract fun radioDao(): RadioDao
     abstract fun podcastDao(): PodcastDao
     abstract fun gameScoreDao(): GameScoreDao
+    abstract fun trackFeatureDao(): TrackFeatureDao
+    abstract fun scrobbleDao(): ScrobbleDao
 
     companion object {
         @Volatile
@@ -46,7 +50,7 @@ abstract class DoradoDatabase : RoomDatabase() {
         fun get(context: Context): DoradoDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(context, DoradoDatabase::class.java, "dorado_hd.db")
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                     .also { instance = it }
             }

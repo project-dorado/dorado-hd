@@ -13,6 +13,7 @@ import com.heretek.dorado_hd.data.model.Rating
 import com.heretek.dorado_hd.data.model.Track
 import com.heretek.dorado_hd.data.repo.QuickplayRepository
 import com.heretek.dorado_hd.data.repo.LibraryRepository
+import com.heretek.dorado_hd.scrobble.ScrobbleService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -33,9 +34,11 @@ class PlaybackController(
     private val context: Context,
     private val library: LibraryRepository,
     private val quickplay: QuickplayRepository,
+    private val scrobble: ScrobbleService? = null,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var controller: MediaController? = null
+    private var candidateReachedThreshold = false
 
     private val _nowPlaying = MutableStateFlow<Track?>(null)
     val nowPlaying: StateFlow<Track?> = _nowPlaying.asStateFlow()
@@ -86,11 +89,20 @@ class PlaybackController(
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            val previous = _nowPlaying.value
+            val previousReached = candidateReachedThreshold
             val index = controller?.currentMediaItemIndex ?: return
             _currentIndex.value = index
             val track = _queue.value.getOrNull(index)
             _nowPlaying.value = track
             _durationMs.value = controller?.duration ?: 0L
+            candidateReachedThreshold = false
+            if (scrobble != null && previous != null && previousReached && previous.mediaId != track?.mediaId) {
+                val finished = previous
+                scope.launch {
+                    scrobble.record(finished.artist, finished.title, finished.album, (finished.durationMs / 1000).toInt())
+                }
+            }
             if (track != null) {
                 scope.launch {
                     _currentRating.value = quickplay.ratingOf(track.mediaId).first()
@@ -111,7 +123,11 @@ class PlaybackController(
             while (true) {
                 val player = controller
                 if (player != null && _isPlaying.value) {
-                    _positionMs.value = player.currentPosition.coerceAtLeast(0)
+                    val position = player.currentPosition.coerceAtLeast(0)
+                    _positionMs.value = position
+                    if (reachedScrobbleThreshold(position, _durationMs.value)) {
+                        candidateReachedThreshold = true
+                    }
                 }
                 delay(500)
             }
@@ -238,5 +254,12 @@ class PlaybackController(
 
         fun audioManager(context: Context): AudioManager =
             context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+        /**
+         * Last.fm scrobble rule: at least half the track, or 4 minutes —
+         * whichever comes first.
+         */
+        fun reachedScrobbleThreshold(positionMs: Long, durationMs: Long): Boolean =
+            positionMs >= 240_000L || (durationMs > 0 && positionMs >= durationMs / 2)
     }
 }

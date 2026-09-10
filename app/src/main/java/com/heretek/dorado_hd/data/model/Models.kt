@@ -12,7 +12,14 @@ enum class Rating(val value: Int) {
 
 enum class RepeatMode { OFF, ALL, ONE }
 
-enum class PinKind { TRACK, ALBUM, ARTIST, PLAYLIST, PICTURE, RADIO }
+enum class PinKind {
+    TRACK, ALBUM, ARTIST, PLAYLIST, PICTURE, RADIO, GENRE, VIDEO, APP, PODCAST, EPISODE;
+
+    companion object {
+        /** Deterministic pin refId for surfaces keyed by a string (genre, app). */
+        fun stableId(key: String): Long = key.lowercase().hashCode().toLong()
+    }
+}
 
 data class Track(
     val mediaId: Long,

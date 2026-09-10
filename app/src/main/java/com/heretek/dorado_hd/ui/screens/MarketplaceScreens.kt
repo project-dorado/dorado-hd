@@ -2,6 +2,7 @@ package com.heretek.dorado_hd.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,11 +57,11 @@ fun MarketplaceScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
     val scope = rememberCoroutineScope()
     val pagerState = androidx.compose.foundation.pager.rememberPagerState(
         initialPage = 0,
-        pageCount = { 4 },
+        pageCount = { 5 },
     )
     Column(Modifier.fillMaxSize()) {
         CrossbarBar(
-            labels = listOf("music", "videos", "podcasts", "apps"),
+            labels = listOf("music", "videos", "podcasts", "apps", "games"),
             selected = pagerState.currentPage,
             onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index) } },
         )
@@ -69,17 +71,187 @@ fun MarketplaceScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
         ) { page ->
             when (page) {
                 0 -> MarketplaceMusic()
-                1 -> EmptyPivot("videos", "coming soon")
-                2 -> EmptyPivot("podcasts", "add feeds in podcasts")
-                else -> AppsPivot()
+                1 -> MarketplaceVideos()
+                2 -> MarketplacePodcasts()
+                3 -> AppsPivot()
+                else -> GamesPivot()
             }
         }
     }
 }
 
 @Composable
+private fun MarketplaceVideos() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val graph = LocalDoradoGraph.current
+    val menus = com.heretek.dorado_hd.ui.components.LocalContextMenu.current
+    val scope = rememberCoroutineScope()
+    var videos by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val list = mutableListOf<VideoItem>()
+            val cursor = context.contentResolver.query(
+                android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                arrayOf(
+                    android.provider.MediaStore.Video.Media._ID,
+                    android.provider.MediaStore.Video.Media.TITLE,
+                    android.provider.MediaStore.Video.Media.BUCKET_DISPLAY_NAME,
+                ),
+                null, null,
+                "${android.provider.MediaStore.Video.Media.DATE_ADDED} DESC LIMIT 50",
+            )
+            cursor?.use { c ->
+                val idCol = c.getColumnIndexOrThrow(android.provider.MediaStore.Video.Media._ID)
+                val titleCol = c.getColumnIndexOrThrow(android.provider.MediaStore.Video.Media.TITLE)
+                val bucketCol = c.getColumnIndexOrThrow(android.provider.MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
+                while (c.moveToNext()) {
+                    val id = c.getLong(idCol)
+                    list += VideoItem(
+                        id = id,
+                        title = c.getString(titleCol) ?: "untitled",
+                        artist = "",
+                        uri = android.content.ContentUris.withAppendedId(
+                            android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id,
+                        ),
+                        bucket = c.getString(bucketCol) ?: "",
+                    )
+                }
+            }
+            videos = list
+        }
+    }
+    if (videos.isEmpty()) {
+        EmptyPivot("videos", "no videos on device")
+        return
+    }
+    KineticList(
+        items = videos,
+        key = { it.id },
+        letter = { firstLetterOf(it.title) },
+        rowContent = { v, _ ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .height(DoradoTokens.ROW_HEIGHT.dp)
+                    .combinedClickable(
+                        onClick = { graph.nav.push(DoradoDestination.Video(v.title, v.uri.toString())) },
+                        onLongClick = {
+                            menus.show(
+                                title = v.title,
+                                actions = listOf(
+                                    com.heretek.dorado_hd.ui.components.MenuAction("play") {
+                                        graph.nav.push(DoradoDestination.Video(v.title, v.uri.toString()))
+                                    },
+                                    com.heretek.dorado_hd.ui.components.MenuAction("pin to quickplay") {
+                                        scope.launch {
+                                            graph.quickplay.pin(
+                                                com.heretek.dorado_hd.data.model.PinKind.VIDEO,
+                                                v.id, v.title, v.uri.toString(), 0,
+                                            )
+                                        }
+                                    },
+                                ),
+                            )
+                        },
+                    )
+                    .padding(horizontal = DoradoTokens.EDGE.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                EdgeCropText(text = v.title, fontSize = DoradoTokens.TYPE_LIST.dp)
+            }
+        },
+    )
+}
+
+@Composable
+private fun MarketplacePodcasts() {
+    val graph = LocalDoradoGraph.current
+    val feeds by graph.podcasts.feeds().collectAsState(initial = emptyList())
+    if (feeds.isEmpty()) {
+        EmptyPivot("podcasts", "add feeds in podcasts")
+        return
+    }
+    KineticList(
+        items = feeds,
+        key = { it.id },
+        letter = { firstLetterOf(it.title) },
+        rowContent = { feed, _ ->
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .height(DoradoTokens.ROW_HEIGHT.dp)
+                    .clickable { graph.nav.push(DoradoDestination.PodcastFeed(feed.id)) }
+                    .padding(horizontal = DoradoTokens.EDGE.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    EdgeCropText(text = feed.title, fontSize = DoradoTokens.TYPE_LIST.dp)
+                    EdgeCropText(
+                        text = "${feed.description.take(48)}",
+                        fontSize = DoradoTokens.TYPE_CAPTION.dp,
+                        color = LocalDoradoColors.current.textSecondary,
+                    )
+                }
+            }
+        },
+    )
+}
+
+@Composable
+private fun GamesPivot() {
+    val graph = LocalDoradoGraph.current
+    val installed = DoradoApps.all.filter { it.category == "games" }
+    val catalogGames = OfficialCatalog.all.filter { it.category == OfficialCatalog.GAMES }
+    Column(Modifier.fillMaxSize()) {
+        if (installed.isNotEmpty()) {
+            EdgeCropText(
+                text = "installed",
+                fontSize = DoradoTokens.TYPE_CROSSBAR.dp,
+                alpha = 0.6f,
+                modifier = Modifier.padding(start = DoradoTokens.EDGE.dp, top = 8.dp),
+            )
+            Spacer(Modifier.height(8.dp))
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = DoradoTokens.EDGE.dp),
+                horizontalArrangement = Arrangement.spacedBy(DoradoTokens.GRID_GUTTER.dp),
+            ) {
+                items(installed, key = { it.id }) { app ->
+                    Column(
+                        Modifier.width(DoradoTokens.APP_TILE.dp).clickable {
+                            graph.nav.push(DoradoDestination.MiniApp(app.id))
+                        },
+                    ) {
+                        AlbumArt(
+                            model = null,
+                            contentDescription = app.title,
+                            modifier = Modifier.size(DoradoTokens.APP_TILE.dp),
+                        )
+                        EdgeCropText(text = app.title, fontSize = DoradoTokens.TYPE_CAPTION.dp, modifier = Modifier.fillMaxWidth())
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+        EdgeCropText(
+            text = "frozen catalog",
+            fontSize = DoradoTokens.TYPE_CROSSBAR.dp,
+            alpha = 0.6f,
+            modifier = Modifier.padding(start = DoradoTokens.EDGE.dp),
+        )
+        KineticList(
+            items = catalogGames,
+            key = { it.exe },
+            letter = { firstLetterOf(it.title) },
+            rowContent = { entry, _ -> AppsCatalogRow(entry) },
+        )
+    }
+}
+
+@Composable
 private fun MarketplaceMusic() {
     val graph = LocalDoradoGraph.current
+    val menus = com.heretek.dorado_hd.ui.components.LocalContextMenu.current
+    val scope = rememberCoroutineScope()
     val albums by graph.library.albums().collectAsState(initial = emptyList())
     val featured = remember(albums) { albums.take(12) }
     Column(Modifier.fillMaxSize().padding(horizontal = DoradoTokens.EDGE.dp, vertical = 8.dp)) {
@@ -97,7 +269,21 @@ private fun MarketplaceMusic() {
                 Column(
                     Modifier.width(DoradoTokens.APP_TILE.dp).combinedClickable(
                         onClick = { graph.nav.push(DoradoDestination.Album(album.albumId)) },
-                        onLongClick = {},
+                        onLongClick = {
+                            menus.show(
+                                title = album.title,
+                                actions = listOf(
+                                    com.heretek.dorado_hd.ui.components.MenuAction("pin to quickplay") {
+                                        scope.launch {
+                                            graph.quickplay.pin(
+                                                com.heretek.dorado_hd.data.model.PinKind.ALBUM,
+                                                album.albumId, album.title, album.artist, album.albumId,
+                                            )
+                                        }
+                                    },
+                                ),
+                            )
+                        },
                     ),
                 ) {
                     AlbumArt(
@@ -124,6 +310,8 @@ private fun EmptyPivot(label: String, note: String) {
 @Composable
 private fun AppsPivot() {
     val graph = LocalDoradoGraph.current
+    val menus = com.heretek.dorado_hd.ui.components.LocalContextMenu.current
+    val scope = rememberCoroutineScope()
     val installed = DoradoApps.all
     val catalog = OfficialCatalog.all
     Column(Modifier.fillMaxSize()) {
@@ -143,7 +331,22 @@ private fun AppsPivot() {
                     Column(
                         Modifier.width(DoradoTokens.APP_TILE.dp).combinedClickable(
                             onClick = { graph.nav.push(DoradoDestination.MiniApp(app.id)) },
-                            onLongClick = {},
+                            onLongClick = {
+                                menus.show(
+                                    title = app.title,
+                                    actions = listOf(
+                                        com.heretek.dorado_hd.ui.components.MenuAction("pin to quickplay") {
+                                            scope.launch {
+                                                graph.quickplay.pin(
+                                                    com.heretek.dorado_hd.data.model.PinKind.APP,
+                                                    com.heretek.dorado_hd.data.model.PinKind.stableId(app.id),
+                                                    app.title, app.id, 0,
+                                                )
+                                            }
+                                        },
+                                    ),
+                                )
+                            },
                         ),
                     ) {
                         AlbumArt(
@@ -178,6 +381,8 @@ private fun AppsPivot() {
 private fun AppsCatalogRow(entry: OfficialApp) {
     val graph = LocalDoradoGraph.current
     val colors = LocalDoradoColors.current
+    val menus = com.heretek.dorado_hd.ui.components.LocalContextMenu.current
+    val scope = rememberCoroutineScope()
     val isInstalled = entry.installedId != null
     Row(
         Modifier
@@ -186,7 +391,24 @@ private fun AppsCatalogRow(entry: OfficialApp) {
             .combinedClickable(
                 enabled = isInstalled,
                 onClick = { entry.installedId?.let { graph.nav.push(DoradoDestination.MiniApp(it)) } },
-                onLongClick = {},
+                onLongClick = {
+                    entry.installedId?.let { id ->
+                        menus.show(
+                            title = entry.title,
+                            actions = listOf(
+                                com.heretek.dorado_hd.ui.components.MenuAction("pin to quickplay") {
+                                    scope.launch {
+                                        graph.quickplay.pin(
+                                            com.heretek.dorado_hd.data.model.PinKind.APP,
+                                            com.heretek.dorado_hd.data.model.PinKind.stableId(id),
+                                            entry.title, id, 0,
+                                        )
+                                    }
+                                },
+                            ),
+                        )
+                    }
+                },
             )
             .padding(horizontal = DoradoTokens.EDGE.dp),
         verticalAlignment = Alignment.CenterVertically,

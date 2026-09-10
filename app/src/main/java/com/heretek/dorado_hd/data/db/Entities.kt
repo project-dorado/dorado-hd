@@ -164,3 +164,27 @@ data class GameScoreEntity(
     val meta: String?,
     val playedAt: Long,
 )
+
+/** Cached M9.3 audio-feature vector per track (metadata prior or DSP-refined). */
+@Entity(tableName = "track_features")
+data class TrackFeatureEntity(
+    @PrimaryKey val mediaId: Long,
+    val bpm: Double,
+    val energy: Double,
+    val valence: Double,
+    val acousticness: Double,
+    val danceability: Double,
+    val spectralCentroid: Double,
+    val analyzedAt: Long,
+)
+
+/** Queued Last.fm scrobble (M9.4), persisted until the sink accepts it. */
+@Entity(tableName = "scrobble_queue")
+data class ScrobbleEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val artist: String,
+    val title: String,
+    val album: String,
+    val durationSeconds: Int,
+    val timestampSec: Long,
+)

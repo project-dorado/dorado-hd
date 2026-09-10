@@ -135,7 +135,7 @@ archive. Binaries are encrypted (AES-ECB, marketplace DRM) and
 
 ### Tests
 
-36 Robolectric unit tests + a design-invariant source scanner that
+81 Robolectric unit tests + a design-invariant source scanner that
 forbids `RoundedCornerShape`, `spring(`, raw hex `Color(0x…)`, and
 named `Color.Black/White/Red/…` constants in `ui/` and `ui/apps/`.
 
@@ -180,7 +180,7 @@ mini-app platform.
 | Smart DJ (hearts/breaks) | ✅ | ✅ | Surfaced as a lane in Quickplay |
 | Lock shade (wallpaper behind) | ✅ | ✅ | Real `WallpaperManager.getDrawable()` |
 | Now Playing (scrub, transport, screensaver) | ✅ | ✅ | Scrubber + transport + screensaver; tap combines dismiss + overlay |
-| Artist bio / photos / related | ✅ | ✅ | Wikipedia REST + MusicBrainz; related pivot has honest empty-state |
+| Artist bio / photos / related | ✅ | ✅ | Wikipedia REST + MusicBrainz; related pivot ranks by on-device audio similarity (M9) |
 | Music crossbar (5 pivots) | ✅ | ✅ | 380 ms deceleration per `DoradoMotion.PIVOT_SLIDE_MS` |
 | Album art palette wash | ✅ | ✅ | |
 | Tri-state heart rating | ✅ | ✅ | Persisted in Room |
@@ -194,7 +194,7 @@ mini-app platform.
 | Crossbar pivot nav | ✅ | ✅ | All collection screens have horizontal pivot pivots |
 | Screensaver / now-playing art | ✅ | ✅ | |
 | Widget (home-screen) | ✅ | ❌ | Not yet — see roadmap |
-| Wi-Fi sync with Dorado (sibling project) | ✅ | ❌ | Not yet — see roadmap |
+| Wi-Fi sync with Dorado (sibling project) | ✅ | ◐ | M8.1–8.3: engine + transport core + Device view (simulated target); LAN pairing pending M8.2b |
 | USB MTPZ sync to physical Zune HD | ✅ | ❌ | Stretch goal — see roadmap |
 
 ### Design-invariant scanner (enforced by `DesignInvariantTest`)
@@ -239,17 +239,23 @@ The release build minifies with R8; keep rules in `app/proguard-rules.pro`.
 
 ## 🛣️ Roadmap
 
-### M4 — MiniApp + marketplace completeness *(next)*
+### M4 — MiniApp + marketplace completeness ✅ *complete*
 
-- Wire `onLongClick → pin to Quickplay` on every list that currently
-  leaves it empty (Genres, Videos list, Picture buckets, Podcast feeds +
-  episodes, Radio stations, Marketplace installed + frozen catalog, Artist
-  → Songs, Playlist detail).
-- Add `play-next` action in the long-press menu (the Quicklist
-  replacement the community asked for since firmware 3.x removed it).
-- Replace `EmptyPivot("coming soon")` in Marketplace with curated lists
-  drawn from the user's library.
-- Add a `games` pivot in Marketplace crossbar.
+- Every empty list long-press under `ui/screens/` now pins to Quickplay
+  (Genres, Videos, Pictures, Podcast feeds + episodes, Marketplace albums
+  + installed apps). Non-actionable affordances (buttons, picture buckets)
+  no longer carry a dead `onLongClick`.
+- The shared `trackMenuActions` helper adds **play-next** to every track
+  row (the Quicklist replacement the community asked for since firmware
+  3.x removed it).
+- Marketplace `videos` and `podcasts` pivots draw from the library; the
+  `EmptyPivot("coming soon")` is gone, and a `games` pivot joins the
+  crossbar.
+
+Next up: **M10 Always-on surfaces** — M9 Modern Listening is complete (audio
+similarity, Dynamic Mix, DSP features, Last.fm scrobbling, LRCLIB lyrics).
+Outstanding elsewhere: M8 Device Link 8.2b (live LAN pairing) and M9.2b
+(persisted play counts) — see [`docs/parity-roadmap.md`](docs/parity-roadmap.md).
 
 ### M5 — Social + discovery
 

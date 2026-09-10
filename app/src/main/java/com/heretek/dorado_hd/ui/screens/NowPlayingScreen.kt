@@ -233,6 +233,17 @@ fun NowPlayingScreen(canvasWidth: Dp) {
                             alpha = 0.6f,
                             modifier = Modifier.padding(top = 6.dp),
                         )
+                        EdgeCropText(
+                            text = "lyrics",
+                            fontSize = DoradoTokens.TYPE_LIST.dp,
+                            color = colors.accent,
+                            modifier = Modifier
+                                .clickable {
+                                    poke()
+                                    graph.nav.push(DoradoDestination.Lyrics)
+                                }
+                                .padding(top = 8.dp),
+                        )
                     }
                 }
 

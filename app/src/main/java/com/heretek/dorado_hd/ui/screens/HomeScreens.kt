@@ -1,6 +1,7 @@
 package com.heretek.dorado_hd.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -155,10 +156,7 @@ fun QuickplayScreen(canvasWidth: Dp) {
             Modifier
                 .fillMaxWidth()
                 .height(72.dp)
-                .combinedClickable(
-                    onClick = { if (track != null) graph.nav.push(DoradoDestination.NowPlaying) },
-                    onLongClick = {},
-                ),
+                .clickable { if (track != null) graph.nav.push(DoradoDestination.NowPlaying) },
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (track != null) {
@@ -195,6 +193,10 @@ fun QuickplayScreen(canvasWidth: Dp) {
         SmartDjRow(graph, scope)
 
         Spacer(Modifier.height(8.dp))
+        SectionLabel("mixes")
+        FavoritesMixRow(graph, scope)
+
+        Spacer(Modifier.height(8.dp))
         SectionLabel("pins")
         QuickplayRow(graph, scope, cards = pins)
 
@@ -219,31 +221,71 @@ private fun SmartDjRow(graph: DoradoGraph, scope: CoroutineScope) {
         Modifier
             .fillMaxWidth()
             .height(DoradoTokens.ROW_HEIGHT.dp)
-            .combinedClickable(
-                enabled = !building,
-                onClick = {
-                    building = true
-                    scope.launch {
-                        try {
-                            val tracks = graph.library.tracks().first()
-                            val ratings = graph.quickplay.ratings()
-                            val trackList = tracks.take(60)
-                            val current = graph.controller.nowPlaying.value
-                            val ordered = PlaybackController.smartShuffleOrder(trackList, ratings, current)
-                            val mix = ordered.take(25)
-                            if (mix.isNotEmpty()) graph.controller.play(mix, 0)
-                        } finally {
-                            building = false
-                        }
+            .clickable(enabled = !building) {
+                building = true
+                scope.launch {
+                    try {
+                        val tracks = graph.library.tracks().first()
+                        val ratings = graph.quickplay.ratings()
+                        val trackList = tracks.take(60)
+                        val current = graph.controller.nowPlaying.value
+                        val ordered = PlaybackController.smartShuffleOrder(trackList, ratings, current)
+                        val mix = ordered.take(25)
+                        if (mix.isNotEmpty()) graph.controller.play(mix, 0)
+                    } finally {
+                        building = false
                     }
-                },
-                onLongClick = {},
-            )
+                }
+            }
             .padding(horizontal = DoradoTokens.EDGE.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         EdgeCropText(
             text = if (building) "building mix…" else "play smart dj mix",
+            fontSize = DoradoTokens.TYPE_NOW_META.dp,
+            color = colors.accent,
+        )
+    }
+}
+
+/** Materialize and play the rune-style Favorites Mix (M9.2). */
+@Composable
+private fun FavoritesMixRow(graph: DoradoGraph, scope: CoroutineScope) {
+    val colors = LocalDoradoColors.current
+    var building by remember { mutableStateOf(false) }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(DoradoTokens.ROW_HEIGHT.dp)
+            .clickable(enabled = !building) {
+                building = true
+                scope.launch {
+                    try {
+                        val library = graph.library.tracks().first()
+                        val ratings = graph.quickplay.ratings()
+                        val favorites = library.filter {
+                            ratings[it.mediaId] == com.heretek.dorado_hd.data.model.Rating.HEART.value
+                        }
+                        val mix = graph.mixes.materialize(
+                            com.heretek.dorado_hd.analysis.DynamicMix(
+                                name = "favorites mix",
+                                kind = com.heretek.dorado_hd.analysis.DynamicMixKind.SIMILAR_TO_FAVORITES,
+                                trackLimit = 50,
+                            ),
+                            library = library,
+                            favorites = favorites,
+                        )
+                        if (mix.isNotEmpty()) graph.controller.play(mix, 0)
+                    } finally {
+                        building = false
+                    }
+                }
+            }
+            .padding(horizontal = DoradoTokens.EDGE.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        EdgeCropText(
+            text = if (building) "building mix…" else "play favorites mix",
             fontSize = DoradoTokens.TYPE_NOW_META.dp,
             color = colors.accent,
         )
@@ -306,6 +348,7 @@ private fun QuickplayRow(graph: DoradoGraph, scope: CoroutineScope, cards: List<
 private fun NewRow() {
     val graph = LocalDoradoGraph.current
     val scope = rememberCoroutineScope()
+    val menus = LocalContextMenu.current
     val albums by graph.library.albums().collectAsState(initial = emptyList())
     val recent = albums.sortedByDescending { it.dateAdded }.take(12)
     LazyRow(
@@ -318,7 +361,18 @@ private fun NewRow() {
                     .width(72.dp)
                     .combinedClickable(
                         onClick = { graph.nav.push(DoradoDestination.Album(album.albumId)) },
-                        onLongClick = {},
+                        onLongClick = {
+                            menus.show(
+                                title = album.title,
+                                actions = listOf(
+                                    com.heretek.dorado_hd.ui.components.MenuAction("pin to quickplay") {
+                                        scope.launch {
+                                            graph.quickplay.pin(PinKind.ALBUM, album.albumId, album.title, album.artist, album.albumId)
+                                        }
+                                    },
+                                ),
+                            )
+                        },
                     ),
             ) {
                 AlbumArt(
@@ -349,5 +403,26 @@ private fun openCard(graph: DoradoGraph, scope: CoroutineScope, card: QuickplayC
             if (uri != null) graph.nav.push(DoradoDestination.PictureDetail(uri))
         }
         PinKind.RADIO -> graph.nav.push(DoradoDestination.Radio)
+        PinKind.GENRE -> graph.nav.push(DoradoDestination.Genre(card.label))
+        PinKind.VIDEO -> graph.nav.push(DoradoDestination.Video(card.label, card.subLabel))
+        PinKind.APP -> graph.nav.push(DoradoDestination.MiniApp(card.subLabel))
+        PinKind.PODCAST -> graph.nav.push(DoradoDestination.PodcastFeed(card.refId))
+        PinKind.EPISODE -> scope.launch {
+            val track = com.heretek.dorado_hd.data.model.Track(
+                mediaId = card.refId,
+                title = card.label,
+                artist = "",
+                artistId = 0,
+                album = "",
+                albumId = 0,
+                genre = "podcast",
+                durationMs = 0,
+                dateAdded = 0,
+                trackNumber = 0,
+                year = "",
+                uri = android.net.Uri.parse(card.subLabel),
+            )
+            graph.controller.play(listOf(track))
+        }
     }
 }

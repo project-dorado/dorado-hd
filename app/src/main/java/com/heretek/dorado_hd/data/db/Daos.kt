@@ -324,3 +324,30 @@ interface GameScoreDao {
     @Insert
     suspend fun insert(score: GameScoreEntity): Long
 }
+
+@Dao
+interface TrackFeatureDao {
+    @Query("SELECT * FROM track_features")
+    suspend fun all(): List<TrackFeatureEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(feature: TrackFeatureEntity)
+
+    @Query("SELECT COUNT(*) FROM track_features")
+    suspend fun count(): Int
+}
+
+@Dao
+interface ScrobbleDao {
+    @Insert
+    suspend fun insert(row: ScrobbleEntity): Long
+
+    @Query("SELECT * FROM scrobble_queue ORDER BY id ASC LIMIT :limit")
+    suspend fun pending(limit: Int): List<ScrobbleEntity>
+
+    @Query("DELETE FROM scrobble_queue WHERE id IN (:ids)")
+    suspend fun delete(ids: List<Long>)
+
+    @Query("SELECT COUNT(*) FROM scrobble_queue")
+    suspend fun count(): Int
+}

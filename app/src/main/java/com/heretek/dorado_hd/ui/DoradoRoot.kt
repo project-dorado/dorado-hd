@@ -50,9 +50,11 @@ import com.heretek.dorado_hd.ui.components.MenuController
 import com.heretek.dorado_hd.ui.nav.DoradoDestination
 import com.heretek.dorado_hd.ui.screens.AlbumDetailScreen
 import com.heretek.dorado_hd.ui.screens.ArtistDetailScreen
+import com.heretek.dorado_hd.ui.screens.DeviceScreen
 import com.heretek.dorado_hd.ui.screens.GenreScreen
 import com.heretek.dorado_hd.ui.screens.HomePages
 import com.heretek.dorado_hd.ui.screens.InternetScreen
+import com.heretek.dorado_hd.ui.screens.LyricsScreen
 import com.heretek.dorado_hd.ui.screens.MarketplaceScreen
 import com.heretek.dorado_hd.ui.screens.MiniAppScreen
 import com.heretek.dorado_hd.ui.screens.MusicScreen
@@ -65,6 +67,8 @@ import com.heretek.dorado_hd.ui.screens.PlaylistDetailScreen
 import com.heretek.dorado_hd.ui.screens.RadioScreen
 import com.heretek.dorado_hd.ui.screens.SettingsScreen
 import com.heretek.dorado_hd.ui.screens.SocialScreen
+import com.heretek.dorado_hd.ui.screens.VideoItem
+import com.heretek.dorado_hd.ui.screens.VideoPlayerScreen
 import com.heretek.dorado_hd.ui.screens.VideosScreen
 
 @Composable
@@ -158,6 +162,8 @@ private fun NavHost(canvasWidth: Dp, canvasHeight: Dp) {
             is DoradoDestination.PlaylistDetail -> PlaylistDetailScreen(destination.playlistId, canvasWidth)
             DoradoDestination.NowPlaying -> NowPlayingScreen(canvasWidth)
             DoradoDestination.Settings -> SettingsScreen(canvasWidth)
+            DoradoDestination.Device -> DeviceScreen(canvasWidth)
+            DoradoDestination.Lyrics -> LyricsScreen(canvasWidth)
             DoradoDestination.Videos -> VideosScreen(canvasWidth)
             DoradoDestination.Pictures -> PicturesScreen(canvasWidth)
             DoradoDestination.Radio -> RadioScreen(canvasWidth)
@@ -168,6 +174,16 @@ private fun NavHost(canvasWidth: Dp, canvasHeight: Dp) {
             DoradoDestination.Internet -> InternetScreen(canvasWidth)
             is DoradoDestination.MiniApp -> MiniAppScreen(destination.appId, canvasWidth)
             is DoradoDestination.PictureDetail -> PictureDetailScreen(destination.uri)
+            is DoradoDestination.Video -> VideoPlayerScreen(
+                item = VideoItem(
+                    id = 0L,
+                    title = destination.title,
+                    artist = "",
+                    uri = android.net.Uri.parse(destination.uri),
+                    bucket = "",
+                ),
+                onExit = { graph.nav.pop() },
+            )
         }
     }
 }

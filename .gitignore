@@ -16,5 +16,9 @@ captures/
 # Logs
 *.log
 
+# .NET golden-fixture generator (tools/sync_golden)
+tools/sync_golden/bin/
+tools/sync_golden/obj/
+
 # Reverse-engineering corpus (never commit Microsoft binaries)
 review/

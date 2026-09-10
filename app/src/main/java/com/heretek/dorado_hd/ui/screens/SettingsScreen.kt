@@ -36,6 +36,7 @@ import com.heretek.dorado_hd.design.components.EdgeCropText
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import com.heretek.dorado_hd.ui.components.SectionLabel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @Composable
@@ -147,6 +148,59 @@ fun SettingsScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
             SettingsInfoRow(
                 label = "scan status",
                 subLabel = scanStatusText(lastScanAt, lastScanResult, lastImportResult),
+            )
+
+            SectionLabel("device")
+            SettingsRow(
+                label = "device link",
+                subLabel = "pair with dorado desktop · preview what will sync",
+                onClick = { graph.nav.push(com.heretek.dorado_hd.ui.nav.DoradoDestination.Device) },
+            )
+            SettingsRow(
+                label = "analyze library",
+                subLabel = "compute on-device audio features for similarity and mixes",
+                onClick = { scope.launch { graph.analysis.analyzeAll(graph.library.tracks().first()) } },
+            )
+
+            SectionLabel("scrobbling")
+            SettingsToggle(
+                label = "last.fm scrobbling",
+                subLabel = "queue plays offline, send when configured",
+                value = settings.scrobbleEnabled,
+            ) { enabled ->
+                scope.launch { graph.settings.setScrobbleEnabled(enabled) }
+            }
+            SettingsRow(
+                label = "last.fm api key",
+                subLabel = settings.lastFmApiKey.ifBlank { "not configured" },
+                onClick = {
+                    menus.showPrompt("last.fm api key", "api key") { value ->
+                        scope.launch { graph.settings.setLastFmApiKey(value) }
+                    }
+                },
+            )
+            SettingsRow(
+                label = "last.fm api secret",
+                subLabel = if (settings.lastFmApiSecret.isBlank()) "not configured" else "configured",
+                onClick = {
+                    menus.showPrompt("last.fm api secret", "shared secret") { value ->
+                        scope.launch { graph.settings.setLastFmApiSecret(value) }
+                    }
+                },
+            )
+            SettingsRow(
+                label = "last.fm session key",
+                subLabel = if (settings.lastFmSessionKey.isBlank()) "not configured" else "configured",
+                onClick = {
+                    menus.showPrompt("last.fm session key", "session key") { value ->
+                        scope.launch { graph.settings.setLastFmSessionKey(value) }
+                    }
+                },
+            )
+            SettingsRow(
+                label = "flush scrobbles",
+                subLabel = "send queued plays now",
+                onClick = { scope.launch { graph.scrobble.flush() } },
             )
 
             SectionLabel("about")

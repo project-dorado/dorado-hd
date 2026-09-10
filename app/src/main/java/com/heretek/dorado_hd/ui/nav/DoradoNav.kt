@@ -21,6 +21,8 @@ sealed interface DoradoDestination {
     data class PlaylistDetail(val playlistId: Long) : DoradoDestination
     data object NowPlaying : DoradoDestination
     data object Settings : DoradoDestination
+    data object Device : DoradoDestination
+    data object Lyrics : DoradoDestination
     // Media pivots (canon §3.1, Phase 5 surfaces).
     data object Videos : DoradoDestination
     data object Pictures : DoradoDestination
@@ -34,6 +36,8 @@ sealed interface DoradoDestination {
     data class MiniApp(val appId: String) : DoradoDestination
     // A single pinned picture viewer — URI is stored in the pin's subLabel.
     data class PictureDetail(val uri: String) : DoradoDestination
+    // A single pinned video, opened from Quickplay — title + URI from the pin.
+    data class Video(val title: String, val uri: String) : DoradoDestination
 }
 
 class DoradoNav {

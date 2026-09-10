@@ -22,6 +22,16 @@ data class DoradoSettings(
     val watchMediaStore: Boolean = false,
     /** Persistent URI of the user-imported SAF tree (or empty). */
     val importedTreeUri: String = "",
+    /** Device Link sync rules — mirrors the desktop AppSettings rule labels. */
+    val musicSyncRule: String = "All Music (Automatic Sync)",
+    val podcastSyncRule: String = "3 Newest Episodes",
+    val videoSyncRule: String = "All Videos & Pictures",
+    val picturesSyncRule: String = "Newest 25 Items",
+    /** M9.4 — offline Last.fm scrobbling (opt-in; credentials user-supplied). */
+    val scrobbleEnabled: Boolean = false,
+    val lastFmApiKey: String = "",
+    val lastFmApiSecret: String = "",
+    val lastFmSessionKey: String = "",
 )
 
 class SettingsRepository(private val context: Context) {
@@ -33,6 +43,14 @@ class SettingsRepository(private val context: Context) {
         val LIBRARY_SCANNED = booleanPreferencesKey("library_scanned")
         val WATCH_MEDIA_STORE = booleanPreferencesKey("watch_media_store")
         val IMPORTED_TREE_URI = stringPreferencesKey("imported_tree_uri")
+        val MUSIC_SYNC_RULE = stringPreferencesKey("music_sync_rule")
+        val PODCAST_SYNC_RULE = stringPreferencesKey("podcast_sync_rule")
+        val VIDEO_SYNC_RULE = stringPreferencesKey("video_sync_rule")
+        val PICTURES_SYNC_RULE = stringPreferencesKey("pictures_sync_rule")
+        val SCROBBLE_ENABLED = booleanPreferencesKey("scrobble_enabled")
+        val LASTFM_API_KEY = stringPreferencesKey("lastfm_api_key")
+        val LASTFM_API_SECRET = stringPreferencesKey("lastfm_api_secret")
+        val LASTFM_SESSION_KEY = stringPreferencesKey("lastfm_session_key")
     }
 
     val settings: Flow<DoradoSettings> = context.dataStore.data.map { p ->
@@ -44,6 +62,14 @@ class SettingsRepository(private val context: Context) {
             libraryScanned = p[Keys.LIBRARY_SCANNED] ?: false,
             watchMediaStore = p[Keys.WATCH_MEDIA_STORE] ?: false,
             importedTreeUri = p[Keys.IMPORTED_TREE_URI] ?: "",
+            musicSyncRule = p[Keys.MUSIC_SYNC_RULE] ?: "All Music (Automatic Sync)",
+            podcastSyncRule = p[Keys.PODCAST_SYNC_RULE] ?: "3 Newest Episodes",
+            videoSyncRule = p[Keys.VIDEO_SYNC_RULE] ?: "All Videos & Pictures",
+            picturesSyncRule = p[Keys.PICTURES_SYNC_RULE] ?: "Newest 25 Items",
+            scrobbleEnabled = p[Keys.SCROBBLE_ENABLED] ?: false,
+            lastFmApiKey = p[Keys.LASTFM_API_KEY] ?: "",
+            lastFmApiSecret = p[Keys.LASTFM_API_SECRET] ?: "",
+            lastFmSessionKey = p[Keys.LASTFM_SESSION_KEY] ?: "",
         )
     }
 
@@ -54,4 +80,14 @@ class SettingsRepository(private val context: Context) {
     suspend fun setLibraryScanned(scanned: Boolean) = context.dataStore.edit { it[Keys.LIBRARY_SCANNED] = scanned }
     suspend fun setWatchMediaStore(enabled: Boolean) = context.dataStore.edit { it[Keys.WATCH_MEDIA_STORE] = enabled }
     suspend fun setImportedTreeUri(uri: String) = context.dataStore.edit { it[Keys.IMPORTED_TREE_URI] = uri }
+    suspend fun setMusicSyncRule(rule: String) = context.dataStore.edit { it[Keys.MUSIC_SYNC_RULE] = rule }
+    suspend fun setPodcastSyncRule(rule: String) = context.dataStore.edit { it[Keys.PODCAST_SYNC_RULE] = rule }
+    suspend fun setMediaSyncRule(rule: String) = context.dataStore.edit {
+        it[Keys.VIDEO_SYNC_RULE] = rule
+        it[Keys.PICTURES_SYNC_RULE] = rule
+    }
+    suspend fun setScrobbleEnabled(enabled: Boolean) = context.dataStore.edit { it[Keys.SCROBBLE_ENABLED] = enabled }
+    suspend fun setLastFmApiKey(value: String) = context.dataStore.edit { it[Keys.LASTFM_API_KEY] = value }
+    suspend fun setLastFmApiSecret(value: String) = context.dataStore.edit { it[Keys.LASTFM_API_SECRET] = value }
+    suspend fun setLastFmSessionKey(value: String) = context.dataStore.edit { it[Keys.LASTFM_SESSION_KEY] = value }
 }

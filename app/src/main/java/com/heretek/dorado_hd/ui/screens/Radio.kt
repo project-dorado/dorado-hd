@@ -3,6 +3,7 @@
 package com.heretek.dorado_hd.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -127,45 +128,39 @@ fun RadioScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                             text = "tune in",
                             fontSize = DoradoTokens.TYPE_LIST.dp,
                             color = LocalDoradoColors.current.accent,
-                            modifier = Modifier.combinedClickable(
-                                onClick = {
-                                    val match = stations.firstOrNull { it.frequencyKhz == dialKhz }
-                                        ?: stations.firstOrNull { it.streamUrl.isNotBlank() }
-                                    if (match != null) {
-                                        current = match
-                                        playStation(graph, match)
-                                        scope.launch { graph.radio.touch(match.id) }
-                                    }
-                                },
-                                onLongClick = {},
-                            ),
+                            modifier = Modifier.clickable {
+                                val match = stations.firstOrNull { it.frequencyKhz == dialKhz }
+                                    ?: stations.firstOrNull { it.streamUrl.isNotBlank() }
+                                if (match != null) {
+                                    current = match
+                                    playStation(graph, match)
+                                    scope.launch { graph.radio.touch(match.id) }
+                                }
+                            },
                         )
                         Spacer(Modifier.weight(1f))
                         EdgeCropText(
                             text = "+ station",
                             fontSize = DoradoTokens.TYPE_LIST.dp,
                             color = LocalDoradoColors.current.accent,
-                            modifier = Modifier.combinedClickable(
-                                onClick = {
-                                    menus.showPrompt("add station", "name|url") { text ->
-                                        val parts = text.split("|")
-                                        if (parts.size >= 2) {
-                                            scope.launch {
-                                                graph.radio.add(
-                                                    RadioStationEntity(
-                                                        name = parts[0].trim().ifBlank { "stream" },
-                                                        frequencyKhz = dialKhz,
-                                                        streamUrl = parts[1].trim(),
-                                                        isPreset = false,
-                                                        lastPlayedAt = 0,
-                                                    ),
-                                                )
-                                            }
+                            modifier = Modifier.clickable {
+                                menus.showPrompt("add station", "name|url") { text ->
+                                    val parts = text.split("|")
+                                    if (parts.size >= 2) {
+                                        scope.launch {
+                                            graph.radio.add(
+                                                RadioStationEntity(
+                                                    name = parts[0].trim().ifBlank { "stream" },
+                                                    frequencyKhz = dialKhz,
+                                                    streamUrl = parts[1].trim(),
+                                                    isPreset = false,
+                                                    lastPlayedAt = 0,
+                                                ),
+                                            )
                                         }
                                     }
-                                },
-                                onLongClick = {},
-                            ),
+                                }
+                            },
                         )
                     }
                     RadioStationList(

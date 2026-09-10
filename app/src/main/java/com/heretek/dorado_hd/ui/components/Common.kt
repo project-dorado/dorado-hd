@@ -42,13 +42,57 @@ import com.heretek.dorado_hd.design.LocalDoradoColors
 import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.design.DoradoMotion
 import com.heretek.dorado_hd.design.DoradoTokens
+import com.heretek.dorado_hd.DoradoGraph
+import com.heretek.dorado_hd.analysis.DynamicMix
+import com.heretek.dorado_hd.analysis.DynamicMixKind
 import com.heretek.dorado_hd.design.components.AlbumArt
 import com.heretek.dorado_hd.design.components.EdgeCropText
+import com.heretek.dorado_hd.data.model.PinKind
+import com.heretek.dorado_hd.data.model.Rating
 import com.heretek.dorado_hd.data.model.Track
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 /** One action in a context menu. */
 data class MenuAction(val label: String, val action: () -> Unit)
+
+/**
+ * The universal track long-press actions: queue it next, pin it to Quickplay.
+ * Screens append their own entity-specific actions (view album, add to
+ * playlist, remove…) to this list.
+ */
+fun trackMenuActions(
+    graph: DoradoGraph,
+    scope: CoroutineScope,
+    track: Track,
+): List<MenuAction> = listOf(
+    MenuAction("play next") { graph.controller.enqueue(track) },
+    MenuAction("start mix") {
+        scope.launch {
+            val library = graph.library.tracks().first()
+            val ratings = graph.quickplay.ratings()
+            val favorites = library.filter { ratings[it.mediaId] == Rating.HEART.value }
+            val mix = graph.mixes.materialize(
+                DynamicMix(
+                    name = "mix: ${track.title}",
+                    kind = DynamicMixKind.SIMILAR_TO_TRACK,
+                    seedId = track.mediaId,
+                    trackLimit = 25,
+                ),
+                library = library,
+                favorites = favorites,
+            )
+            if (mix.isNotEmpty()) graph.controller.play(mix, 0)
+        }
+    },
+    MenuAction("pin to quickplay") {
+        scope.launch {
+            graph.quickplay.pin(PinKind.TRACK, track.mediaId, track.title, track.artist, track.albumId)
+        }
+    },
+)
 
 class MenuRequest(
     val title: String,

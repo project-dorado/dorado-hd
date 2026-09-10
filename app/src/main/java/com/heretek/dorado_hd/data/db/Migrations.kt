@@ -97,3 +97,42 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_game_scores_playedAt` ON `game_scores` (`playedAt`)")
     }
 }
+
+/**
+ * Room v2 → v3: M9.3 cached audio-feature vectors (on-device similarity and
+ * dynamic mixes). Existing data is untouched; analyzed tracks backfill lazily.
+ */
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `track_features` (
+                `mediaId` INTEGER PRIMARY KEY NOT NULL,
+                `bpm` REAL NOT NULL,
+                `energy` REAL NOT NULL,
+                `valence` REAL NOT NULL,
+                `acousticness` REAL NOT NULL,
+                `danceability` REAL NOT NULL,
+                `spectralCentroid` REAL NOT NULL,
+                `analyzedAt` INTEGER NOT NULL
+            )""",
+        )
+    }
+}
+
+/**
+ * Room v3 → v4: M9.4 offline Last.fm scrobble queue. Existing data untouched.
+ */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `scrobble_queue` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `artist` TEXT NOT NULL,
+                `title` TEXT NOT NULL,
+                `album` TEXT NOT NULL,
+                `durationSeconds` INTEGER NOT NULL,
+                `timestampSec` INTEGER NOT NULL
+            )""",
+        )
+    }
+}

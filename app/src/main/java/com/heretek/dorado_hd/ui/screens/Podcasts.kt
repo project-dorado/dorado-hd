@@ -2,6 +2,7 @@
 
 package com.heretek.dorado_hd.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -152,8 +153,7 @@ fun PodcastsScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 8.dp)
-                    .combinedClickable(
-                        onClick = {
+                    .clickable {
                             menus.showPrompt("add feed", "https://example.com/feed.xml") { url ->
                                 scope.launch {
                                     val parsed = PodcastFetcher.fetch(url)
@@ -183,9 +183,7 @@ fun PodcastsScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                                     }
                                 }
                             }
-                        },
-                        onLongClick = {},
-                    ),
+                    },
             ) {
                 EdgeCropText(text = "+ add feed by url", fontSize = DoradoTokens.TYPE_LIST.dp, color = LocalDoradoColors.current.accent)
             }
@@ -256,6 +254,17 @@ private fun PodcastsFeedList(
                             menus.show(
                                 title = feed.title,
                                 actions = listOf(
+                                    com.heretek.dorado_hd.ui.components.MenuAction("pin to quickplay") {
+                                        scope.launch {
+                                            graph.quickplay.pin(
+                                                com.heretek.dorado_hd.data.model.PinKind.PODCAST,
+                                                feed.id,
+                                                feed.title,
+                                                feed.description.take(60),
+                                                0,
+                                            )
+                                        }
+                                    },
                                     com.heretek.dorado_hd.ui.components.MenuAction("remove") {
                                         scope.launch { graph.podcasts.deleteFeed(feed.id) }
                                     },
@@ -280,6 +289,9 @@ private fun PodcastEpisodeList(
     episodes: List<com.heretek.dorado_hd.data.db.PodcastEpisodeFlat>,
     onPlay: (com.heretek.dorado_hd.data.db.PodcastEpisodeFlat) -> Unit,
 ) {
+    val graph = com.heretek.dorado_hd.ui.LocalDoradoGraph.current
+    val menus = com.heretek.dorado_hd.ui.components.LocalContextMenu.current
+    val scope = rememberCoroutineScope()
     if (episodes.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             EdgeCropText(text = "no episodes", fontSize = DoradoTokens.TYPE_NOW_META.dp, alpha = 0.4f)
@@ -295,7 +307,28 @@ private fun PodcastEpisodeList(
                 Modifier
                     .fillMaxWidth()
                     .height(DoradoTokens.ROW_HEIGHT.dp)
-                    .combinedClickable(onClick = { onPlay(ep) }, onLongClick = {})
+                    .combinedClickable(
+                        onClick = { onPlay(ep) },
+                        onLongClick = {
+                            menus.show(
+                                title = ep.title,
+                                actions = listOf(
+                                    com.heretek.dorado_hd.ui.components.MenuAction("play") { onPlay(ep) },
+                                    com.heretek.dorado_hd.ui.components.MenuAction("pin to quickplay") {
+                                        scope.launch {
+                                            graph.quickplay.pin(
+                                                com.heretek.dorado_hd.data.model.PinKind.EPISODE,
+                                                ep.episodeId,
+                                                ep.title,
+                                                ep.enclosureUrl,
+                                                0,
+                                            )
+                                        }
+                                    },
+                                ),
+                            )
+                        },
+                    )
                     .padding(horizontal = DoradoTokens.EDGE.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -312,6 +345,7 @@ private fun PodcastEpisodeList(
 fun PodcastFeedScreen(feedId: Long, canvasWidth: androidx.compose.ui.unit.Dp) {
     val graph = LocalDoradoGraph.current
     val scope = rememberCoroutineScope()
+    val menus = LocalContextMenu.current
     val episodes by graph.podcasts.episodes(feedId).collectAsState(initial = emptyList())
     val feedTitle = remember(feedId) { "podcast" }
 
@@ -345,7 +379,24 @@ fun PodcastFeedScreen(feedId: Long, canvasWidth: androidx.compose.ui.unit.Dp) {
                                     graph.controller.play(listOf(track))
                                 }
                             },
-                            onLongClick = {},
+                            onLongClick = {
+                                menus.show(
+                                    title = ep.title,
+                                    actions = listOf(
+                                        com.heretek.dorado_hd.ui.components.MenuAction("pin to quickplay") {
+                                            scope.launch {
+                                                graph.quickplay.pin(
+                                                    com.heretek.dorado_hd.data.model.PinKind.EPISODE,
+                                                    ep.id,
+                                                    ep.title,
+                                                    ep.enclosureUrl,
+                                                    0,
+                                                )
+                                            }
+                                        },
+                                    ),
+                                )
+                            },
                         )
                         .padding(horizontal = DoradoTokens.EDGE.dp),
                     verticalAlignment = Alignment.CenterVertically,
