@@ -39,6 +39,7 @@ import com.heretek.dorado_hd.design.components.CrossbarBar
 import com.heretek.dorado_hd.design.components.EdgeCropText
 import com.heretek.dorado_hd.design.components.KineticList
 import com.heretek.dorado_hd.design.components.firstLetterOf
+import com.heretek.dorado_hd.design.components.rememberZuneFlingBehavior
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniAppScaffold
 import com.heretek.dorado_hd.ui.apps.DoradoApps
@@ -217,6 +218,7 @@ private fun GamesPivot() {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = DoradoTokens.EDGE.dp),
                 horizontalArrangement = Arrangement.spacedBy(DoradoTokens.GRID_GUTTER.dp),
+                flingBehavior = rememberZuneFlingBehavior(),
             ) {
                 items(installed, key = { it.id }) { app ->
                     Column(
@@ -267,6 +269,7 @@ private fun MarketplaceMusic() {
         LazyRow(
             contentPadding = PaddingValues(0.dp),
             horizontalArrangement = Arrangement.spacedBy(DoradoTokens.GRID_GUTTER.dp),
+            flingBehavior = rememberZuneFlingBehavior(),
         ) {
             items(featured, key = { it.albumId }) { album ->
                 Column(
@@ -329,6 +332,7 @@ private fun AppsPivot() {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = DoradoTokens.EDGE.dp),
                 horizontalArrangement = Arrangement.spacedBy(DoradoTokens.GRID_GUTTER.dp),
+                flingBehavior = rememberZuneFlingBehavior(),
             ) {
                 items(installed, key = { it.id }) { app ->
                     Column(

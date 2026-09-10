@@ -40,6 +40,7 @@ import com.heretek.dorado_hd.design.components.CrossbarBar
 import com.heretek.dorado_hd.design.components.EdgeCropText
 import com.heretek.dorado_hd.design.components.KineticList
 import com.heretek.dorado_hd.design.components.firstLetterOf
+import com.heretek.dorado_hd.design.components.rememberZuneFlingBehavior
 import com.heretek.dorado_hd.data.model.Album
 import com.heretek.dorado_hd.data.model.PinKind
 import com.heretek.dorado_hd.data.model.Track
@@ -408,6 +409,7 @@ private fun ArtistAlbums(albums: List<Album>) {
         contentPadding = androidx.compose.foundation.layout.PaddingValues(DoradoTokens.EDGE.dp),
         horizontalArrangement = Arrangement.spacedBy(DoradoTokens.GRID_GUTTER.dp),
         modifier = Modifier.fillMaxSize(),
+        flingBehavior = rememberZuneFlingBehavior(),
     ) {
         items(albums, key = { it.albumId }) { album ->
             Column(
