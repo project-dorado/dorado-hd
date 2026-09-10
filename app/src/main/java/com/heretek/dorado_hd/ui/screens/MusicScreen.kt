@@ -32,6 +32,7 @@ import com.heretek.dorado_hd.design.components.EdgeCropText
 import com.heretek.dorado_hd.data.model.PinKind
 import com.heretek.dorado_hd.design.components.KineticList
 import com.heretek.dorado_hd.design.components.firstLetterOf
+import com.heretek.dorado_hd.design.components.rememberZuneFlingBehavior
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import com.heretek.dorado_hd.ui.components.LocalContextMenu
@@ -88,6 +89,7 @@ private fun AlbumsTab() {
         horizontalArrangement = Arrangement.spacedBy(DoradoTokens.GRID_GUTTER.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize(),
+        flingBehavior = rememberZuneFlingBehavior(),
     ) {
         items(albums, key = { it.albumId }) { album ->
             Column(

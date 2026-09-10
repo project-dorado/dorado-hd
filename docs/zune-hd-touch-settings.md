@@ -122,3 +122,23 @@ canon-first rule):
   not redistributed; Dorado-HD ships metric-compatible Selawik, so no token
   change is warranted.
 
+## 6. Kinetic scroll integrator (observed)
+
+The XUI scroll tick lives at `xuidll.dll` VA `0x41841D58` (`FUN_41841D58`).
+It steps a scroll object's float state each frame:
+
+- velocity at `+0xA8`, position at `+0x9C`, bound/target at `+0xA0`;
+- decay coefficients read from `+0xB0` and `+0xB4` (the element's in-place
+  `XuiTouchSettings` bytes `+0x08` and `+0x0C` — both `1.9` in the shell, the
+  second the only field the shell tuned down from the XUI default `1.5` to
+  `1.2`);
+- the new velocity is clamped against `param[0x22] * coefficient` and applied
+  to the position.
+
+This is the engine behind the `KINETIC_FRAME_RETENTION` model in
+`DoradoMotion`: velocity is reduced proportionally each frame and the position
+integrates until the velocity threshold is reached — proportional (exponential)
+decay, no springs. Exact per-field names remain unavailable (see §4), so the
+integrator is recorded here for provenance rather than turned into tokens.
+
+
