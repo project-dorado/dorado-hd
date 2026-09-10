@@ -1,7 +1,7 @@
-# AGENTS.md — Xune-HD repository rules
+# AGENTS.md — Dorado-HD repository rules
 
-Xune-HD is the Zune HD on-device UI, reborn as an Android music player.
-Sister project of Not-Zune (the Zune desktop re-implementation).
+Dorado-HD is the Zune HD on-device UI, reborn as an Android music player.
+Sister project of Dorado (the Zune desktop re-implementation).
 
 ## The canon is law
 
@@ -14,7 +14,7 @@ the canon first (with a source citation), then the code.
 1. **Zero corner radius.** Never write `RoundedCornerShape` or set any nonzero
    corner radius on UI. Squares only, like the device.
 2. **No Material chrome leakage.** Screens compose our tokens
-   (`LocalXuneColors`, `XuneTokens`, `Selawik`). Material primitives (Icon,
+   (`LocalDoradoColors`, `DoradoTokens`, `Selawik`). Material primitives (Icon,
    IconButton, TextField) are permitted as behaviorless shells — never for
    their styling.
 3. **Typography is navigation.** New navigation is text-first (the Zune HD had
@@ -23,7 +23,7 @@ the canon first (with a source citation), then the code.
 5. **Back = the cropped header.** Detail screens use `CroppedHeader` /
    `DetailScaffold`; Now Playing uses the explicit back arrow. Do not add
    chrome back buttons elsewhere.
-6. **Motion decelerates.** Use `XuneMotion` easings/durations. No springs in
+6. **Motion decelerates.** Use `DoradoMotion` easings/durations. No springs in
    navigation.
 
 ## Toolchain notes (AGP 9)

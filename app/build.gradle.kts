@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.heretek.xunehd"
+    namespace = "com.heretek.dorado_hd"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.heretek.xunehd"
+        applicationId = "com.heretek.dorado_hd"
         minSdk = 26
         targetSdk = 37
         versionCode = 1

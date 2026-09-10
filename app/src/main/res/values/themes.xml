@@ -1,8 +1,8 @@
 <resources>
-    <style name="Theme.XuneHd" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/xune_black</item>
-        <item name="android:statusBarColor">@color/xune_black</item>
-        <item name="android:navigationBarColor">@color/xune_black</item>
+    <style name="Theme.DoradoHd" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/dorado_black</item>
+        <item name="android:statusBarColor">@color/dorado_black</item>
+        <item name="android:navigationBarColor">@color/dorado_black</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

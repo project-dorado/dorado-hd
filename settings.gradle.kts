@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "xune-hd"
+rootProject.name = "dorado-hd"
 include(":app")

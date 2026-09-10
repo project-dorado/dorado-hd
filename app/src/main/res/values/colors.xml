@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="xune_black">#FF111111</color>
-    <color name="xune_accent">#FFFA2A55</color>
+    <color name="dorado_black">#FF111111</color>
+    <color name="dorado_accent">#FFFA2A55</color>
     <color name="ic_launcher_background">#FF111111</color>
 </resources>

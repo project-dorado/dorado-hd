@@ -1,9 +1,9 @@
-# Xune-HD
+# Dorado-HD
 
 <div align="center">
 
-# 📱 Xune-HD
-**The Zune HD, reborn as an Android music player — sister app to Not-Zune**
+# 📱 Dorado-HD
+**The Zune HD, reborn as an Android music player — sister app to Dorado**
 
 [![Android](https://img.shields.io/badge/Platform-Android%209%2B-3DDC84)]()
 [![UI](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4)]()
@@ -14,15 +14,15 @@
 
 ---
 
-Xune-HD is a faithful re-creation of the **Microsoft Zune HD on-device
+Dorado-HD is a faithful re-creation of the **Microsoft Zune HD on-device
 interface** (2009) for modern Android phones: white-on-black typography-first
 Metro design, a text menu cropped at the screen edge, Quickplay parked
 "left and rear", crossbar navigation, swipe-to-skip Now Playing floating
 over artist photography, and the tri-state heart rating.
 
-It is the **device-side sibling** of [Not-Zune](https://github.com/Heretek-AI/not-zune)
+It is the **device-side sibling** of [Dorado](https://github.com/project-dorado/dorado)
 (the Zune *desktop* re-implementation). Just as the Zune HD was the device and
-Zune 4.8 was the desktop, Xune-HD is the phone and Not-Zune is the desktop.
+Zune 4.8 was the desktop, Dorado-HD is the phone and Dorado is the desktop.
 
 ## ✨ What's implemented
 
@@ -37,7 +37,7 @@ design-invariant scanner.
 - **Home menu** with the full canonical 9 entries — `music · videos ·
   pictures · radio · marketplace · social · podcasts · internet ·
   settings` — lowercase, oversized, right-edge cropped, **kinetically
-  scrollable**. The "xune hd" watermark sits at the bottom-left at the
+  scrollable**. The "dorado hd" watermark sits at the bottom-left at the
   canon's `0.08` textWatermark opacity.
 - **Quickplay** slides out as a 3D-parallax "left and rear" panel using
   `rotationY` + `cameraDistance` (the device's literal visual depth). Inside:
@@ -51,7 +51,7 @@ design-invariant scanner.
 
 Every collection screen now uses a horizontal `CrossbarBar` pivot strip
 with right-edge-cropped labels. The crossbar pivot transition rides the
-spec'd 380 ms deceleration via `XuneMotion.PIVOT_SLIDE_MS`.
+spec'd 380 ms deceleration via `DoradoMotion.PIVOT_SLIDE_MS`.
 
 - **Music** — `albums · artists · playlists · songs · genres` (the real
   device order).
@@ -100,7 +100,7 @@ spec'd 380 ms deceleration via `XuneMotion.PIVOT_SLIDE_MS`.
 
 ### Mini-app platform (canon §8 — 29 apps, behavioral re-implementation)
 
-The `XuneApps.all` registry is a `by lazy` build so it's populated before
+The `DoradoApps.all` registry is a `by lazy` build so it's populated before
 the first UI lookup (including Robolectric tests).
 
 #### Utilities (12)
@@ -157,7 +157,7 @@ mini-app platform.
 
 ## 🔒 Licensing posture
 
-- **Not-Zune** (MIT) — design tokens, concepts. Thank you.
+- **Dorado** (MIT) — design tokens, concepts. Thank you.
 - **MedTune** (MIT) — starting skeleton; see NOTICE.md.
 - **MusicIn2001** — Research-Only license: used strictly as a behavioral
   specification. **No code was copied.**
@@ -166,14 +166,14 @@ mini-app platform.
 - The official Zune HD `.zcp` packages (review/Zune HD Apps/) are the
   marketplace archive; their encrypted payloads are **never** bundled, and
   only the manifest metadata (title, GUID, description) is read.
-- Zune, Zegoe and the Zune HD are Microsoft trademarks. Xune-HD is an
+- Zune, Zegoe and the Zune HD are Microsoft trademarks. Dorado-HD is an
   independent homage; nothing Microsoft is bundled.
 
 ---
 
 ## 📊 Parity summary
 
-| Area | Device has | Xune-HD has | Notes |
+| Area | Device has | Dorado-HD has | Notes |
 |---|---|---|---|
 | Home menu (9 entries, kinetic, edge-crop) | ✅ | ✅ | `LazyColumn` via `KineticList`; right-edge-cropped via `EdgeCropText` |
 | Quickplay (parallax reveal) | ✅ | ✅ | 3D parallax `rotationY` + `cameraDistance` |
@@ -181,7 +181,7 @@ mini-app platform.
 | Lock shade (wallpaper behind) | ✅ | ✅ | Real `WallpaperManager.getDrawable()` |
 | Now Playing (scrub, transport, screensaver) | ✅ | ✅ | Scrubber + transport + screensaver; tap combines dismiss + overlay |
 | Artist bio / photos / related | ✅ | ✅ | Wikipedia REST + MusicBrainz; related pivot has honest empty-state |
-| Music crossbar (5 pivots) | ✅ | ✅ | 380 ms deceleration per `XuneMotion.PIVOT_SLIDE_MS` |
+| Music crossbar (5 pivots) | ✅ | ✅ | 380 ms deceleration per `DoradoMotion.PIVOT_SLIDE_MS` |
 | Album art palette wash | ✅ | ✅ | |
 | Tri-state heart rating | ✅ | ✅ | Persisted in Room |
 | Videos (with player) | ✅ | ✅ | MediaStore + ExoPlayer surface view + scrubber + transport |
@@ -194,7 +194,7 @@ mini-app platform.
 | Crossbar pivot nav | ✅ | ✅ | All collection screens have horizontal pivot pivots |
 | Screensaver / now-playing art | ✅ | ✅ | |
 | Widget (home-screen) | ✅ | ❌ | Not yet — see roadmap |
-| Wi-Fi sync with Not-Zune (sibling project) | ✅ | ❌ | Not yet — see roadmap |
+| Wi-Fi sync with Dorado (sibling project) | ✅ | ❌ | Not yet — see roadmap |
 | USB MTPZ sync to physical Zune HD | ✅ | ❌ | Stretch goal — see roadmap |
 
 ### Design-invariant scanner (enforced by `DesignInvariantTest`)
@@ -206,9 +206,9 @@ mini-app platform.
 | No raw hex color literals | `ui/`, `design/components/`, `ui/apps/` | regex `Color\(0x[0-9A-Fa-f]{8}\)` |
 | No named `Color.Black/White/Red/…` | `ui/`, `design/components/`, `ui/apps/` | regex `\bColor\.(Black\|White\|Red\|…)\b` (games + `PianoDrum.kt` allowlisted) |
 | 62-entry catalog invariant | `OfficialCatalog.all.size == 62` | unit test |
-| `XuneApps` registry resolves every `installedId` | unit test | |
+| `DoradoApps` registry resolves every `installedId` | unit test | |
 
-### Token table (enforced via `XuneTokens` consumption)
+### Token table (enforced via `DoradoTokens` consumption)
 
 | Token | Value | Used by |
 |---|---|---|
@@ -280,8 +280,8 @@ The release build minifies with R8; keep rules in `app/proguard-rules.pro`.
 
 ### Future (post-M7)
 
-- **Wi-Fi sync with Not-Zune** — the phone enrolls as a Zune-HD-like
-  device in Not-Zune's sync engine (JSON manifest, ZMDB-style database).
+- **Wi-Fi sync with Dorado** — the phone enrolls as a Zune-HD-like
+  device in Dorado's sync engine (JSON manifest, ZMDB-style database).
 - **Real MTP/MTPZ sync to a physical Zune HD over USB host** — stretch.
 - **Home-screen widget** — Zune-style Now Playing with transport.
 - **Live radio cache** (M6) is contingent on a real-time streaming

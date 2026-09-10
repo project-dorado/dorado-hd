@@ -1,10 +1,10 @@
 # Zune HD UI Canon
 
 The authoritative description of the Microsoft Zune HD on-device interface that
-Xune-HD replicates. Compiled from contemporaneous reviews (CNET, Gizmodo,
+Dorado-HD replicates. Compiled from contemporaneous reviews (CNET, Gizmodo,
 SlashGear, TechCrunch, Windows Central, ZDNet, PCMag, ITPro Today, Sept 2009),
-the ZuneDev/Not-Zune decompilation corpus, and ZuneRedux community resources.
-Every screen in Xune-HD must be checkable against this document.
+the ZuneDev/Dorado decompilation corpus, and ZuneRedux community resources.
+Every screen in Dorado-HD must be checkable against this document.
 
 ## 1. Hardware & canvas
 
@@ -33,7 +33,7 @@ Every screen in Xune-HD must be checkable against this document.
 
 ### 3.1 Home menu (default view)
 A vertical text list: `music · videos · pictures · radio · marketplace ·
-social · podcasts · internet · settings` (Zune HD firmware 4.x). In Xune-HD
+social · podcasts · internet · settings` (Zune HD firmware 4.x). In Dorado-HD
 the functional entries are `music` and `settings`; future pivots may join.
 - Flick vertically to scroll (kinetic).
 - Tap an entry to enter. The whole entry is the button — text only.
@@ -47,7 +47,7 @@ the functional entries are `music` and `settings`; future pivots may join.
   artist), **Pins** (user-pinned items — long-press anything to pin),
   **History** (recently played), **New** (recently added).
 - Purpose: bypass collection drilling; reach relevant content instantly.
-- On device the left-edge hardware button summons it; in Xune-HD it is the
+- On device the left-edge hardware button summons it; in Dorado-HD it is the
   home screen's left page.
 
 ### 3.3 Crossbar ("sub-menus arrayed left to right across the top")
@@ -62,8 +62,8 @@ the functional entries are `music` and `settings`; future pivots may join.
   (e.g. the bottom of "SETT" on the Settings screen) is the back button
   (ZDNet Quick Start Guide discovery; Gizmodo confirms).
 - Now Playing is the device's documented exception: it shows an explicit
-  left-arrow back button (Gizmodo). Xune-HD preserves this.
-- Xune-HD additionally places a faint back arrow at the right edge of the
+  left-arrow back button (Gizmodo). Dorado-HD preserves this.
+- Dorado-HD additionally places a faint back arrow at the right edge of the
   cropped header on every detail screen, so the affordance is also visible
   to users who never realize the cropped text is tappable. The arrow and the
   cropped text are equivalent back actions; the cropped text remains the
@@ -83,7 +83,7 @@ the functional entries are `music` and `settings`; future pivots may join.
 - Official apps and games were delivered exclusively through the **Apps
   section of Zune Marketplace** (Wikipedia, *List of Zune applications*).
   There was no home-menu `apps` entry.
-- In Xune-HD the `marketplace` pivot's `apps` section lists installed
+- In Dorado-HD the `marketplace` pivot's `apps` section lists installed
   mini-apps plus the frozen official catalog (unavailable entries dim).
 - Mini-apps open fullscreen and return via the cropped header / system back
   (the device used its physical home button). See §8.
@@ -97,7 +97,7 @@ Layout (from ITPro Today's walkthrough):
 - **Album art** prominent.
 - Bottom row: **shuffle**, **repeat**, **rating** (heart / broken heart).
 - The card **floats over artist photography** fetched from zune.net keyed by
-  MusicBrainz ID (see `net/` in Xune-HD; recreated by ZuneArtistImages).
+  MusicBrainz ID (see `net/` in Dorado-HD; recreated by ZuneArtistImages).
 
 Interactions:
 - **Idle for a few seconds → screensaver**: metadata (artist, track, album,
@@ -113,12 +113,12 @@ Ratings (tri-state heart, from the Zune desktop/HD family):
 - Broken heart = dislike (skipped in shuffle).
 - Unrated = neutral.
 - Smart DJ honored ratings: hearts were prioritized and broken hearts
-  skipped when shuffling (Microsoft press release, Sept 15 2009). Xune-HD's
+  skipped when shuffling (Microsoft press release, Sept 15 2009). Dorado-HD's
   shuffle mirrors this on-device behavior.
 
 ## 5. Lock/wake behavior
 - Wake shows the user wallpaper behind a "software shade"; **slide the shade
-  up** to reveal the home screen (ITPro Today). Xune-HD v1 treats the Android
+  up** to reveal the home screen (ITPro Today). Dorado-HD v1 treats the Android
   lock screen as the wake surface; the in-app shade is a stretch goal.
 
 ## 6. Motion rules
@@ -128,19 +128,19 @@ Ratings (tri-state heart, from the Zune desktop/HD family):
 - Kinetic lists: fling, then long deceleration to rest.
 - Everything fast: Metro is "designed to feel fast and responsive".
 
-## 7. Banned in Xune-HD (invariant list, mirrors Not-Zune)
+## 7. Banned in Dorado-HD (invariant list, mirrors Dorado)
 - `RoundedCornerShape` / any nonzero corner radius on UI chrome.
 - Drop shadows on text/buttons; gradient chrome; skeuomorphic textures.
 - Icon-only navigation in the main hierarchy (text is navigation).
 - Material default colors/typography leaking into screens.
 - Star ratings (Zune is heart-based, tri-state).
 
-## 8. Mini-app platform (Xune-HD)
+## 8. Mini-app platform (Dorado-HD)
 - Apps open fullscreen: no MiniPlayer; no crossbar unless the app defines one.
 - The cropped header is the back affordance; system back also returns to
   marketplace/apps (canon §3.6).
 - Apps must render correctly in device mode (480x272) and adaptive mode.
-- Xune-HD ships behavioral re-implementations only — no Microsoft code,
+- Dorado-HD ships behavioral re-implementations only — no Microsoft code,
   binaries or assets: utilities (calculator, notes, stopwatch, metronome,
   alarm clock, calendar, level, piano, drum machine, chord finder, music
   quiz, shuffle by album), games (solitaire, sudoku, hexic, reversi), and
@@ -148,7 +148,7 @@ Ratings (tri-state heart, from the Zune desktop/HD family):
   messenger, msn money, zune reader).
 
 ## 9. Reference library
-- not-zune (desktop) design-system skill + extracted Zune assets (MIT).
+- dorado (desktop) design-system skill + extracted Zune assets (MIT).
 - ZuneRedux/zune-hd-apps — original HD app archive (design reference only).
   The corpus's NX container, Authenticode signature, manifest records and
   AES-ECB-encrypted payload are documented in `docs/zcp-inventory.md`

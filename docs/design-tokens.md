@@ -1,6 +1,6 @@
-# Xune-HD Design Tokens
+# Dorado-HD Design Tokens
 
-Ported from the Not-Zune `zune-design-system` skill (MIT) and adapted for the
+Ported from the Dorado `zune-design-system` skill (MIT) and adapted for the
 Zune HD device UI. All Compose code must consume these tokens; raw hex literals
 in screens are an invariant violation.
 
