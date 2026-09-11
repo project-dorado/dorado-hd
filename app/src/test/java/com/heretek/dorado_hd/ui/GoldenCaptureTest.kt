@@ -50,11 +50,23 @@ class GoldenCaptureTest(private val slug: String, private val mode: HarnessMode)
     @After
     fun restoreClock() = AppClock.reset()
 
+    /**
+     * Advances virtual time in small steps until the composition is idle
+     * between steps. A single `advanceTimeBy` renders blank frames under
+     * load because async state loads (Room/DataStore) have not completed.
+     */
+    private fun settle() {
+        repeat(30) {
+            compose.mainClock.advanceTimeBy(100)
+            compose.waitForIdle()
+        }
+    }
+
     @Test
     fun goldenMatches() {
         compose.mainClock.autoAdvance = false
         compose.setContent { MiniAppHarness(slug, mode) }
-        compose.mainClock.advanceTimeBy(900)
+        settle()
         val tag = "miniapp-harness-${mode.name.lowercase()}"
         val bitmap = compose.onNodeWithTag(tag).captureToImage().asAndroidBitmap()
         assertTrue("empty capture for $slug", bitmap.width > 0 && bitmap.height > 0)
@@ -90,8 +102,16 @@ class GoldenCaptureTest(private val slug: String, private val mode: HarnessMode)
                 differing++
             }
         }
-        expected.recycle()
         val ratio = differing.toDouble() / a.size
+        if (ratio >= 0.01) {
+            // Keep the actual frame for debugging (build dir, not committed).
+            val debugDir = File("build/golden-mismatch")
+            debugDir.mkdirs()
+            File(debugDir, "$slug$suffix.png").outputStream().use {
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+            }
+        }
+        expected.recycle()
         assertTrue("golden mismatch for $slug$suffix: %.2f%% pixels differ".format(ratio * 100), ratio < 0.01)
     }
 

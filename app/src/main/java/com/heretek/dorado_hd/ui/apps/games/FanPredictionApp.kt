@@ -79,8 +79,11 @@ fun FanPredictionApp() {
 
     LaunchedEffect(Unit) {
         val savedBlob = graph.appState.get("fan-prediction")
+        // Install-stable id derived from first-run time (deterministic under
+        // the AppClock test seam; no randomness needed for a local account).
         val deviceId = graph.appState.get("fan-prediction-device")
-            ?: UUID.randomUUID().toString().also { graph.appState.put("fan-prediction-device", it) }
+            ?: java.util.UUID.nameUUIDFromBytes("dorado-hd-${AppClock.millis()}".toByteArray()).toString()
+                .also { graph.appState.put("fan-prediction-device", it) }
         val loaded = savedBlob?.let { FanPredictionEngine.decode(it) }
             ?: FanPredictionEngine.newState(deviceId, AppClock.millis(), AppClock.millis().toInt())
         state = FanPredictionEngine.refresh(loaded, AppClock.millis())

@@ -90,8 +90,10 @@ A code-verified snapshot (not README claims):
   `media/FadeRamp.kt` with unit tests.
 - Live-radio pause-and-cache ("Live / Rewind ±5 min") — capability-gated on a
   real-time streaming source.
-- Lock-screen Now Playing art + controls (richer than the default Media3
-  notification).
+- ✅ Lock-screen Now Playing art + controls: `DoradoMediaNotificationProvider`
+  (public low-importance channel, compact transport from the session command
+  layout, album art via a caching session bitmap loader, content intent to the
+  app). Heart-on-lock-screen stays N/A — it would need service-side DB access.
 - Soft keyboard "bulge around the finger" affordance (Wikipedia-cited).
 
 ### M7 — Design-token + invariant-test hygiene

@@ -226,10 +226,13 @@ fade-in on the next item — Media3 has no overlapping crossfade; labelled
 "fade-through" wherever it surfaces), and the **sleep timer**
 (settings ▸ playback; countdown shown in the Now Playing status OSD), and the
 **live FFT visualizer** (permission-free PCM tap into `FeatureMath`'s FFT;
-procedural animation remains the fallback).
+procedural animation remains the fallback), and the **richer lock-screen
+surface** (`DoradoMediaNotificationProvider`: dedicated public low-importance
+channel, compact transport actions from the session layout, album art via the
+session bitmap loader).
 
-**Pending:** live-radio pause-and-cache and richer lock-screen art/controls —
-tracked in `docs/parity-roadmap.md` (M5/M6/M10).
+**Pending:** live-radio pause-and-cache — tracked in
+`docs/parity-roadmap.md` (M5/M6/M10).
 
 - **Lane fling tuning.** The device's kinetic glide is `pos += (dt/1000)·v` at
   62.5 Hz (`xuidll.dll@0x41841D58`; see §6). Dorado-HD approximates it with a

@@ -28,6 +28,7 @@ class DoradoPlaybackService : MediaSessionService() {
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
+        setMediaNotificationProvider(DoradoMediaNotificationProvider(this))
 
         val player = ExoPlayer.Builder(this, TapRenderersFactory(this))
             .setAudioAttributes(
@@ -53,6 +54,9 @@ class DoradoPlaybackService : MediaSessionService() {
         )
 
         session = MediaSession.Builder(this, player)
+            .setBitmapLoader(
+                androidx.media3.session.CacheBitmapLoader(androidx.media3.session.SimpleBitmapLoader()),
+            )
             .setSessionActivity(sessionActivity)
             .setCallback(object : MediaSession.Callback {
                 override fun onAddMediaItems(
