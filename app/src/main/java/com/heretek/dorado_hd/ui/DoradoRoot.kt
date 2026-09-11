@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -83,7 +84,10 @@ fun DoradoRoot() {
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_PAUSE -> shaded = true
+                // ON_STOP means the app is genuinely backgrounded; ON_PAUSE
+                // also fires for permission dialogs and singleTask deep-link
+                // relaunches, which used to raise the shade over the app.
+                Lifecycle.Event.ON_STOP -> shaded = true
                 else -> Unit
             }
         }
@@ -101,7 +105,10 @@ fun DoradoRoot() {
             // and adaptive density scaling doesn't multiply them.
             DeviceCanvas(
                 deviceMode = settings.deviceMode,
-                modifier = Modifier.safeDrawingPadding(),
+                modifier = Modifier
+                    .safeDrawingPadding()
+                    // Keep text fields visible when the keyboard opens.
+                    .imePadding(),
             ) { canvasWidth, canvasHeight ->
                 Box(Modifier.fillMaxSize()) {
                     NavHost(canvasWidth, canvasHeight)

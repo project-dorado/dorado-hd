@@ -131,69 +131,83 @@ val LocalContextMenu = androidx.compose.runtime.staticCompositionLocalOf<MenuCon
 fun ContextMenuOverlay(controller: MenuController) {
     val colors = LocalDoradoColors.current
     val request = controller.menu
-    AnimatedVisibility(
-        visible = request != null,
-        enter = fadeIn(DoradoMotion.pivot()),
-        exit = fadeOut(DoradoMotion.pivot()),
-    ) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(LocalDoradoColors.current.background.copy(alpha = 0.55f))
-                .pointerInput(Unit) {
-                    detectTapGestures { controller.dismiss() }
-                },
-        )
-    }
-    AnimatedVisibility(
-        visible = request != null,
-        enter = slideInVertically(DoradoMotion.pivot()) { it } + fadeIn(DoradoMotion.pivot()),
-        exit = slideOutVertically(DoradoMotion.pivot()) { it } + fadeOut(DoradoMotion.pivot()),
-    ) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .background(colors.elevated)
-                .border(0.5.dp, colors.border),
+    val prompt = controller.prompt
+
+    // The overlay is anchored bottom-center over the whole host (the panel
+    // previously landed at TopStart and covered the cropped header).
+    Box(Modifier.fillMaxSize()) {
+        AnimatedVisibility(
+            visible = request != null,
+            enter = fadeIn(DoradoMotion.pivot()),
+            exit = fadeOut(DoradoMotion.pivot()),
         ) {
-            EdgeCropText(
-                text = request?.title ?: "",
-                fontSize = DoradoTokens.TYPE_NOW_META.dp,
-                modifier = Modifier.padding(horizontal = DoradoTokens.EDGE.dp, vertical = 10.dp),
-                color = colors.textSecondary,
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(LocalDoradoColors.current.background.copy(alpha = 0.55f))
+                    .pointerInput(Unit) {
+                        detectTapGestures { controller.dismiss() }
+                    },
             )
-            request?.actions?.forEach { action ->
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            controller.dismiss()
-                            action.action()
-                        }
-                        .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 12.dp),
-                ) {
-                    EdgeCropText(text = action.label, fontSize = DoradoTokens.TYPE_LIST.dp)
+        }
+        AnimatedVisibility(
+            visible = request != null,
+            enter = slideInVertically(DoradoMotion.pivot()) { it } + fadeIn(DoradoMotion.pivot()),
+            exit = slideOutVertically(DoradoMotion.pivot()) { it } + fadeOut(DoradoMotion.pivot()),
+            modifier = Modifier.align(Alignment.BottomCenter),
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .background(colors.elevated)
+                    .border(0.5.dp, colors.border),
+            ) {
+                EdgeCropText(
+                    text = request?.title ?: "",
+                    fontSize = DoradoTokens.TYPE_NOW_META.dp,
+                    modifier = Modifier.padding(horizontal = DoradoTokens.EDGE.dp, vertical = 10.dp),
+                    color = colors.textSecondary,
+                )
+                request?.actions?.forEach { action ->
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                controller.dismiss()
+                                action.action()
+                            }
+                            .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 12.dp),
+                    ) {
+                        EdgeCropText(text = action.label, fontSize = DoradoTokens.TYPE_LIST.dp)
+                    }
                 }
+                Spacer(Modifier.height(DoradoTokens.EDGE.dp))
             }
-            Spacer(Modifier.height(DoradoTokens.EDGE.dp))
+        }
+
+        AnimatedVisibility(
+            visible = prompt != null,
+            enter = slideInVertically(DoradoMotion.pivot()) { it } + fadeIn(DoradoMotion.pivot()),
+            exit = slideOutVertically(DoradoMotion.pivot()) { it } + fadeOut(DoradoMotion.pivot()),
+            modifier = Modifier.align(Alignment.BottomCenter),
+        ) {
+            PromptPanel(controller)
         }
     }
 
-    val prompt = controller.prompt
-    AnimatedVisibility(
-        visible = prompt != null,
-        enter = slideInVertically(DoradoMotion.pivot()) { it } + fadeIn(DoradoMotion.pivot()),
-        exit = slideOutVertically(DoradoMotion.pivot()) { it } + fadeOut(DoradoMotion.pivot()),
-    ) {
-        PromptPanel(controller)
+    // Back closes an open menu/prompt instead of leaving the app.
+    androidx.activity.compose.BackHandler(enabled = request != null || prompt != null) {
+        controller.dismiss()
     }
 }
 
 @Composable
 private fun PromptPanel(controller: MenuController) {
     val colors = LocalDoradoColors.current
-    var text by remember { mutableStateOf("") }
     val request = controller.prompt ?: return
+    // Each request is a new instance, so the field starts empty every time
+    // (previously a nested prompt inherited the prior prompt's text).
+    var text by remember(request) { mutableStateOf("") }
     Column(
         Modifier
             .fillMaxWidth()
@@ -247,6 +261,12 @@ fun DetailScaffold(
     content: @Composable () -> Unit,
 ) {
     val graph = LocalDoradoGraph.current
+    // System back follows the same contract as the cropped header: a screen
+    // that supplies an in-app back action handles hardware back with it,
+    // otherwise the destination pops (root BackHandler in DoradoRoot).
+    if (onBack != null) {
+        androidx.activity.compose.BackHandler { onBack() }
+    }
     Column(Modifier.fillMaxSize()) {
         com.heretek.dorado_hd.design.components.CroppedHeader(
             text = title,
