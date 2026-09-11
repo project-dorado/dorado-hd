@@ -68,6 +68,7 @@ fun ColorSpillApp() {
     val synth = remember { MiniSynth(scope) }
     val bank = remember { SfxBank(synth) }
     DisposableEffect(Unit) {
+        synth.start()
         onDispose { synth.stop() }
     }
 

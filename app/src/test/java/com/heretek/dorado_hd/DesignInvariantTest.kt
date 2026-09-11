@@ -96,4 +96,73 @@ class DesignInvariantTest {
         assertTrue(File(repoRoot, "docs/zcp-inventory.md").exists())
         assertTrue(File(repoRoot, "NOTICE.md").exists())
     }
+
+    // ---- UI parity program guards (docs/ui-parity-audit.md) ----
+
+    @Test
+    fun `every mini-app that synthesizes audio starts its synth`() {
+        // H-10: a MiniSynth that is constructed but never started makes every
+        // SfxBank cue silent. Synth.kt is the class definition itself.
+        val offenders = sources("ui/apps")
+            .filter { it.name != "Synth.kt" }
+            .filter { it.readText().contains("MiniSynth(") }
+            .filterNot { it.readText().contains(".start()") }
+            .map { it.name }
+        assertTrue("MiniSynth without start(): $offenders", offenders.isEmpty())
+    }
+
+    @Test
+    fun `unkeyed pointer input is explicitly reviewed`() {
+        // A pointerInput(Unit) lambda keeps its first composition's captures;
+        // files must either read live state (rememberUpdatedState) or be
+        // allowlisted here with a reason.
+        val reviewed = mapOf(
+            "CardViews.kt" to "card chrome labels are static per call site",
+            "LabyrinthApp.kt" to "touch pad writes stable state delegates",
+            "MusicQuizApp.kt" to "menu taps write stable state delegates",
+            "ShellGameApp.kt" to "tap handlers read the live game delegate",
+            "ShuffleByAlbumApp.kt" to "transport taps write stable delegates",
+            "SliderPuzzleApp.kt" to "solved overlay advances a stable screen state",
+            "SnowballApp.kt" to "tap-to-pause reads live state",
+        )
+        val offenders = sources("ui/apps")
+            .filter { it.readText().contains("pointerInput(Unit)") }
+            .filterNot { it.readText().contains("rememberUpdatedState") }
+            .map { it.name }
+            .filterNot { it in reviewed }
+        assertTrue(
+            "unkeyed pointerInput without review (add to the allowlist with a reason): $offenders",
+            offenders.isEmpty(),
+        )
+    }
+
+    @Test
+    fun `sub-screens forward their onBack to DetailScaffold`() {
+        // A function that declares onBack but never passes it to DetailScaffold
+        // silently loses the hardware/header back contract (H-01).
+        val scaffold = Regex("DetailScaffold\\((.*?)\\)\\s*\\{", RegexOption.DOT_MATCHES_ALL)
+        val offenders = mutableListOf<String>()
+        for (file in sources("ui/apps")) {
+            val text = file.readText()
+            for (m in Regex("fun \\w+\\(([^)]*onBack\\s*:\\s*\\(\\)\\s*->\\s*Unit[^)]*)\\)", RegexOption.DOT_MATCHES_ALL).findAll(text)) {
+                val body = text.substring(m.range.last + 1)
+                val nextFun = Regex("\\n(@Composable\\s+)?(private |internal )?fun ").find(body)?.range?.first
+                val scoped = if (nextFun != null) body.substring(0, nextFun) else body
+                for (call in scaffold.findAll(scoped)) {
+                    if (!call.groupValues[1].contains("onBack")) {
+                        offenders += "${file.name}: DetailScaffold without onBack"
+                    }
+                }
+            }
+        }
+        assertTrue(offenders.toString(), offenders.isEmpty())
+    }
+
+    @Test
+    fun `ime handling is wired structurally`() {
+        val manifest = File(appDir, "src/main/AndroidManifest.xml").readText()
+        assertTrue("manifest must use adjustResize", manifest.contains("windowSoftInputMode=\"adjustResize\""))
+        val root = File(appDir, "src/main/java/com/heretek/dorado_hd/ui/DoradoRoot.kt").readText()
+        assertTrue("DoradoRoot must apply imePadding()", root.contains("imePadding()"))
+    }
 }

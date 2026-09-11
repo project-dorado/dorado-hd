@@ -111,8 +111,10 @@ engine-expressible.
 | `LayoutBoundsTest` | 63 apps × portrait/landscape: no unreachable clickables | 126 green |
 | `BackContractTest` | system back on game sub-screens returns in-app | green |
 | `GoldenCaptureTest` | 59 apps' device-mode entry frames, pixel tolerance | green |
-| `DesignInvariantTest` | token/corner/motion invariants | 0 violations |
+| `DesignInvariantTest` | token/corner/motion invariants + silent-synth, unkeyed-pointer-input, onBack-forwarding and IME structure guards | 0 violations |
 | Emulator crawl | 63 apps deep-link launch, crash + blank scan | 63/63 ok |
+
+**Coverage checklist:** `docs/ui-parity-checklists.md` (63 apps × spec/smoke/bounds/golden/crawl).
 
 **Residual, documented:** four clock/date screens (alarm, calendar, weather,
 notes) are excluded from pixel goldens because their entry frame renders the
