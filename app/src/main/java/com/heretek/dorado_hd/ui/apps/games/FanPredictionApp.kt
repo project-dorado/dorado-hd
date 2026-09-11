@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 package com.heretek.dorado_hd.ui.apps.games
 
 import androidx.compose.foundation.background
@@ -339,11 +340,10 @@ private fun FanSportsScreen(
                 )
             }
             Spacer(Modifier.height(10.dp))
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
+            androidx.compose.foundation.layout.FlowRow(
+                Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 FanButton("refresh", onRefresh)
                 FanButton("standings", onStandings)
@@ -379,11 +379,10 @@ private fun FanGamesScreen(
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.accentBright),
             )
             Spacer(Modifier.height(6.dp))
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
+            androidx.compose.foundation.layout.FlowRow(
+                Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 FanButton("standings", onStandings)
                 FanButton("favourite team", onFavorite)
