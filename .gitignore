@@ -27,3 +27,7 @@ review/
 # Python
 __pycache__/
 *.pyc
+
+# Local verification evidence (screenshots, crawl JSON); summaries are copied
+# into docs/ by hand.
+reports/
