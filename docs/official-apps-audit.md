@@ -10,7 +10,7 @@ reimplemented clean-room in Kotlin/Compose. Decompiled sources are never
 committed; specs under `docs/apps/` are synthesized analysis with
 `Assembly!Type.Method` citations.
 
-**Coverage:** 62 packages — mock 7, native 44, todo 11.
+**Coverage:** 62 packages — mock 7, native 49, todo 6.
 
 | Wave | Apps | Focus |
 |---|---:|---|
@@ -73,11 +73,11 @@ and content count); `Complexity` is the authored engine-effort estimate.
 | W4 | Space Battle 2 | native | `Zauri.exe` | 3 | 18109 | 280 | XL | TBD | [`space-battle-2.md`](apps/space-battle-2.md) |
 | W4 | Vine Climb | native | `VineClimb.exe` | 2 | 3742 | 42 | M | TBD | [`vine-climb.md`](apps/vine-climb.md) |
 | W4 | WordMonger | native | `WordMonger.exe` | 2 | 30513 | 80 | XL | TBD | [`wordmonger.md`](apps/wordmonger.md) |
-| W5 | 3D Picture Puzzle | todo | `PicturePuzzle3D.exe` | 3 | 4908 | 148 | M | TBD | [`3d-picture-puzzle.md`](apps/3d-picture-puzzle.md) |
-| W5 | Dr Optics Light Lab | todo | `DrOptics.exe` | 4 | 8363 | 54 | L | TBD | [`dr-optics-light-lab.md`](apps/dr-optics-light-lab.md) |
-| W5 | Finger Physics | todo | `FingerPhysics.exe` | 1 | 19556 | 358 | XL | TBD | [`finger-physics.md`](apps/finger-physics.md) |
-| W5 | Fingerpaint | todo | `Fingerpaint.exe` | 4 | 8766 | 25 | L | TBD | [`fingerpaint.md`](apps/fingerpaint.md) |
-| W5 | Tiki Totems | todo | `TikiTotems.exe` | 8 | 3364 | 162 | M | TBD | [`tiki-totems.md`](apps/tiki-totems.md) |
+| W5 | 3D Picture Puzzle | native | `PicturePuzzle3D.exe` | 3 | 4908 | 148 | M | TBD | [`3d-picture-puzzle.md`](apps/3d-picture-puzzle.md) |
+| W5 | Dr Optics Light Lab | native | `DrOptics.exe` | 4 | 8363 | 54 | L | TBD | [`dr-optics-light-lab.md`](apps/dr-optics-light-lab.md) |
+| W5 | Finger Physics | native | `FingerPhysics.exe` | 1 | 19556 | 358 | XL | TBD | [`finger-physics.md`](apps/finger-physics.md) |
+| W5 | Fingerpaint | native | `Fingerpaint.exe` | 4 | 8766 | 25 | L | TBD | [`fingerpaint.md`](apps/fingerpaint.md) |
+| W5 | Tiki Totems | native | `TikiTotems.exe` | 8 | 3364 | 162 | M | TBD | [`tiki-totems.md`](apps/tiki-totems.md) |
 | W6 | Audiosurf Tilt | todo | `Audiosurf.exe` | 4 | 19783 | 137 | XL | TBD | [`audiosurf-tilt.md`](apps/audiosurf-tilt.md) |
 | W6 | Echoes | todo | `Echoes.exe` | 3 | 20747 | 241 | XL | TBD | [`echoes.md`](apps/echoes.md) |
 | W6 | Labyrinth | todo | `Labyrinth.exe` | 5 | 9880 | 369 | L | TBD | [`labyrinth.md`](apps/labyrinth.md) |
