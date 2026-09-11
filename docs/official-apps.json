@@ -174,12 +174,12 @@
     "exe": "ColorSpill.exe",
     "category": "games",
     "description": "Colorful twist on a classic game.",
-    "corpusDir": null,
+    "corpusDir": "color_spill",
     "installedId": null,
     "status": "todo",
     "wave": "W3",
     "complexity": null,
-    "notes": ""
+    "notes": "Corpus collision: the marketplace package shares GUID 97cfdcae\u2026 with Reversi, so the archive payload is Reversi.exe. Blocked pending a clean ColorSpill dump."
   },
   {
     "slug": "decoder-ring",
