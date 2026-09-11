@@ -31,8 +31,4 @@ object NowPlayingWidgetStateMapper {
         isPlaying = isPlaying,
         artUri = artUri?.takeIf { it.isNotBlank() },
     )
-
-    /** Standard MediaStore album-art content URI for an album id. */
-    fun albumArtUri(albumId: Long): String =
-        "content://media/external/audio/albumart/$albumId"
 }

@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Dorado HD</string>
+    <string name="widget_description">Now Playing with square transport controls</string>
 </resources>

@@ -11,6 +11,8 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.action.Action
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.clickable
@@ -30,6 +32,7 @@ import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
+import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.FontWeight
@@ -50,6 +53,9 @@ object NowPlayingWidgetKeys {
     val Album = stringPreferencesKey("np_album")
     val Playing = booleanPreferencesKey("np_playing")
     val Art = stringPreferencesKey("np_art")
+
+    /** Decoded 128px album-art thumbnail (Glance 1.2 has no URI provider). */
+    val ArtBytes = androidx.datastore.preferences.core.byteArrayPreferencesKey("np_art_bytes")
 }
 
 /**
@@ -66,42 +72,70 @@ class NowPlayingWidget : GlanceAppWidget() {
         provideContent {
             val prefs = currentState<Preferences>()
             NowPlayingWidgetContent(
-                NowPlayingWidgetState(
+                state = NowPlayingWidgetState(
                     title = prefs[NowPlayingWidgetKeys.Title].orEmpty(),
                     artist = prefs[NowPlayingWidgetKeys.Artist].orEmpty(),
                     album = prefs[NowPlayingWidgetKeys.Album].orEmpty(),
                     isPlaying = prefs[NowPlayingWidgetKeys.Playing] ?: false,
                     artUri = prefs[NowPlayingWidgetKeys.Art],
                 ),
+                artBytes = prefs[NowPlayingWidgetKeys.ArtBytes],
             )
         }
     }
 }
 
 @Composable
-private fun NowPlayingWidgetContent(state: NowPlayingWidgetState) {
+private fun NowPlayingWidgetContent(state: NowPlayingWidgetState, artBytes: ByteArray?) {
     val white = ColorProvider(Color(0xFFFFFFFF))
     val muted = ColorProvider(Color(0xFF9AA0A6))
+    val artBitmap = artBytes?.let {
+        android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size)
+    }
 
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(ColorProvider(Color(0xFF0D0D0F)))
-            .padding(12.dp),
+            .padding(10.dp),
         verticalAlignment = Alignment.Vertical.CenterVertically,
     ) {
-        Text(
-            text = state.title.ifBlank { "dorado hd" },
-            maxLines = 1,
-            style = TextStyle(color = white, fontSize = 16.sp, fontWeight = FontWeight.Medium),
-        )
-        Text(
-            text = state.artist.ifBlank { if (state.title.isBlank()) "not playing" else "" },
-            maxLines = 1,
-            style = TextStyle(color = muted, fontSize = 12.sp),
-        )
+        Row(
+            modifier = GlanceModifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Vertical.CenterVertically,
+        ) {
+            // Album art from the decoded thumbnail pushed with the snapshot.
+            if (artBitmap != null) {
+                Image(
+                    provider = ImageProvider(artBitmap),
+                    contentDescription = null,
+                    contentScale = androidx.glance.layout.ContentScale.Crop,
+                    modifier = GlanceModifier.size(44.dp),
+                )
+                Spacer(GlanceModifier.width(8.dp))
+            }
+            Column(modifier = GlanceModifier.defaultWeight()) {
+                Text(
+                    text = state.title.ifBlank { "dorado hd" },
+                    maxLines = 1,
+                    style = TextStyle(color = white, fontSize = 16.sp, fontWeight = FontWeight.Medium),
+                )
+                Text(
+                    text = state.artist.ifBlank { if (state.title.isBlank()) "not playing" else "" },
+                    maxLines = 1,
+                    style = TextStyle(color = muted, fontSize = 12.sp),
+                )
+                if (state.album.isNotBlank()) {
+                    Text(
+                        text = state.album,
+                        maxLines = 1,
+                        style = TextStyle(color = muted, fontSize = 10.sp),
+                    )
+                }
+            }
+        }
 
-        Spacer(GlanceModifier.height(8.dp))
+        Spacer(GlanceModifier.height(6.dp))
 
         Row(
             modifier = GlanceModifier.fillMaxWidth(),
