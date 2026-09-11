@@ -1,3 +1,4 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 package com.heretek.dorado_hd.ui.apps
 
 import androidx.compose.animation.core.LinearEasing
@@ -466,10 +467,10 @@ fun ShuffleByAlbumApp() {
                         }
                     }
                 }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                androidx.compose.foundation.layout.FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     EdgeCropText(
                         text = "◀◀",

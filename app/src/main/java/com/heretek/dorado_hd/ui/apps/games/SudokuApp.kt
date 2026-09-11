@@ -399,10 +399,6 @@ private fun SetupPanel(
 ) {
     val colors = LocalDoradoColors.current
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        BasicText(
-            text = "sudoku",
-            style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_TITLE.sp, color = colors.textPrimary),
-        )
         Row(verticalAlignment = Alignment.CenterVertically) {
             BasicText(text = "type", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textSecondary))
             Spacer(Modifier.width(8.dp))

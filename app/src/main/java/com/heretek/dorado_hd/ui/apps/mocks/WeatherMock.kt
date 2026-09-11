@@ -31,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -490,7 +491,7 @@ private fun WxBody(text: String) {
 @Composable
 private fun SkyGlyph(sky: Sky?, size: Dp, modifier: Modifier = Modifier) {
     val colors = LocalDoradoColors.current
-    Canvas(modifier.size(size)) {
+    Canvas(modifier.size(size).clipToBounds()) {
         val w = this.size.width
         val h = this.size.height
         val ink = colors.textPrimary

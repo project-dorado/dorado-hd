@@ -548,7 +548,7 @@ private fun RidePickRow(pick: RidePick, medal: AudiosurfMedal?, onStart: () -> U
     Row(
         Modifier
             .fillMaxWidth()
-            .height(38.dp)
+            .height(46.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
             .pointerInput(pick) { detectTapGestures(onTap = { onStart() }) }

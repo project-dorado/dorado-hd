@@ -332,13 +332,6 @@ private fun FanSportsScreen(
                 text = FanPredictionEngine.favoritesLine(state),
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
             )
-            if (state.banner != null) {
-                Spacer(Modifier.height(4.dp))
-                BasicText(
-                    text = state.banner,
-                    style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.accent),
-                )
-            }
             Spacer(Modifier.height(10.dp))
             androidx.compose.foundation.layout.FlowRow(
                 Modifier.fillMaxWidth(),

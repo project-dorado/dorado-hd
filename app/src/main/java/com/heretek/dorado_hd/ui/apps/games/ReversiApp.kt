@@ -170,10 +170,6 @@ fun ReversiApp() {
             if (screen == ReversiScreen.SETUP) {
                 Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     BasicText(
-                        text = "reversi",
-                        style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_TITLE.sp, color = colors.textPrimary),
-                    )
-                    BasicText(
                         text = "black moves first",
                         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
                     )
