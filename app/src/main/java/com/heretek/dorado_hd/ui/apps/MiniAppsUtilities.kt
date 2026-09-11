@@ -129,7 +129,7 @@ fun CalculatorApp() {
                                         }
                                     }
                                     "sci" -> scientific = !scientific
-                                    "bksp" -> { if (expr.isNotEmpty()) expr = expr.dropLast(1); result = null }
+                                    "del" -> { if (expr.isNotEmpty()) expr = expr.dropLast(1); result = null }
                                     else -> { expr += label; result = null }
                                 }
                             }
@@ -150,7 +150,7 @@ private val BASIC_KEYS = listOf(
     listOf("4", "5", "6", "*"),
     listOf("1", "2", "3", "-"),
     listOf("0", ".", "(", ")"),
-    listOf("+", "±", "C", "bksp", "="),
+    listOf("+", "±", "C", "del", "="),
     listOf("sci"),
 )
 
@@ -159,7 +159,7 @@ private val SCIENTIFIC_KEYS = listOf(
     listOf("4", "5", "6", "*"),
     listOf("1", "2", "3", "-"),
     listOf("0", ".", "(", ")"),
-    listOf("+", "±", "C", "bksp", "="),
+    listOf("+", "±", "C", "del", "="),
     listOf("sci"),
     listOf("sin", "cos", "tan", "%"),
     listOf("log", "ln", "sqrt", "^"),
