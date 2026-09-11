@@ -21,7 +21,7 @@ inventory only.
 | `nvmm_h264dec.axf`, `nvmm_mpeg4dec.axf`, `nvmm_adtsdec.axf`, `nvmm_jpegdec.axf`, `nvmm_jpegenc.axf` | Tegra APX 2600 codec firmware images (H.264, MPEG-4, AAC-ADTS, JPEG decode/encode). |
 | `nvddk_audiomixer_core.axf`, `nvrm_avp.axf` | Audio-mixer core and the Tegra AVP (audio/video processor) firmware. |
 | `msadpcm.dll` | Microsoft ADPCM codec (WinCE). |
-| `runtimeZune.v3.1.zcp` | The **XNA Game Studio 3.1 runtime** package (4.3 MB). NX container flagged `encrypted = True` with no readable manifest — i.e. marketplace DRM (AES-ECB); it is the same container family handled by `dorado-emu/Dorado.Containers`. |
+| `runtimeZune.v3.1.zcp` | The **XNA Game Studio 3.1 runtime** package (4.3 MB). NX format version 1: a **plaintext ZCSTFS volume** holding ten runtime assemblies. It parses and extracts with no keys (`dorado-emu` M1.5). |
 | `TVOut.exe` | Small Windows CE ARM PE (TV-out helper). |
 
 ## Networking / radio firmware
@@ -51,7 +51,7 @@ inventory only.
 
 ## What this pass did not recover
 
-- `runtimeZune.v3.1.zcp` payload contents (marketplace DRM; no public key).
+- Device-provisioned keypacks (the RSA-2048 private key that unwraps marketplace `.zcp` content keys); not present in the firmware cab or PC installer.
 - `zuneroots.p7b` (PGP-encrypted).
 - Field semantics of the `XuiTouchSettings` struct (see
   `zune-hd-touch-settings.md` §4 — no PDB/symbol data exists in the corpus).

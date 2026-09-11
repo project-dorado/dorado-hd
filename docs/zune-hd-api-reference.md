@@ -3635,3 +3635,94 @@ metadata, not Microsoft source. Raw decompilation stays out-of-tree.
 | `DllRegisterServer` | `0x41B580DC` |
 | `DllUnregisterServer` | `0x41B580DC` |
 
+## `zcblock.dll` — 20 exports
+
+| Export | VA |
+|---|---|
+| `DSK_Close` | `0xC0C11290` |
+| `DSK_Deinit` | `0xC0C11278` |
+| `DSK_IOControl` | `0xC0C11298` |
+| `DSK_Init` | `0xC0C111E8` |
+| `DSK_Open` | `0xC0C1128C` |
+| `DSK_PowerDown` | `0xC0C11398` |
+| `DSK_PowerUp` | `0xC0C11398` |
+| `DSK_Read` | `0xC0C11398` |
+| `DSK_Seek` | `0xC0C11398` |
+| `DSK_Write` | `0xC0C11398` |
+| `ZCB_Close` | `0xC0C11290` |
+| `ZCB_Deinit` | `0xC0C11278` |
+| `ZCB_IOControl` | `0xC0C11298` |
+| `ZCB_Init` | `0xC0C111E8` |
+| `ZCB_Open` | `0xC0C1128C` |
+| `ZCB_PowerDown` | `0xC0C11398` |
+| `ZCB_PowerUp` | `0xC0C11398` |
+| `ZCB_Read` | `0xC0C11398` |
+| `ZCB_Seek` | `0xC0C11398` |
+| `ZCB_Write` | `0xC0C11398` |
+
+## `zcstfs.dll` — 29 exports
+
+| Export | VA |
+|---|---|
+| `FSD_CloseFile` | `0xC0C2D6B0` |
+| `FSD_CreateDirectoryW` | `0xC0C2BA74` |
+| `FSD_CreateFileW` | `0xC0C2CB38` |
+| `FSD_DeleteAndRenameFileW` | `0xC0C2C60C` |
+| `FSD_DeleteFileW` | `0xC0C2C134` |
+| `FSD_DeviceIoControl` | `0xC0C2D504` |
+| `FSD_FindClose` | `0xC0C2CA84` |
+| `FSD_FindFirstFileW` | `0xC0C2C628` |
+| `FSD_FindNextFileW` | `0xC0C2C944` |
+| `FSD_FlushFileBuffers` | `0xC0C2D2D8` |
+| `FSD_GetDiskFreeSpaceW` | `0xC0C2C58C` |
+| `FSD_GetFileAttributesW` | `0xC0C2BD90` |
+| `FSD_GetFileInformationByHandle` | `0xC0C2D230` |
+| `FSD_GetFileSize` | `0xC0C2D198` |
+| `FSD_GetFileTime` | `0xC0C2D32C` |
+| `FSD_MountDisk` | `0xC0C2B590` |
+| `FSD_MoveFileW` | `0xC0C2C2A8` |
+| `FSD_Notify` | `0xC0C2C608` |
+| `FSD_ReadFile` | `0xC0C2CD6C` |
+| `FSD_ReadFileWithSeek` | `0xC0C2CE4C` |
+| `FSD_RegisterFileSystemFunction` | `0xC0C2C60C` |
+| `FSD_RemoveDirectoryW` | `0xC0C2BC00` |
+| `FSD_SetEndOfFile` | `0xC0C2D490` |
+| `FSD_SetFileAttributesW` | `0xC0C2BF74` |
+| `FSD_SetFilePointer` | `0xC0C2D0A4` |
+| `FSD_SetFileTime` | `0xC0C2D3C0` |
+| `FSD_UnmountDisk` | `0xC0C2B8B0` |
+| `FSD_WriteFile` | `0xC0C2CF38` |
+| `FSD_WriteFileWithSeek` | `0xC0C2CFE4` |
+
+## `keyvault.dll` — 5 exports
+
+| Export | VA |
+|---|---|
+| `KEY_Close` | `0xC0B36BA4` |
+| `KEY_Deinit` | `0xC0B36B28` |
+| `KEY_IOControl` | `0xC0B3AA88` |
+| `KEY_Init` | `0xC0B36B74` |
+| `KEY_Open` | `0xC0B36BA0` |
+
+## `zpartstream.dll` — 8 exports
+
+| Export | VA |
+|---|---|
+| `Close` | `0xC0AE14DC` |
+| `Deinit` | `0xC0AE12D0` |
+| `IOControl` | `0xC0AE1300` |
+| `Init` | `0xC0AE112C` |
+| `Open` | `0xC0AE1068` |
+| `Read` | `0xC0AE1308` |
+| `Seek` | `0xC0AE13E8` |
+| `Write` | `0xC0AE1378` |
+
+## `DwXfer.dll` — 5 exports
+
+| Export | VA |
+|---|---|
+| `DWX_Close` | `0xC0733F4C` |
+| `DWX_Deinit` | `0xC0733F38` |
+| `DWX_IOControl` | `0xC07342AC` |
+| `DWX_Init` | `0xC07336E0` |
+| `DWX_Open` | `0xC0733F48` |

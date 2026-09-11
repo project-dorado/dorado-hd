@@ -4,14 +4,17 @@ Generated from the out-of-tree `zune-hd-disassembly/` corpus by
 `scripts/ghidra_corpus.py` (rizin symbol recovery + full Ghidra decompilation).
 Raw decompilation/symbols stay external; **this table is synthesized metadata only.**
 
-**Coverage:** 109/109 reconstructed ARM32 PE modules analysed; 66,598 functions
-decompiled; 4,169 named exports and 10,525 imports recovered.
+**Coverage:** 114/114 reconstructed ARM32 PE modules analysed; 67,399 functions
+decompiled; 4,236 named exports and 10,731 imports recovered. The kernel-only
+modules (`zcstfs.dll`, `keyvault.dll`, `DwXfer.dll`, `zcblock.dll`,
+`zpartstream.dll`) are rebuilt from `NK.bin` by `scripts/reconstruct_nk_modules.py`.
 
 | Module | Bytes | Exports | Functions | Role |
 |---|---:|---:|---:|---|
 | `AAXSDKWin.dll` | 113,152 | 74 | 360 | Audible/AAX audio SDK (spoken-word playback) |
 | `ASAFilter.dll` | 39,936 | 5 | 193 | System DLL |
 | `Dw.exe` | 60,928 | 0 | 260 | Native executable |
+| `DwXfer.dll` | 19,456 | 5 | 108 | Dump/transfer driver (`DWX1:`); keyvault routes secure transfers through it |
 | `IECEExt.dll` | 11,776 | 43 | 117 | System DLL |
 | `MtpSvc.dll` | 375,296 | 5 | 1,585 | MTP device service (USB media transfer) |
 | `ZWmtStreamer.dll` | 390,144 | 5 | 1,485 | WMA/WMV streaming (PlayReady/WMDRM) |
@@ -38,6 +41,7 @@ decompiled; 4,169 named exports and 10,525 imports recovered.
 | `iphlpapi.dll` | 51,200 | 62 | 270 | System DLL |
 | `jscript.dll` | 709,120 | 4 | 2,010 | JScript engine (zie.exe) |
 | `jsproxy.dll` | 18,432 | 92 | 85 | System DLL |
+| `keyvault.dll` | 118,272 | 5 | 358 | Key/keypack driver (`KEY1:`): RSA key import, `.zcp` content-key unwrap, provisioning |
 | `libEGL.dll` | 74,240 | 36 | 320 | OpenGL ES / EGL stack |
 | `libGLESv2.dll` | 263,680 | 143 | 931 | OpenGL ES / EGL stack |
 | `libKD.dll` | 84,992 | 173 | 544 | Kernel/user debug + crypto helpers |
@@ -101,6 +105,8 @@ decompiled; 4,169 named exports and 10,525 imports recovered.
 | `xuidll.dll` | 465,408 | 529 | 2,288 | Xbox UI (XUI) runtime ported to WinCE — layout, animation, touch dispatch |
 | `zam_serv.dll` | 93,184 | 5 | 532 | Zune Application Manager (XNA mini-app lifecycles) |
 | `zcab.dll` | 50,176 | 12 | 252 | CAB decompression helper |
+| `zcblock.dll` | 5,120 | 20 | 29 | Block-device shim exposing ZCab volumes (`ZCB_*`) |
+| `zcstfs.dll` | 77,312 | 29 | 269 | ZCSTFS volume driver — mounts `.zcp` at `\gametitle` / `\gamert` / `\xnaa` |
 | `zconfig_serv.dll` | 35,328 | 5 | 207 | Device configuration service |
 | `zcontent_serv.dll` | 56,832 | 5 | 228 | Media library indexing + metadata/search service |
 | `zcredentials_serv.dll` | 15,360 | 5 | 118 | Credential/DRM key service |
@@ -114,6 +120,7 @@ decompiled; 4,169 named exports and 10,525 imports recovered.
 | `zmassive.dll` | 87,552 | 19 | 572 | Massive (audio/marketplace) client library |
 | `zmedia_serv.dll` | 273,920 | 5 | 1,221 | Core media playback engine (pipeline, queue, EQ) |
 | `znet_serv.dll` | 492,544 | 5 | 2,046 | Networking service (download, marketplace transport) |
+| `zpartstream.dll` | 5,632 | 8 | 38 | Partition stream helper |
 | `zrender.dll` | 211,968 | 3 | 614 | High-level scene/texture rendering engine |
 | `zserial.dll` | 19,456 | 18 | 114 | Serial/device identity helper |
 | `zsplash.exe` | 18,944 | 0 | 107 | Animated startup bootsplash |
@@ -129,6 +136,10 @@ decompiled; 4,169 named exports and 10,525 imports recovered.
 - **zd3d.dll** (237 fns, 62 exports) — D3DX/`D3DXMatrix*` helpers over Direct3D-Mobile.
 - **zmedia_serv.dll** (1,221 fns) / **zhud_serv.dll** (1,167 fns) — playback + HUD.
 - **znet_serv.dll** (2,046 fns) — networking/marketplace transport.
+- **zcstfs.dll** (269 fns) — the ZCSTFS filesystem: `FSD_MountDisk`, hash/chain
+  tables, `0x4000`-byte blocks, AES-256 volume decrypt via `KEY1:`.
+- **keyvault.dll** (358 fns) — keypacks (`KEY_IOControl`), RSA private-key import
+  and content-key unwrap (`0x220054` / `0x220020`), fused provisioning.
 - **shdoclc.dll** — resource-only (0 code functions).
 
 > Raw per-function decompiled C and the symbol/string dumps live only in the external

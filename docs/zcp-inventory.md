@@ -12,7 +12,7 @@ shipped by Dorado-HD.
 | NX header | `0x000`–`0x1F0` | u32 fields; magic `4e 58` ("NX") at `0x32` behind a small version word (`07 d2`/`07 d3`); SHA-1 + GUID fingerprints |
 | Authenticode signature | `0x1F0` (hdr[4]), len hdr[7] (≈0x1DE0–0x1DEF) | PKCS#7 SignedData: `Microsoft Zune Publisher` ← `Microsoft Home Entertainment PCA`, MS Time-Stamp PCA countersignature |
 | Record manifest | `0x2800…` | `EXEC` records: lang `0x0409`, package GUID, `<App>.exe`, platform `Zune.v3.1`; `TITL`: UTF-16LE title + description |
-| Payload | after manifest | AES-ECB encrypted (16-byte-aligned identical ciphertext blocks; unique block tail per package). Marketplace DRM keys were device-delivered and are unrecoverable. |
+| Payload | after manifest | A **ZCSTFS volume** (STFS-derived mini filesystem). Format version 1 (`runtimeZune.v3.1.zcp`) is plaintext; marketplace packages AES-ECB encrypt the volume with a per-package key that arrives RSA-2048-wrapped at header `0xF0` and is unwrapped on-device from a provisioned keypack. Keys are not derivable from the package; see `dorado-emu/docs/zcp-decryption.md`. |
 
 **Verdict:** binaries and XNA content are not extractable. The manifest
 (facts only) is inventoried below; each app is re-implemented as
