@@ -27,4 +27,11 @@ class DoradoMotionTest {
         val expected = DoradoMotion.KINETIC_FRAME_RETENTION.pow(DoradoMotion.KINETIC_FRAME_HZ)
         assertEquals(expected.toDouble(), perSecondRetention.toDouble(), 1e-4)
     }
+
+    @Test
+    fun `lane retention glides shorter than the list retention`() {
+        val list = DoradoMotion.kineticFrictionMultiplier(DoradoMotion.KINETIC_FRAME_RETENTION)
+        val lane = DoradoMotion.kineticFrictionMultiplier(DoradoMotion.KINETIC_LANE_FRAME_RETENTION)
+        assertTrue("lane must apply more friction than lists", lane > list)
+    }
 }

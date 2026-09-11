@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.heretek.dorado_hd.DoradoGraph
 import com.heretek.dorado_hd.design.LocalDoradoColors
+import com.heretek.dorado_hd.design.DoradoMotion
 import com.heretek.dorado_hd.media.PlaybackController
 import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.design.components.AlbumArt
@@ -320,7 +321,7 @@ private fun QuickplayRow(graph: DoradoGraph, scope: CoroutineScope, cards: List<
     LazyRow(
         contentPadding = PaddingValues(horizontal = DoradoTokens.EDGE.dp),
         horizontalArrangement = Arrangement.spacedBy(DoradoTokens.GRID_GUTTER.dp),
-        flingBehavior = rememberZuneFlingBehavior(),
+        flingBehavior = rememberZuneFlingBehavior(frameRetention = DoradoMotion.KINETIC_LANE_FRAME_RETENTION),
     ) {
         // History legitimately repeats a track, so qualify the key by index.
         itemsIndexed(cards, key = { index, card -> "$index:${card.kind}:${card.refId}:${card.label}" }) { _, card ->
@@ -368,7 +369,7 @@ private fun NewRow() {
     LazyRow(
         contentPadding = PaddingValues(horizontal = DoradoTokens.EDGE.dp),
         horizontalArrangement = Arrangement.spacedBy(DoradoTokens.GRID_GUTTER.dp),
-        flingBehavior = rememberZuneFlingBehavior(),
+        flingBehavior = rememberZuneFlingBehavior(frameRetention = DoradoMotion.KINETIC_LANE_FRAME_RETENTION),
     ) {
         items(recent, key = { it.albumId }) { album ->
             Column(

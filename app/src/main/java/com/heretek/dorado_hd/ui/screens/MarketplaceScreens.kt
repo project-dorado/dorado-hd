@@ -218,7 +218,7 @@ private fun GamesPivot() {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = DoradoTokens.EDGE.dp),
                 horizontalArrangement = Arrangement.spacedBy(DoradoTokens.GRID_GUTTER.dp),
-                flingBehavior = rememberZuneFlingBehavior(),
+                flingBehavior = rememberZuneFlingBehavior(frameRetention = DoradoMotion.KINETIC_LANE_FRAME_RETENTION),
             ) {
                 items(installed, key = { it.id }) { app ->
                     Column(
@@ -269,7 +269,7 @@ private fun MarketplaceMusic() {
         LazyRow(
             contentPadding = PaddingValues(0.dp),
             horizontalArrangement = Arrangement.spacedBy(DoradoTokens.GRID_GUTTER.dp),
-            flingBehavior = rememberZuneFlingBehavior(),
+            flingBehavior = rememberZuneFlingBehavior(frameRetention = DoradoMotion.KINETIC_LANE_FRAME_RETENTION),
         ) {
             items(featured, key = { it.albumId }) { album ->
                 Column(
@@ -332,7 +332,7 @@ private fun AppsPivot() {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = DoradoTokens.EDGE.dp),
                 horizontalArrangement = Arrangement.spacedBy(DoradoTokens.GRID_GUTTER.dp),
-                flingBehavior = rememberZuneFlingBehavior(),
+                flingBehavior = rememberZuneFlingBehavior(frameRetention = DoradoMotion.KINETIC_LANE_FRAME_RETENTION),
             ) {
                 items(installed, key = { it.id }) { app ->
                     Column(

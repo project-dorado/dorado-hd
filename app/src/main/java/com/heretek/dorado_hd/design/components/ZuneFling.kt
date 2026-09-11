@@ -18,13 +18,19 @@ import kotlin.math.abs
  * (docs/zune-hd-touch-settings.md). Replaces the platform spline fling so
  * lists glide for the device's longer duration before coming to rest.
  *
+ * Vertical lists use the default [DoradoMotion.KINETIC_FRAME_RETENTION];
+ * horizontal lanes pass [DoradoMotion.KINETIC_LANE_FRAME_RETENTION] for a
+ * shorter glide (canon §10, post-device tuning).
+ *
  * Deceleration only — no springs (canon §6, invariant 6).
  */
 @Composable
-fun rememberZuneFlingBehavior(): FlingBehavior {
-    val decay = remember {
+fun rememberZuneFlingBehavior(
+    frameRetention: Float = DoradoMotion.KINETIC_FRAME_RETENTION,
+): FlingBehavior {
+    val decay = remember(frameRetention) {
         exponentialDecay<Float>(
-            frictionMultiplier = DoradoMotion.kineticFrictionMultiplier(),
+            frictionMultiplier = DoradoMotion.kineticFrictionMultiplier(frameRetention),
             absVelocityThreshold = 1f,
         )
     }

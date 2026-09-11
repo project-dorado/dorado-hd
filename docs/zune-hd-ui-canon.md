@@ -179,3 +179,16 @@ Ratings (tri-state heart, from the Zune desktop/HD family):
   80-byte `XuiTouchSettings` struct (`xuidll.dll` VA `0x41874314`), its XUI
   defaults, and the shell's effective `gemstone.exe` values.
 - Period reviews, Sept 2009 (listed above) for interaction ground truth.
+
+## 10. Post-device extensions
+
+Behaviors Dorado-HD adds that the Zune HD did **not** ship. These are never
+canon; they must be labelled as extensions wherever they surface. The full
+roadmap is `docs/parity-roadmap.md` §M5 onward (EQ, crossfade, scrobbling,
+lyrics, Dynamic Mix, widget, sleep timer).
+
+- **Lane fling tuning.** The device applied one global kinetic retention to
+  every surface (`XuiTouchSettings[0x1C]` = 0.95). Dorado-HD keeps that for
+  vertical lists but uses a shorter retention
+  (`DoradoMotion.KINETIC_LANE_FRAME_RETENTION` = 0.94) for horizontal lanes,
+  because the device value over-glides a carousel on a modern phone.

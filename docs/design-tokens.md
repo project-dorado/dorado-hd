@@ -48,7 +48,8 @@ in screens are an invariant violation.
 - Deceleration: cubic ease-out; pivot slides 320-420 ms.
 - Kinetic fling: proportional (exponential) decay with per-frame velocity
   retention 0.95 at 60 Hz — the shell's `XuiTouchSettings[0x1C]`; see
-  `docs/zune-hd-touch-settings.md`.
+  `docs/zune-hd-touch-settings.md`. Horizontal lanes use retention 0.94
+  (canon §10, post-device tuning).
 - List stagger entrance: 15-25 ms/item.
 - Now Playing screensaver text drift: continuous, ~40 px/s, opacity 0.9.
 - Quickplay reveal: 420 ms with parallax at 0.6x.

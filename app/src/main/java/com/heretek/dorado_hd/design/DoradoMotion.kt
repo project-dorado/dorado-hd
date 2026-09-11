@@ -30,6 +30,14 @@ object DoradoMotion {
     const val KINETIC_FRAME_HZ = 60f
 
     /**
+     * Kinetic retention for horizontal lanes (Quickplay, marketplace, artist
+     * albums). **Post-device tuning** (canon §10): the device applied one global
+     * retention to every surface, which over-glides a carousel. Lanes use a
+     * shorter glide than the vertical lists while keeping the same decay model.
+     */
+    const val KINETIC_LANE_FRAME_RETENTION = 0.94f
+
+    /**
      * Converts [KINETIC_FRAME_RETENTION] into the `frictionMultiplier` expected
      * by `androidx.compose.animation.core.exponentialDecay`, whose spec models
      * `velocity(t) = v0 * exp(-4.2 * multiplier * t)` (t in seconds). A value

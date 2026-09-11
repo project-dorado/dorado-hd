@@ -409,7 +409,7 @@ private fun ArtistAlbums(albums: List<Album>) {
         contentPadding = androidx.compose.foundation.layout.PaddingValues(DoradoTokens.EDGE.dp),
         horizontalArrangement = Arrangement.spacedBy(DoradoTokens.GRID_GUTTER.dp),
         modifier = Modifier.fillMaxSize(),
-        flingBehavior = rememberZuneFlingBehavior(),
+        flingBehavior = rememberZuneFlingBehavior(frameRetention = DoradoMotion.KINETIC_LANE_FRAME_RETENTION),
     ) {
         items(albums, key = { it.albumId }) { album ->
             Column(
