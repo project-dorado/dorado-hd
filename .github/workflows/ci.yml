@@ -4,6 +4,15 @@ on:
   push:
     branches: ["**"]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Serialize publishes per ref so the keep-last-N prune never races a sibling run.
+concurrency:
+  group: publish-dorado-hd-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -31,3 +40,55 @@ jobs:
         with:
           name: dorado-hd-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+
+  publish:
+    name: Publish APK
+    needs: build
+    # Publish on every main push (auto-tagged with the commit hash) and on demand.
+    # Pull requests and other branches only build + test.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Compute short SHA
+        run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: dorado-hd-debug
+          path: apk
+
+      - name: Name APK with commit hash
+        run: cp apk/app-debug.apk "dorado-hd-${SHORT_SHA}.apk"
+
+      # Each main-branch commit is published as a prerelease tagged with the
+      # short commit hash for a stable per-commit download URL.
+      - name: Publish per-commit prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dorado-hd-${{ env.SHORT_SHA }}
+          name: dorado-hd build ${{ env.SHORT_SHA }}
+          prerelease: true
+          generate_release_notes: true
+          files: dorado-hd-${{ env.SHORT_SHA }}.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Bound the number of per-commit prereleases.
+      - name: Prune old prereleases (keep 10)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tags=$(gh release list --limit 200 --json tagName,isPrerelease \
+            --jq '[.[] | select(.isPrerelease)
+                       | select(.tagName | startswith("dorado-hd-"))
+                       | .tagName] | .[10:]')
+          for t in $tags; do
+            echo "deleting stale prerelease $t"
+            gh release delete "$t" --yes --cleanup-tag
+          done
