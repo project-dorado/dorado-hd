@@ -307,19 +307,28 @@ def mirror_item(
     picked = originals_only(files, include_derivatives)
     total = sum(file_size(f) for f in picked)
     title = (meta.get("title") or "").replace("\n", " ")[:70]
+    present = 0
+    for f in picked:
+        dest = item_dir / f["name"]
+        if dest.exists() and dest.stat().st_size == file_size(f):
+            present += file_size(f)
     result = {
         "identifier": identifier,
         "category": cat,
         "title": title,
         "files": len(picked),
         "bytes": total,
+        "missingBytes": total - present,
         "downloaded": 0,
         "failed": [],
         "skipped": 0,
         "unverified": 0,
     }
     if dry_run:
-        log(f"  {identifier:<38} {total / 1e9:8.2f} GB  {len(picked):>4} files  {title}")
+        log(
+            f"  {identifier:<38} {total / 1e9:8.2f} GB total, "
+            f"{(total - present) / 1e9:6.2f} GB missing  {len(picked):>4} files  {title}"
+        )
         return result
 
     log(f"\n== {identifier} ({cat}) — {total / 1e9:.2f} GB, {len(picked)} files")
@@ -414,11 +423,14 @@ def main(argv: list[str]) -> int:
         check_capacity(args.root, total, args.force)
         return 0
 
-    total = sum(
-        mirror_item(i, args.root, include_derivatives=args.include_derivatives, dry_run=True)["bytes"]
+    preflight = [
+        mirror_item(i, args.root, include_derivatives=args.include_derivatives, dry_run=True)
         for i in items
-    )
-    check_capacity(args.root, total, args.force)
+    ]
+    total = sum(r["bytes"] for r in preflight)
+    missing = sum(r["missingBytes"] for r in preflight)
+    log(f"archive total {total / 1e9:.2f} GB; still missing {missing / 1e9:.2f} GB")
+    check_capacity(args.root, missing, args.force)
 
     results = []
     for identifier in items:
