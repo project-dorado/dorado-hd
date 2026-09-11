@@ -83,4 +83,10 @@ fun buildAppRegistry(): List<DoradoMiniApp> = listOf(
     DoradoMiniApp("finger-physics", "finger physics", "games", { com.heretek.dorado_hd.ui.apps.games.FingerPhysicsApp() }),
     DoradoMiniApp("fingerpaint", "fingerpaint", "games", { com.heretek.dorado_hd.ui.apps.games.FingerpaintApp() }),
     DoradoMiniApp("tiki-totems", "tiki totems", "games", { com.heretek.dorado_hd.ui.apps.games.TikiTotemsApp() }),
+    DoradoMiniApp("echoes", "echoes", "games", { com.heretek.dorado_hd.ui.apps.games.EchoesApp() }),
+    DoradoMiniApp("labyrinth", "labyrinth", "games", { com.heretek.dorado_hd.ui.apps.games.LabyrinthApp() }),
+    DoradoMiniApp("audiosurf-tilt", "audiosurf tilt", "games", { com.heretek.dorado_hd.ui.apps.games.AudiosurfApp() }),
+    DoradoMiniApp("lucky-lanes-bowling", "lucky lanes bowling", "games", { com.heretek.dorado_hd.ui.apps.games.BowlingApp() }),
+    DoradoMiniApp("pgr-ferrari-edition", "pgr ferrari", "games", { com.heretek.dorado_hd.ui.apps.games.PgrApp() }),
+    DoradoMiniApp("vans-sk8-pool-service", "vans sk8", "games", { com.heretek.dorado_hd.ui.apps.games.SkateApp() }),
 )

@@ -10,7 +10,7 @@ reimplemented clean-room in Kotlin/Compose. Decompiled sources are never
 committed; specs under `docs/apps/` are synthesized analysis with
 `Assembly!Type.Method` citations.
 
-**Coverage:** 62 packages — mock 7, native 49, todo 6.
+**Coverage:** 62 packages — mock 7, native 55.
 
 | Wave | Apps | Focus |
 |---|---:|---|
@@ -78,12 +78,12 @@ and content count); `Complexity` is the authored engine-effort estimate.
 | W5 | Finger Physics | native | `FingerPhysics.exe` | 1 | 19556 | 358 | XL | TBD | [`finger-physics.md`](apps/finger-physics.md) |
 | W5 | Fingerpaint | native | `Fingerpaint.exe` | 4 | 8766 | 25 | L | TBD | [`fingerpaint.md`](apps/fingerpaint.md) |
 | W5 | Tiki Totems | native | `TikiTotems.exe` | 8 | 3364 | 162 | M | TBD | [`tiki-totems.md`](apps/tiki-totems.md) |
-| W6 | Audiosurf Tilt | todo | `Audiosurf.exe` | 4 | 19783 | 137 | XL | TBD | [`audiosurf-tilt.md`](apps/audiosurf-tilt.md) |
-| W6 | Echoes | todo | `Echoes.exe` | 3 | 20747 | 241 | XL | TBD | [`echoes.md`](apps/echoes.md) |
-| W6 | Labyrinth | todo | `Labyrinth.exe` | 5 | 9880 | 369 | L | TBD | [`labyrinth.md`](apps/labyrinth.md) |
-| W6 | Lucky Lanes Bowling | todo | `bowling.exe` | 8 | 34409 | 670 | XL | TBD | [`lucky-lanes-bowling.md`](apps/lucky-lanes-bowling.md) |
-| W6 | PGR: Ferrari Edition | todo | `PGRZune.exe` | 2 | 53447 | 329 | XL | TBD | [`pgr-ferrari-edition.md`](apps/pgr-ferrari-edition.md) |
-| W6 | Vans Sk8 Pool Service | todo | `Vans.exe` | 3 | 12596 | 831 | L | TBD | [`vans-sk8-pool-service.md`](apps/vans-sk8-pool-service.md) |
+| W6 | Audiosurf Tilt | native | `Audiosurf.exe` | 4 | 19783 | 137 | XL | TBD | [`audiosurf-tilt.md`](apps/audiosurf-tilt.md) |
+| W6 | Echoes | native | `Echoes.exe` | 3 | 20747 | 241 | XL | TBD | [`echoes.md`](apps/echoes.md) |
+| W6 | Labyrinth | native | `Labyrinth.exe` | 5 | 9880 | 369 | L | TBD | [`labyrinth.md`](apps/labyrinth.md) |
+| W6 | Lucky Lanes Bowling | native | `bowling.exe` | 8 | 34409 | 670 | XL | TBD | [`lucky-lanes-bowling.md`](apps/lucky-lanes-bowling.md) |
+| W6 | PGR: Ferrari Edition | native | `PGRZune.exe` | 2 | 53447 | 329 | XL | TBD | [`pgr-ferrari-edition.md`](apps/pgr-ferrari-edition.md) |
+| W6 | Vans Sk8 Pool Service | native | `Vans.exe` | 3 | 12596 | 831 | L | TBD | [`vans-sk8-pool-service.md`](apps/vans-sk8-pool-service.md) |
 | W7 | Email | mock | `ZuneHDEmail.exe` | 6 | 15331 | 122 | XL | TBD | [`email.md`](apps/email.md) |
 | W7 | Facebook | mock | `Facebook.exe` | 6 | 30085 | 87 | XL | TBD | [`facebook.md`](apps/facebook.md) |
 | W7 | Messenger | mock | `Microsoft.Live.Messenger.Client.exe` | 16 | 23396 | 144 | XL | TBD | [`messenger.md`](apps/messenger.md) |
