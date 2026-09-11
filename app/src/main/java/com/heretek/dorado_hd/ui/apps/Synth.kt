@@ -5,10 +5,7 @@ import android.media.AudioFormat
 import android.media.AudioTrack
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.PI
 import kotlin.math.exp
 import kotlin.math.sin
@@ -17,6 +14,10 @@ import kotlin.math.sin
  * Tiny PCM synth shared by the piano, drum machine, and metronome mini-apps.
  * One AudioTrack per app instance, kept running for the app's lifetime.
  * Sample rate 22050 keeps the buffer modest on low-end devices.
+ *
+ * [playSamples] is a suspend function that writes on [Dispatchers.IO]:
+ * AudioTrack.write blocks until buffer space is available, so writing from
+ * the composition thread would jank the UI.
  */
 class MiniSynth(val scope: CoroutineScope, val sampleRate: Int = 22050) {
     private val bufSize = sampleRate / 10
@@ -27,23 +28,35 @@ class MiniSynth(val scope: CoroutineScope, val sampleRate: Int = 22050) {
         .setTransferMode(AudioTrack.MODE_STREAM)
         .build()
 
-    fun playSamples(samples: DoubleArray) {
-        val n = samples.size
-        val short = ShortArray(n)
-        for (i in 0 until n) {
-            val v = (samples[i] * Short.MAX_VALUE).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
-            short[i] = v.toShort()
+    @Volatile
+    private var released = false
+
+    suspend fun playSamples(samples: DoubleArray) {
+        if (released) return
+        withContext(Dispatchers.IO) {
+            if (released) return@withContext
+            val n = samples.size
+            val short = ShortArray(n)
+            for (i in 0 until n) {
+                val v = (samples[i] * Short.MAX_VALUE).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
+                short[i] = v.toShort()
+            }
+            try {
+                track.write(short, 0, n)
+            } catch (_: IllegalStateException) {
+                // Track released while a write was queued; drop the samples.
+            }
         }
-        track.write(short, 0, n)
     }
 
     fun stop() {
+        released = true
         try { track.stop() } catch (_: Exception) {}
         try { track.release() } catch (_: Exception) {}
     }
 
     fun start() {
-        track.play()
+        try { if (!released) track.play() } catch (_: Exception) {}
     }
 }
 
@@ -51,11 +64,10 @@ class MiniSynth(val scope: CoroutineScope, val sampleRate: Int = 22050) {
 fun sineNote(freqHz: Double, durationMs: Int, sampleRate: Int = 22050): DoubleArray {
     val n = (durationMs * sampleRate / 1000)
     val out = DoubleArray(n)
-    val decay = exp(-3.0 / (n.toDouble() / sampleRate))
     val w = 2 * PI * freqHz / sampleRate
     for (i in 0 until n) {
         val env = exp(-3.0 * i / n)
-        out[i] = sin(i * w) * env * 0.4 * decay
+        out[i] = sin(i * w) * env * 0.4
     }
     return out
 }
@@ -110,24 +122,4 @@ fun hatDrum(sampleRate: Int = 22050): DoubleArray {
         out[i] = (Math.random() * 2.0 - 1.0) * 0.5 * (1.0 - t)
     }
     return out
-}
-
-/** Run a metronome at BPM for `totalBeats` beats, accent on the first beat of each bar. */
-fun metronomeLoop(
-    synth: MiniSynth,
-    bpm: Int,
-    beatsPerBar: Int,
-    totalBeats: Int,
-    job: Job? = null,
-): Job {
-    return synth.scope.let { scope ->
-        scope.launch(Dispatchers.IO) {
-            val periodMs = (60_000.0 / bpm).toLong()
-            for (beat in 0 until totalBeats) {
-                if (!isActive) return@launch
-                synth.playSamples(metronomeClick(accent = beat % beatsPerBar == 0))
-                delay(periodMs)
-            }
-        }
-    }
 }

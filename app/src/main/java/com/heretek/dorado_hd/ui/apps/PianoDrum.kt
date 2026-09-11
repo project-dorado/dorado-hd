@@ -4,12 +4,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicText
@@ -31,9 +34,12 @@ import androidx.compose.ui.unit.sp
 import com.heretek.dorado_hd.design.LocalDoradoColors
 import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.design.DoradoTokens
+import com.heretek.dorado_hd.design.components.EdgeCropText
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlin.math.pow
 
 /* ============================== Piano ============================== */
 
@@ -41,6 +47,9 @@ private val PIANO_WHITE_FREQS = listOf(
     261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88,
     523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 987.77,
 )
+
+/** White-key indices that carry a black key to their upper right. */
+private val BLACK_KEY_AFTER = setOf(0, 1, 3, 4, 5, 7, 8, 10, 11, 12)
 
 @Composable
 fun PianoApp() {
@@ -53,33 +62,53 @@ fun PianoApp() {
     }
     var lastPlayed by remember { mutableStateOf<Int?>(null) }
 
+    fun playIndex(whiteIndex: Int, black: Boolean) {
+        val base = PIANO_WHITE_FREQS.getOrNull(whiteIndex) ?: return
+        val freq = if (black) base * 2.0.pow(1.0 / 12.0) else base
+        lastPlayed = whiteIndex
+        scope.launch { synth.playSamples(sineNote(freq, 500)) }
+    }
+
     DetailScaffold(title = "piano") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(Modifier.fillMaxWidth().height(DoradoTokens.PIANO_KEY_H.dp).background(colors.elevated)) {
+            BoxWithConstraints(
+                Modifier
+                    .fillMaxWidth()
+                    .height(DoradoTokens.PIANO_KEY_H.dp)
+                    .background(colors.elevated),
+            ) {
+                val whiteW = maxWidth / PIANO_WHITE_FREQS.size
                 Row(Modifier.fillMaxSize()) {
-                    repeat(14) { i ->
+                    repeat(PIANO_WHITE_FREQS.size) { i ->
                         Box(
                             Modifier
-                                .size(width = DoradoTokens.PIANO_KEY_W.dp, height = DoradoTokens.PIANO_KEY_H.dp)
-                                .background(Color.White)
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .background(if (lastPlayed == i) colors.accent else Color.White)
                                 .pointerInput(i) {
-                                    detectTapGestures(onPress = {
-                                        if (i in PIANO_WHITE_FREQS.indices) {
-                                            synth.playSamples(sineNote(PIANO_WHITE_FREQS[i], 500))
-                                            lastPlayed = i
-                                        }
-                                    })
+                                    detectTapGestures(onPress = { playIndex(i, black = false) })
                                 },
                         )
                     }
                 }
+                // Black keys overlay the white-key boundaries.
+                BLACK_KEY_AFTER.forEach { i ->
+                    if (i + 1 >= PIANO_WHITE_FREQS.size) return@forEach
+                    Box(
+                        Modifier
+                            .offset(x = whiteW * (i + 1) - DoradoTokens.PIANO_BLACK_W.dp / 2)
+                            .size(width = DoradoTokens.PIANO_BLACK_W.dp, height = DoradoTokens.PIANO_BLACK_H.dp)
+                            .background(Color.Black)
+                            .pointerInput(i) {
+                                detectTapGestures(onPress = { playIndex(i, black = true) })
+                            },
+                    )
+                }
             }
-            if (lastPlayed != null) {
-                BasicText(
-                    text = "playing ${(lastPlayed ?: 0) + 1}",
-                    style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.accent),
-                )
-            }
+            BasicText(
+                text = lastPlayed?.let { "playing ${it + 1}" } ?: "tap a key",
+                style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.accent),
+            )
         }
     }
 }
@@ -105,8 +134,9 @@ fun DrumMachineApp() {
     }
 
     LaunchedEffect(playing, bpm) {
+        // Re-read bpm every bar so tempo changes retime the running loop.
         while (playing) {
-            val period = (60_000L / bpm).toLong() / 4
+            val period = (60_000L / bpm.coerceIn(30, 300)).toLong() / 4
             for (s in 0 until 16) {
                 if (!isActive) return@LaunchedEffect
                 delay(period)
@@ -126,11 +156,21 @@ fun DrumMachineApp() {
     DetailScaffold(title = "drum machine") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                BasicText(
+                EdgeCropText(
                     text = "$bpm bpm",
-                    style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.textPrimary),
+                    fontSize = DoradoTokens.TYPE_NOW_META.dp,
                     modifier = Modifier.weight(1f),
                 )
+                listOf(-10, -1, 1, 10).forEach { delta ->
+                    EdgeCropText(
+                        text = if (delta > 0) "+$delta" else "$delta",
+                        fontSize = DoradoTokens.TYPE_LIST.dp,
+                        color = colors.accent,
+                        modifier = Modifier
+                            .padding(horizontal = 6.dp)
+                            .pointerInput(Unit) { detectTapGestures { bpm = (bpm + delta).coerceIn(30, 300) } },
+                    )
+                }
                 BasicText(
                     text = if (playing) "stop" else "start",
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.accent),

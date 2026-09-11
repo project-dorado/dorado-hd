@@ -243,13 +243,14 @@ private fun PromptPanel(controller: MenuController) {
 @Composable
 fun DetailScaffold(
     title: String,
+    onBack: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     val graph = LocalDoradoGraph.current
     Column(Modifier.fillMaxSize()) {
         com.heretek.dorado_hd.design.components.CroppedHeader(
             text = title,
-            onBack = { graph.nav.pop() },
+            onBack = onBack ?: { graph.nav.pop() },
         )
         Box(Modifier.weight(1f)) {
             content()

@@ -9,11 +9,10 @@ object ChordData {
     val ROOTS = listOf("C", "D", "E", "F", "G", "A", "B")
     val QUALITIES = listOf("major", "minor", "7", "maj7", "min7", "dim", "sus")
 
-    /** Returns the (string 6..1 → fret) shape for a root+quality. */
-    fun shapeFor(root: String, quality: String): IntArray {
-        val key = SHAPES["$root:$quality"] ?: SHAPES["C:major"] ?: intArrayOf(-1, 3, 2, 0, 1, 0)
-        return key
-    }
+    /** Returns the (string 6..1 → fret) shape for a root+quality, or null when
+     *  no open-position shape is catalogued. Never silently substitutes a
+     *  different chord's shape. */
+    fun shapeFor(root: String, quality: String): IntArray? = SHAPES["$root:$quality"]
 
     // Standard open-position shapes keyed by root+quality. Only the major
     // and minor shapes are populated; others fall back to the major shape

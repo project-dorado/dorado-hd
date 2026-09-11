@@ -3,6 +3,8 @@ package com.heretek.dorado_hd.ui.apps
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -47,6 +49,7 @@ import com.heretek.dorado_hd.ui.components.DetailScaffold
 import com.heretek.dorado_hd.ui.components.LocalContextMenu
 import com.heretek.dorado_hd.ui.components.MenuAction
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -68,10 +71,10 @@ fun CalculatorApp() {
                 style = TextStyle(
                     fontFamily = Selawik,
                     fontWeight = FontWeight.Light,
-                    fontSize = DoradoTokens.TYPE_NOW_TITLE.sp * 1.4f,
+                    fontSize = DoradoTokens.TYPE_NOW_TITLE.sp,
                     color = if (result != null) colors.accent else colors.textPrimary,
                 ),
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(4.dp))
             Box(
@@ -80,15 +83,24 @@ fun CalculatorApp() {
                     .height(0.5.dp)
                     .background(colors.border),
             )
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(6.dp))
+            // Weighted rows so every keypad row (basic or scientific) always
+            // fits the 224dp device-mode content area; nothing is clipped.
             Column(
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
             ) {
                 rows.forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                    ) {
                         row.forEach { key ->
-                            KeyButton(key) { label ->
+                            KeyButton(key, Modifier.weight(1f).fillMaxHeight()) { label ->
                                 when (label) {
                                     "C" -> { expr = ""; result = null }
                                     "=" -> {
@@ -97,11 +109,23 @@ fun CalculatorApp() {
                                         expr = v?.let { formatNumber(it) } ?: expr
                                     }
                                     "±" -> {
-                                        // Toggle sign of last number
-                                        val m = Regex("(-?\\d+(?:\\.\\d+)?)(?!.*\\d)").find(expr)
-                                        if (m != null) {
-                                            val v = m.value.toDouble()
-                                            expr = expr.replaceRange(m.range, if (v < 0) (-v).toString() else "-" + v)
+                                        // Toggle the sign of the last operand without
+                                        // corrupting a preceding subtraction: "5-3" →
+                                        // "5-(-3)" and "5-(-3)" → "5-(3)".
+                                        val num = Regex("\\d+(?:\\.\\d+)?$").find(expr)
+                                        if (num != null) {
+                                            val start = num.range.first
+                                            val raw = num.value
+                                            val prev = expr.getOrNull(start - 1)
+                                            val beforeMinus = if (prev == '-') expr.getOrNull(start - 2) else null
+                                            val minusIsSign = prev == '-' &&
+                                                (beforeMinus == null || beforeMinus in "+-*/^(")
+                                            expr = when {
+                                                minusIsSign -> expr.removeRange(start - 1, start)
+                                                prev == '-' -> expr.substring(0, start) + "(-" + raw + ")"
+                                                else -> expr.substring(0, start) + "-" + raw
+                                            }
+                                            result = null
                                         }
                                     }
                                     "sci" -> scientific = !scientific
@@ -142,12 +166,11 @@ private val SCIENTIFIC_KEYS = listOf(
 )
 
 @Composable
-private fun KeyButton(label: String, onClick: (String) -> Unit) {
+private fun KeyButton(label: String, modifier: Modifier = Modifier, onClick: (String) -> Unit) {
     val colors = LocalDoradoColors.current
     val accent = label in setOf("=", "C", "sci")
     Box(
-        Modifier
-            .size(width = 40.dp, height = 28.dp)
+        modifier
             .background(if (accent) colors.elevated else Color.Transparent)
             .combinedClickable(onClick = { onClick(label) }, onLongClick = {})
             .padding(horizontal = 4.dp, vertical = 2.dp),
@@ -178,7 +201,17 @@ fun NotesApp() {
         val s = selected!!
         var title by remember(s.id) { mutableStateOf(s.title) }
         var body by remember(s.id) { mutableStateOf(s.body) }
-        DetailScaffold(title = "notes") {
+        DetailScaffold(
+            title = "notes",
+            onBack = {
+                // Autosave on the way out; NonCancellable so the write is not
+                // torn down with the composable after nav.pop().
+                scope.launch(kotlinx.coroutines.NonCancellable) {
+                    graph.notes.update(s.id, title.ifBlank { "untitled" }, body)
+                }
+                graph.nav.pop()
+            },
+        ) {
             Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
                 EditableLine(value = title, onChange = { title = it }, placeholder = "title")
                 Spacer(Modifier.height(8.dp))
@@ -258,26 +291,36 @@ fun EditableLine(
 ) {
     val colors = LocalDoradoColors.current
     var local by remember(value) { mutableStateOf(value) }
-    androidx.compose.foundation.text.BasicTextField(
-        value = local,
-        onValueChange = {
-            local = it
-            onChange(it)
-        },
-        singleLine = !multiLine,
-        textStyle = TextStyle(
-            fontFamily = Selawik,
-            fontSize = if (multiLine) DoradoTokens.TYPE_LIST.sp else DoradoTokens.TYPE_NOW_META.sp,
-            color = colors.textPrimary,
-        ),
-        cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.accent),
-        modifier = modifier
-            .fillMaxWidth()
-            .background(colors.elevated)
-            .padding(8.dp),
-    )
-    if (local.isEmpty() && placeholder.isNotEmpty()) {
-        EdgeCropText(text = placeholder, fontSize = DoradoTokens.TYPE_NOW_META.dp, alpha = 0.4f, modifier = Modifier.padding(start = 8.dp, top = 4.dp))
+    Box(modifier.fillMaxWidth()) {
+        androidx.compose.foundation.text.BasicTextField(
+            value = local,
+            onValueChange = {
+                local = it
+                onChange(it)
+            },
+            singleLine = !multiLine,
+            textStyle = TextStyle(
+                fontFamily = Selawik,
+                fontSize = if (multiLine) DoradoTokens.TYPE_LIST.sp else DoradoTokens.TYPE_NOW_META.sp,
+                color = colors.textPrimary,
+            ),
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.accent),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(colors.elevated)
+                .padding(8.dp),
+        )
+        // Placeholder is overlaid inside the field, never a sibling row.
+        if (local.isEmpty() && placeholder.isNotEmpty()) {
+            EdgeCropText(
+                text = placeholder,
+                fontSize = DoradoTokens.TYPE_NOW_META.dp,
+                alpha = 0.4f,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 8.dp),
+            )
+        }
     }
 }
 
@@ -290,6 +333,7 @@ fun StopwatchApp() {
     var startedAt by remember { mutableStateOf(0L) }
     var accumulated by remember { mutableStateOf(0L) }
     var nowMs by remember { mutableStateOf(0L) }
+    var lastLapMs by remember { mutableStateOf(0L) }
     val laps = remember { mutableStateListOf<Long>() }
 
     LaunchedEffect(running) {
@@ -302,7 +346,7 @@ fun StopwatchApp() {
     DetailScaffold(title = "stopwatch") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
             BasicText(
-                text = formatTime(nowMs / 1000),
+                text = formatTimeCs(nowMs),
                 style = TextStyle(
                     fontFamily = Selawik,
                     fontWeight = FontWeight.Light,
@@ -336,7 +380,10 @@ fun StopwatchApp() {
                     color = if (running) colors.accent else colors.textInactive,
                     modifier = Modifier.combinedClickable(
                         enabled = running,
-                        onClick = { laps.add(nowMs) },
+                        onClick = {
+                            laps.add(0, nowMs - lastLapMs)
+                            lastLapMs = nowMs
+                        },
                         onLongClick = {},
                     ).padding(vertical = 4.dp),
                 )
@@ -345,18 +392,42 @@ fun StopwatchApp() {
                     fontSize = DoradoTokens.TYPE_LIST.dp,
                     color = colors.textInactive,
                     modifier = Modifier.combinedClickable(
-                        onClick = { running = false; accumulated = 0; laps.clear(); nowMs = 0 },
+                        onClick = {
+                            running = false; accumulated = 0; laps.clear(); nowMs = 0; lastLapMs = 0
+                        },
                         onLongClick = {},
                     ).padding(vertical = 4.dp),
                 )
             }
             Spacer(Modifier.height(8.dp))
-            // Show laps in reverse order.
-            laps.asReversed().forEach { lap ->
-                EdgeCropText(text = formatTime(lap / 1000), fontSize = DoradoTokens.TYPE_LIST.dp, alpha = 0.7f, modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp))
+            // Split times, newest first, in a scrolling list so any number of
+            // laps stays reachable.
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                laps.forEachIndexed { index, split ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+                        EdgeCropText(
+                            text = "lap ${laps.size - index}",
+                            fontSize = DoradoTokens.TYPE_CAPTION.dp,
+                            color = colors.textSecondary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        EdgeCropText(text = formatTimeCs(split), fontSize = DoradoTokens.TYPE_LIST.dp, alpha = 0.7f)
+                    }
+                }
             }
         }
     }
+}
+
+private fun formatTimeCs(ms: Long): String {
+    val s = ms.coerceAtLeast(0)
+    val h = s / 3_600_000; val m = (s % 3_600_000) / 60_000; val sec = (s % 60_000) / 1000; val cs = (s % 1000) / 10
+    return if (h > 0) "%d:%02d:%02d.%02d".format(h, m, sec, cs) else "%d:%02d.%02d".format(m, sec, cs)
 }
 
 private fun formatTime(ms: Long): String {
@@ -375,11 +446,25 @@ fun MetronomeApp() {
     var running by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val synth = remember { MiniSynth(scope) }
-    var job by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     var beat by remember { mutableStateOf(0) }
 
     DisposableEffect(Unit) {
-        onDispose { synth.stop(); job?.cancel() }
+        onDispose { synth.stop() }
+    }
+
+    // One loop drives both the audible click and the beat readout and re-reads
+    // bpm every beat, so a tempo change retimes the running metronome instead
+    // of leaving display and clicks permanently desynced.
+    LaunchedEffect(running, bpm, beatsPerBar) {
+        if (!running) return@LaunchedEffect
+        synth.start()
+        var beatIndex = 0
+        while (isActive) {
+            synth.playSamples(metronomeClick(accent = beatIndex % beatsPerBar == 0))
+            beat = beatIndex % beatsPerBar
+            beatIndex++
+            delay(60_000L / bpm.coerceIn(30, 300))
+        }
     }
 
     DetailScaffold(title = "metronome") {
@@ -395,14 +480,14 @@ fun MetronomeApp() {
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                (-5..5 step 1).forEach { step ->
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                listOf(-10, -5, -1, 1, 5, 10).forEach { step ->
                     EdgeCropText(
                         text = if (step > 0) "+$step" else "$step",
                         fontSize = DoradoTokens.TYPE_LIST.dp,
-                        color = if (step == 0) colors.textInactive else colors.accent,
+                        color = colors.accent,
                         modifier = Modifier.combinedClickable(
-                            onClick = { bpm = (bpm + step * 2).coerceIn(30, 300) },
+                            onClick = { bpm = (bpm + step).coerceIn(30, 300) },
                             onLongClick = {},
                         ).padding(vertical = 4.dp),
                     )
@@ -429,27 +514,14 @@ fun MetronomeApp() {
                 color = colors.accent,
                 modifier = Modifier.combinedClickable(
                     onClick = {
-                        if (running) {
-                            job?.cancel(); running = false
-                        } else {
-                            synth.start()
-                            beat = 0
-                            job = metronomeLoop(synth, bpm, beatsPerBar, totalBeats = Int.MAX_VALUE)
-                            running = true
-                        }
+                        running = !running
+                        if (!running) beat = 0
                     },
                     onLongClick = {},
                 ).padding(vertical = 4.dp),
             )
             Spacer(Modifier.height(8.dp))
-            EdgeCropText(text = "beat $beat", fontSize = DoradoTokens.TYPE_LIST.dp, alpha = 0.6f, modifier = Modifier.fillMaxWidth())
-            // Lightweight beat pulse: every click increments beat via a separate ticker.
-            LaunchedEffect(running) {
-                while (running) {
-                    delay((60_000L / bpm.coerceAtLeast(30)))
-                    beat = (beat + 1) % beatsPerBar
-                }
-            }
+            EdgeCropText(text = "beat ${beat + 1}", fontSize = DoradoTokens.TYPE_LIST.dp, alpha = 0.6f, modifier = Modifier.fillMaxWidth())
         }
     }
 }
@@ -485,7 +557,7 @@ fun LevelApp() {
     DetailScaffold(title = "level") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             EdgeCropText(
-                text = if (surface) "surface" else "bubble",
+                text = if (surface) "bubble" else "surface",
                 fontSize = DoradoTokens.TYPE_LIST.dp,
                 color = colors.accent,
                 modifier = Modifier.combinedClickable(onClick = { surface = !surface }, onLongClick = {}),
@@ -496,7 +568,7 @@ fun LevelApp() {
                     contentAlignment = Alignment.Center,
                 ) {
                     BasicText(
-                        text = "roll %.1f°".format(xDeg),
+                        text = "roll %.1f°   pitch %.1f°".format(xDeg, yDeg),
                         style = TextStyle(
                             fontFamily = Selawik,
                             fontWeight = FontWeight.Light,
@@ -541,25 +613,35 @@ private fun BubbleLevel(xDeg: Double, yDeg: Double) {
 
 @Composable
 fun ChordFinderApp() {
+    val colors = LocalDoradoColors.current
     var root by remember { mutableStateOf("C") }
     var quality by remember { mutableStateOf("major") }
     DetailScaffold(title = "chord finder") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 ChordData.ROOTS.forEach { r ->
-                    EdgeCropText(text = r, fontSize = DoradoTokens.TYPE_LIST.dp, color = if (r == root) LocalDoradoColors.current.accent else LocalDoradoColors.current.textPrimary,
+                    EdgeCropText(text = r, fontSize = DoradoTokens.TYPE_LIST.dp, color = if (r == root) colors.accent else colors.textPrimary,
                         modifier = Modifier.combinedClickable(onClick = { root = r }, onLongClick = {}))
                 }
             }
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 ChordData.QUALITIES.forEach { q ->
-                    EdgeCropText(text = q, fontSize = DoradoTokens.TYPE_LIST.dp, color = if (q == quality) LocalDoradoColors.current.accent else LocalDoradoColors.current.textPrimary,
+                    EdgeCropText(text = q, fontSize = DoradoTokens.TYPE_LIST.dp, color = if (q == quality) colors.accent else colors.textPrimary,
                         modifier = Modifier.combinedClickable(onClick = { quality = q }, onLongClick = {}))
                 }
             }
             Spacer(Modifier.height(12.dp))
-            Fretboard(ChordData.shapeFor(root, quality))
+            val shape = ChordData.shapeFor(root, quality)
+            if (shape != null) {
+                Fretboard(shape)
+            } else {
+                EdgeCropText(
+                    text = "no open shape for $root $quality",
+                    fontSize = DoradoTokens.TYPE_NOW_META.dp,
+                    color = colors.textSecondary,
+                )
+            }
         }
     }
 }
@@ -567,28 +649,35 @@ fun ChordFinderApp() {
 @Composable
 private fun Fretboard(frets: IntArray) {
     val colors = LocalDoradoColors.current
-    val width = 200.dp
-    val height = 90.dp
-    androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxWidth().height(height)) {
+    androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxWidth().height(110.dp)) {
         val w = size.width; val h = size.height
-        // 4 frets shown
-        val fretGap = w / 5
-        for (i in 1..4) {
+        val topPad = h * 0.18f
+        val boardH = h - topPad
+        val fretCount = 5
+        val fretGap = w / fretCount
+        val stringYs = FloatArray(6) { topPad + (it + 1) * boardH / 7f }
+        // Fret wires plus a thicker nut at the left edge.
+        for (i in 1..fretCount) {
             val x = i * fretGap
-            drawLine(colors.border.copy(alpha = 0.5f), androidx.compose.ui.geometry.Offset(x, 0f), androidx.compose.ui.geometry.Offset(x, h), 1f)
+            drawLine(colors.border.copy(alpha = 0.5f), androidx.compose.ui.geometry.Offset(x, topPad), androidx.compose.ui.geometry.Offset(x, h), 1f)
         }
-        // 6 strings
-        for (i in 0..5) {
-            val y = (i + 1) * h / 7
+        drawLine(colors.textSecondary, androidx.compose.ui.geometry.Offset(0f, topPad), androidx.compose.ui.geometry.Offset(0f, h), 3f)
+        for (y in stringYs) {
             drawLine(colors.border, androidx.compose.ui.geometry.Offset(0f, y), androidx.compose.ui.geometry.Offset(w, y), 1f)
         }
-        // Dots at frets[0..5]
         for (i in 0 until minOf(frets.size, 6)) {
             val f = frets[i]
-            if (f in 0..4) {
-                val cx = (f + 0.5f) * fretGap
-                val cy = (i + 1) * h / 7
-                drawCircle(colors.accent, 6f, androidx.compose.ui.geometry.Offset(cx, cy))
+            val y = stringYs[i]
+            val markerY = y - topPad * 0.7f
+            when {
+                f < 0 -> {
+                    // Muted: X marker above the nut.
+                    val s = 5f
+                    drawLine(colors.textSecondary, androidx.compose.ui.geometry.Offset(4f - s, markerY - s), androidx.compose.ui.geometry.Offset(4f + s, markerY + s), 1.5f)
+                    drawLine(colors.textSecondary, androidx.compose.ui.geometry.Offset(4f - s, markerY + s), androidx.compose.ui.geometry.Offset(4f + s, markerY - s), 1.5f)
+                }
+                f == 0 -> drawCircle(colors.textSecondary, 5f, androidx.compose.ui.geometry.Offset(4f, markerY), style = androidx.compose.ui.graphics.drawscope.Stroke(1.5f))
+                else -> drawCircle(colors.accent, 6f, androidx.compose.ui.geometry.Offset((f - 0.5f) * fretGap, y))
             }
         }
     }
@@ -605,7 +694,7 @@ fun ShuffleByAlbumApp() {
     var pick by remember { mutableStateOf<com.heretek.dorado_hd.data.model.Album?>(null) }
 
     DetailScaffold(title = "shuffle by album") {
-        Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             EdgeCropText(
                 text = "shuffle",
                 fontSize = DoradoTokens.TYPE_LIST.dp,
@@ -617,28 +706,39 @@ fun ShuffleByAlbumApp() {
                     onLongClick = {},
                 ),
             )
+            if (albums.isEmpty()) {
+                EdgeCropText(text = "no albums on device", fontSize = DoradoTokens.TYPE_NOW_META.dp, color = colors.textSecondary)
+                return@Column
+            }
             pick?.let { album ->
-                com.heretek.dorado_hd.design.components.AlbumArt(
-                    model = album.albumArtUri,
-                    contentDescription = album.title,
-                    modifier = Modifier.size(120.dp),
-                )
-                EdgeCropText(text = album.title, fontSize = DoradoTokens.TYPE_NOW_META.dp)
-                EdgeCropText(text = album.artist, fontSize = DoradoTokens.TYPE_LIST.dp, color = colors.textSecondary)
-                EdgeCropText(
-                    text = "play",
-                    fontSize = DoradoTokens.TYPE_LIST.dp,
-                    color = colors.accent,
-                    modifier = Modifier.combinedClickable(
-                        onClick = {
-                            scope.launch {
-                                val tracks = graph.library.tracksByAlbum(album.albumId)
-                                if (tracks.isNotEmpty()) graph.controller.play(tracks, 0)
-                            }
-                        },
-                        onLongClick = {},
-                    ),
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    com.heretek.dorado_hd.design.components.AlbumArt(
+                        model = album.albumArtUri,
+                        contentDescription = album.title,
+                        modifier = Modifier.size(88.dp),
+                    )
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        EdgeCropText(text = album.title, fontSize = DoradoTokens.TYPE_NOW_META.dp)
+                        EdgeCropText(text = album.artist, fontSize = DoradoTokens.TYPE_LIST.dp, color = colors.textSecondary)
+                        EdgeCropText(
+                            text = "play",
+                            fontSize = DoradoTokens.TYPE_LIST.dp,
+                            color = colors.accent,
+                            modifier = Modifier.combinedClickable(
+                                onClick = {
+                                    scope.launch {
+                                        val tracks = graph.library.tracksByAlbum(album.albumId)
+                                        if (tracks.isNotEmpty()) graph.controller.play(tracks, 0)
+                                    }
+                                },
+                                onLongClick = {},
+                            ),
+                        )
+                    }
+                }
             }
         }
     }
@@ -654,10 +754,12 @@ fun MusicQuizApp() {
     var question by remember { mutableStateOf<QuizEngine.Question?>(null) }
     var correct by remember { mutableStateOf(0) }
     var wrong by remember { mutableStateOf(0) }
+    var exhausted by remember { mutableStateOf(false) }
 
     LaunchedEffect(tracks) {
-        if (question == null && tracks.size >= 4) {
+        if (question == null && !exhausted) {
             question = QuizEngine.buildQuestion(tracks)
+            if (question == null && tracks.isNotEmpty()) exhausted = true
         }
     }
 
@@ -665,7 +767,15 @@ fun MusicQuizApp() {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
             val q = question
             if (q == null) {
-                EdgeCropText(text = "loading…", fontSize = DoradoTokens.TYPE_NOW_META.dp, alpha = 0.4f)
+                EdgeCropText(
+                    text = if (exhausted) "need at least 4 artists or albums to quiz" else "loading…",
+                    fontSize = DoradoTokens.TYPE_NOW_META.dp,
+                    alpha = 0.6f,
+                )
+                if (exhausted) {
+                    Spacer(Modifier.height(8.dp))
+                    EdgeCropText(text = "correct $correct — wrong $wrong", fontSize = DoradoTokens.TYPE_CAPTION.dp, alpha = 0.6f)
+                }
                 return@Column
             }
             BasicText(
@@ -673,9 +783,11 @@ fun MusicQuizApp() {
                 style = TextStyle(
                     fontFamily = Selawik,
                     fontWeight = FontWeight.Light,
-                    fontSize = DoradoTokens.TYPE_NOW_TITLE.sp * 1.2f,
+                    fontSize = DoradoTokens.TYPE_NOW_TITLE.sp,
                     color = LocalDoradoColors.current.textPrimary,
                 ),
+                maxLines = 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(8.dp))
@@ -693,7 +805,9 @@ fun MusicQuizApp() {
                                 } else {
                                     wrong++
                                 }
-                                scope.launch { question = QuizEngine.buildQuestion(tracks) }
+                                val next = QuizEngine.buildQuestion(tracks)
+                                if (next == null) exhausted = true
+                                question = next
                             },
                             onLongClick = {},
                         )
@@ -708,6 +822,9 @@ fun MusicQuizApp() {
 
 /* ============================== Alarm Clock ============================== */
 
+/** Stable PendingIntent request code from a Long alarm id (no truncation). */
+private fun alarmRequestCode(id: Long): Int = (id xor (id ushr 32)).toInt()
+
 @Composable
 fun AlarmClockApp() {
     val graph = LocalDoradoGraph.current
@@ -716,12 +833,10 @@ fun AlarmClockApp() {
     val menus = LocalContextMenu.current
     val alarms by graph.alarms.alarms().collectAsState(initial = emptyList())
 
-    fun schedule(alarm: com.heretek.dorado_hd.data.db.AlarmEntity) {
-        val am = context.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
-        val triggerAt = com.heretek.dorado_hd.media.AlarmScheduler.nextFireMs(alarm.hour, alarm.minute)
-        val pi = android.app.PendingIntent.getBroadcast(
+    fun alarmPi(alarm: com.heretek.dorado_hd.data.db.AlarmEntity): android.app.PendingIntent =
+        android.app.PendingIntent.getBroadcast(
             context,
-            alarm.id.toInt(),
+            alarmRequestCode(alarm.id),
             android.content.Intent(context, com.heretek.dorado_hd.media.AlarmReceiver::class.java).apply {
                 putExtra("alarmId", alarm.id)
                 putExtra("alarmKind", alarm.alarmKind)
@@ -729,7 +844,25 @@ fun AlarmClockApp() {
             },
             android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
         )
-        am.set(android.app.AlarmManager.RTC_WAKEUP, triggerAt, pi)
+
+    fun schedule(alarm: com.heretek.dorado_hd.data.db.AlarmEntity) {
+        if (!alarm.enabled) return
+        val am = context.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
+        val triggerAt = com.heretek.dorado_hd.media.AlarmScheduler.nextFireMs(alarm.hour, alarm.minute, daysOfWeek = alarm.daysOfWeek)
+        am.set(android.app.AlarmManager.RTC_WAKEUP, triggerAt, alarmPi(alarm))
+    }
+
+    fun cancel(alarm: com.heretek.dorado_hd.data.db.AlarmEntity) {
+        val am = context.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
+        am.cancel(alarmPi(alarm))
+    }
+
+    fun parseTime(input: String): Pair<Int, Int>? {
+        val m = Regex("(\\d{1,2})\\s*[:.]\\s*(\\d{1,2})").find(input.trim()) ?: return null
+        val h = m.groupValues[1].toIntOrNull() ?: return null
+        val min = m.groupValues[2].toIntOrNull() ?: return null
+        if (h !in 0..23 || min !in 0..59) return null
+        return h to min
     }
 
     DetailScaffold(title = "alarm clock") {
@@ -740,14 +873,16 @@ fun AlarmClockApp() {
                     .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 8.dp)
                     .combinedClickable(
                         onClick = {
-                            scope.launch {
-                                val id = graph.alarms.add(
-                                    com.heretek.dorado_hd.data.db.AlarmEntity(
-                                        hour = 7, minute = 0, enabled = true,
+                            menus.showPrompt("new alarm", "hh:mm (24h)") { value ->
+                                val (h, m) = parseTime(value) ?: (7 to 0)
+                                scope.launch {
+                                    val entity = com.heretek.dorado_hd.data.db.AlarmEntity(
+                                        hour = h, minute = m, enabled = true,
                                         label = "alarm", alarmKind = 0, refId = 0, daysOfWeek = 0,
-                                    ),
-                                )
-                                schedule(com.heretek.dorado_hd.data.db.AlarmEntity(id = id, hour = 7, minute = 0, enabled = true, label = "alarm", alarmKind = 0, refId = 0, daysOfWeek = 0))
+                                    )
+                                    val id = graph.alarms.add(entity)
+                                    schedule(entity.copy(id = id))
+                                }
                             }
                         },
                         onLongClick = {},
@@ -767,35 +902,33 @@ fun AlarmClockApp() {
                             .combinedClickable(
                                 onClick = {
                                     scope.launch {
-                                        graph.alarms.setEnabled(alarm.id, !alarm.enabled)
-                                        if (!alarm.enabled) {
-                                            val am = context.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
-                                            am.cancel(
-                                                android.app.PendingIntent.getBroadcast(
-                                                    context,
-                                                    alarm.id.toInt(),
-                                                    android.content.Intent(context, com.heretek.dorado_hd.media.AlarmReceiver::class.java),
-                                                    android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE,
-                                                ),
-                                            )
-                                        } else schedule(alarm)
+                                        val enable = !alarm.enabled
+                                        graph.alarms.setEnabled(alarm.id, enable)
+                                        if (enable) schedule(alarm.copy(enabled = true)) else cancel(alarm)
                                     }
                                 },
                                 onLongClick = {
                                     menus.show(
-                                        title = alarm.label,
+                                        title = "%02d:%02d %s".format(alarm.hour, alarm.minute, alarm.label),
                                         actions = listOf(
-                                            // Bump the hour in place (no time-picker surface yet);
-                                            // do NOT duplicate the alarm.
                                             MenuAction("edit time") {
-                                                scope.launch {
-                                                    val hour = (alarm.hour + 1) % 24
-                                                    graph.alarms.setTime(alarm.id, hour, alarm.minute)
-                                                    schedule(alarm.copy(hour = hour))
+                                                menus.showPrompt(
+                                                    "edit alarm",
+                                                    "%02d:%02d".format(alarm.hour, alarm.minute),
+                                                ) { value ->
+                                                    val (h, m) = parseTime(value) ?: (alarm.hour to alarm.minute)
+                                                    scope.launch {
+                                                        graph.alarms.setTime(alarm.id, h, m)
+                                                        val updated = alarm.copy(hour = h, minute = m)
+                                                        if (updated.enabled) schedule(updated) else cancel(updated)
+                                                    }
                                                 }
                                             },
                                             MenuAction("delete") {
-                                                scope.launch { graph.alarms.delete(alarm.id) }
+                                                scope.launch {
+                                                    cancel(alarm)
+                                                    graph.alarms.delete(alarm.id)
+                                                }
                                             },
                                         ),
                                     )
@@ -853,13 +986,28 @@ private fun MonthGrid(monthStart: java.time.YearMonth, appts: List<com.heretek.d
     val firstWeekday = (firstOfMonth.dayOfWeek.value % 7) // Sunday=0
     val cells = firstWeekday + daysInMonth
     val rows = (cells + 6) / 7
-    val apptsByDay = appts.groupBy {
-        java.time.Instant.ofEpochMilli(it.startAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate().dayOfMonth
+    // Key by full date: a day-of-month map made every August 5 light up in
+    // September (and every other month).
+    val apptsByDate = appts.groupBy {
+        java.time.Instant.ofEpochMilli(it.startAt).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
     }
     val colors = LocalDoradoColors.current
     val scope = rememberCoroutineScope()
     val graph = LocalDoradoGraph.current
     val menus = LocalContextMenu.current
+
+    fun addAppointment(date: java.time.LocalDate) {
+        menus.showPrompt("appointment", "title") { title ->
+            scope.launch {
+                graph.calendar.add(
+                    title = title.ifBlank { "untitled" },
+                    notes = null,
+                    startAt = date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli(),
+                    endAt = null,
+                )
+            }
+        }
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         for (r in 0 until rows) {
@@ -867,26 +1015,27 @@ private fun MonthGrid(monthStart: java.time.YearMonth, appts: List<com.heretek.d
                 for (c in 0 until 7) {
                     val dayIndex = r * 7 + c - firstWeekday + 1
                     val valid = dayIndex in 1..daysInMonth
+                    val date = if (valid) monthStart.atDay(dayIndex) else null
+                    val dayAppts = date?.let { apptsByDate[it].orEmpty() } ?: emptyList()
                     Box(
                         Modifier
                             .size(width = 40.dp, height = 28.dp)
                             .background(if (valid) colors.elevated else Color.Transparent)
                             .combinedClickable(
                                 enabled = valid,
-                                onClick = {
-                                    val date = monthStart.atDay(dayIndex)
-                                    menus.showPrompt("appointment", "title") { title ->
-                                        scope.launch {
-                                            graph.calendar.add(
-                                                title = title.ifBlank { "untitled" },
-                                                notes = null,
-                                                startAt = date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli(),
-                                                endAt = null,
-                                            )
-                                        }
+                                onClick = { date?.let { addAppointment(it) } },
+                                onLongClick = {
+                                    if (date != null && dayAppts.isNotEmpty()) {
+                                        menus.show(
+                                            title = date.toString(),
+                                            actions = dayAppts.map { a ->
+                                                MenuAction("delete ${a.title}") {
+                                                    scope.launch { graph.calendar.delete(a.id) }
+                                                }
+                                            } + MenuAction("add appointment") { addAppointment(date) },
+                                        )
                                     }
                                 },
-                                onLongClick = {},
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -895,7 +1044,7 @@ private fun MonthGrid(monthStart: java.time.YearMonth, appts: List<com.heretek.d
                             style = TextStyle(
                                 fontFamily = Selawik,
                                 fontSize = DoradoTokens.TYPE_LIST.sp,
-                                color = if (valid && apptsByDay.containsKey(dayIndex)) colors.accent else colors.textPrimary,
+                                color = if (valid && dayAppts.isNotEmpty()) colors.accent else colors.textPrimary,
                             ),
                         )
                     }

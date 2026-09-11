@@ -19,9 +19,12 @@ object AlarmScheduler {
             if (cal.timeInMillis <= nowMs) cal.add(Calendar.DAY_OF_YEAR, 1)
             return cal.timeInMillis
         }
-        // Weekly mask (Sun..Sat bit 0..6). Search up to 7 days ahead.
-        for (offset in 0..7) {
-            val dow = ((cal.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY + offset) % 7)
+        // Weekly mask (Sun..Sat bit 0..6). Search up to 7 days ahead; advance
+        // one calendar day per iteration and re-read the weekday (the old
+        // version added `offset` to the weekday *and* advanced the calendar,
+        // double-counting the offset).
+        for (i in 0..7) {
+            val dow = cal.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY
             val bit = 1 shl dow
             if (daysOfWeek and bit != 0 && cal.timeInMillis > nowMs) return cal.timeInMillis
             cal.add(Calendar.DAY_OF_YEAR, 1)

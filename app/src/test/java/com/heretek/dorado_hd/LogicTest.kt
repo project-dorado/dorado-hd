@@ -157,10 +157,29 @@ class LogicTest {
 
     @Test
     fun `chord finder returns a six-string shape`() {
-        val shape = ChordData.shapeFor("C", "major")
+        val shape = ChordData.shapeFor("C", "major") ?: error("expected a C major shape")
         assertEquals(6, shape.size)
         // C major open position has a 3rd-fret on the A string (index 1).
         assertEquals(3, shape[1])
+    }
+
+    @Test
+    fun `chord finder reports uncatalogued shapes instead of substituting`() {
+        // The UI must never silently draw a different chord's shape.
+        assertNull(ChordData.shapeFor("B", "dim"))
+        assertNull(ChordData.shapeFor("F", "maj7"))
+    }
+
+    @Test
+    fun `calculator evaluates scientific functions and powers`() {
+        assertEquals(9.0, CalcEngine.eval("sqrt(81)"))
+        assertEquals(8.0, CalcEngine.eval("2^3"))
+        assertEquals(512.0, CalcEngine.eval("2^3^2"))
+        assertEquals(0.0, CalcEngine.eval("sin(0)"))
+        assertEquals(1.0, CalcEngine.eval("cos(0)"))
+        assertEquals(6.0, CalcEngine.eval("2*(1+2)"))
+        assertNull(CalcEngine.eval("ln(0)"))
+        assertNull(CalcEngine.eval("sqrt(-1)"))
     }
 
     /* ============ Phase 3 / Music quiz ============ */
