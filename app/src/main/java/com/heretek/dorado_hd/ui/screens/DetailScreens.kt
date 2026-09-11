@@ -1,6 +1,7 @@
 package com.heretek.dorado_hd.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -8,8 +9,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,6 +20,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
@@ -291,47 +297,111 @@ private fun ArtistBio(artistName: String?) {
 @Composable
 private fun ArtistPhotos(artistName: String?) {
     val graph = LocalDoradoGraph.current
-    var photo by remember(artistName) { mutableStateOf<java.io.File?>(null) }
+    val colors = LocalDoradoColors.current
+    var photos by remember(artistName) { mutableStateOf<List<com.heretek.dorado_hd.net.ArtistPhoto>>(emptyList()) }
+    var loading by remember(artistName) { mutableStateOf(true) }
+    var viewer by remember(artistName) { mutableStateOf<com.heretek.dorado_hd.net.ArtistPhoto?>(null) }
 
     LaunchedEffect(artistName) {
-        if (artistName != null) photo = graph.artistImages.backgroundFor(artistName)
+        loading = true
+        photos = if (artistName == null) emptyList() else graph.artistImages.photosFor(artistName)
+        loading = false
+    }
+
+    // Full-bleed viewer, in place (the pivot owns no destination): the cropped
+    // "back" label and hardware back dismiss it.
+    val open = viewer
+    if (open != null) {
+        androidx.activity.compose.BackHandler { viewer = null }
+        Box(Modifier.fillMaxSize().background(colors.background)) {
+            coil3.compose.AsyncImage(
+                model = open.url,
+                contentDescription = artistName,
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                modifier = Modifier.fillMaxSize(),
+            )
+            EdgeCropText(
+                text = "back",
+                fontSize = DoradoTokens.TYPE_LIST.dp,
+                color = colors.accent,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(DoradoTokens.EDGE.dp)
+                    .clickable { viewer = null },
+            )
+        }
+        return
     }
 
     // The Zune HD's artist page showed multiple band photos from zune.net.
-    // catalog.zune.net is gone, so we surface a single available photo (the
-    // wallpaper pulled from MusicBrainz) and an honest caption explaining
-    // where the rest would have come from.
-    Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-        if (photo != null) {
-            coil3.compose.AsyncImage(
-                model = android.net.Uri.fromFile(photo),
-                contentDescription = artistName,
-                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                modifier = Modifier.weight(1f).fillMaxWidth(),
+    // catalog.zune.net is gone; the grid degrades through the cloud artwork
+    // module, then Cover Art Archive, then the single cached wallpaper.
+    when {
+        loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            EdgeCropText(
+                text = "loading…",
+                fontSize = DoradoTokens.TYPE_NOW_META.dp,
+                alpha = 0.4f,
             )
+        }
+        photos.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            EdgeCropText(
+                text = "no photos — enable artist photos in settings",
+                fontSize = DoradoTokens.TYPE_NOW_META.dp,
+                alpha = 0.4f,
+            )
+        }
+        else -> Column(Modifier.fillMaxSize()) {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = DoradoTokens.ALBUM_TILE.dp),
+                contentPadding = PaddingValues(
+                    start = DoradoTokens.EDGE.dp,
+                    end = DoradoTokens.EDGE.dp,
+                    top = DoradoTokens.EDGE.dp,
+                    bottom = DoradoTokens.GRID_GUTTER.dp,
+                ),
+                horizontalArrangement = Arrangement.spacedBy(DoradoTokens.GRID_GUTTER.dp),
+                verticalArrangement = Arrangement.spacedBy(DoradoTokens.GRID_GUTTER.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                flingBehavior = rememberZuneFlingBehavior(),
+            ) {
+                gridItems(photos, key = { it.url }) { photo ->
+                    coil3.compose.AsyncImage(
+                        model = photo.url,
+                        contentDescription = artistName,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
+                            .clickable { viewer = photo },
+                    )
+                }
+            }
             EdgeCropText(
                 text = artistName ?: "",
                 fontSize = DoradoTokens.TYPE_NOW_TITLE.dp,
-                color = LocalDoradoColors.current.textPrimary,
-                modifier = Modifier.padding(top = 8.dp),
+                color = colors.textPrimary,
+                modifier = Modifier.padding(horizontal = DoradoTokens.EDGE.dp, vertical = 4.dp),
             )
             EdgeCropText(
-                text = "photos from catalog.zune.net (frozen 2012)",
+                text = photoSourceCaption(photos),
                 fontSize = DoradoTokens.TYPE_CAPTION.dp,
-                color = LocalDoradoColors.current.textSecondary,
+                color = colors.textSecondary,
                 alpha = 0.6f,
+                modifier = Modifier.padding(horizontal = DoradoTokens.EDGE.dp),
             )
-        } else {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                EdgeCropText(
-                    text = "no photos — enable artist photos in settings",
-                    fontSize = DoradoTokens.TYPE_NOW_META.dp,
-                    alpha = 0.4f,
-                )
-            }
         }
     }
 }
+
+private fun photoSourceCaption(photos: List<com.heretek.dorado_hd.net.ArtistPhoto>): String =
+    when (photos.firstOrNull()?.source) {
+        com.heretek.dorado_hd.net.ArtistPhotoSource.CLOUD -> "photos from your dorado cloud catalog"
+        com.heretek.dorado_hd.net.ArtistPhotoSource.COVER_ART -> "photos from musicbrainz / cover art archive"
+        else -> "cached artist wallpaper"
+    }
 
 @Composable
 private fun ArtistRelated(related: List<com.heretek.dorado_hd.data.model.Artist>, artistName: String? = null) {

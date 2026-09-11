@@ -45,6 +45,26 @@ class CloudMetadataSource(
         return client()?.artworkFront(mbid, size = 500)?.takeIf { it.isNotEmpty() }
     }
 
+    /**
+     * Release-group artwork URLs (via the artwork module) for the artist's
+     * catalog entries — the multi-photo source behind the artist page grid.
+     * Empty whenever the cloud is off/unconfigured or the catalog has no
+     * matching release groups.
+     */
+    suspend fun artistPhotoUrls(
+        artist: String,
+        limit: Int = com.heretek.dorado_hd.net.ArtistPhotos.MAX_PHOTOS,
+    ): List<String> {
+        val current = settings()
+        if (!current.cloudEnabled || current.cloudBaseUrl.isBlank()) return emptyList()
+        val search = client()?.catalogSearch(artist, type = "release-group", limit = limit) ?: return emptyList()
+        return com.heretek.dorado_hd.net.ArtistPhotos.cloudCoverUrls(
+            items = search.items,
+            artist = artist,
+            baseUrl = current.cloudBaseUrl,
+        )
+    }
+
     /** Returns the MusicBrainz disambiguation as a lightweight bio fallback. */
     suspend fun artistBio(artist: String): String? {
         val mbid = artistMbid(artist) ?: return null

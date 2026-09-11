@@ -69,6 +69,62 @@ class ArtistImageService(
         }
     }
 
+    /**
+     * Multi-photo source for the artist `photos` pivot (M13/B5). Prefers the
+     * configured Dorado Cloud artwork module, then Cover Art Archive
+     * release-group covers keyed by the MusicBrainz artist id, then the single
+     * cached wallpaper — so the pivot renders a grid or the same one photo it
+     * always did, never nothing.
+     */
+    suspend fun photosFor(artist: String): List<ArtistPhoto> = withContext(Dispatchers.IO) {
+        val cloudUrls = if (cloud?.isEnabled() == true) {
+            runCatching { cloud.artistPhotoUrls(artist) }.getOrDefault(emptyList())
+        } else {
+            emptyList()
+        }
+
+        val coverArtUrls = if (cloudUrls.isEmpty() && photosAllowed()) {
+            runCatching { coverArtPhotos(artist) }.getOrDefault(emptyList())
+        } else {
+            emptyList()
+        }
+
+        val wallpaper = if (cloudUrls.isEmpty() && coverArtUrls.isEmpty()) {
+            runCatching { backgroundFor(artist) }.getOrNull()?.let { "file://" + it.absolutePath }
+        } else {
+            null
+        }
+
+        ArtistPhotos.select(cloudUrls, coverArtUrls, wallpaper)
+    }
+
+    private fun photosAllowed(): Boolean = settingsSnapshot?.artistImagesEnabled != false
+
+    /** Cover Art Archive release-group covers for the artist's MBID. */
+    private suspend fun coverArtPhotos(artist: String): List<String> {
+        val mbid = lookupMbid(artist) ?: return emptyList()
+        val body = fetchText(
+            "https://musicbrainz.org/ws/2/release-group?artist=$mbid&fmt=json&limit=25",
+        ) ?: return emptyList()
+        return ArtistPhotos.coverArtUrls(ArtistPhotos.releaseGroupIds(body))
+    }
+
+    private fun fetchText(url: String): String? {
+        val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+        try {
+            connection.connectTimeout = 8000
+            connection.readTimeout = 8000
+            connection.setRequestProperty("User-Agent", USER_AGENT)
+            connection.setRequestProperty("Accept", "application/json")
+            if (connection.responseCode !in 200..299) return null
+            return connection.inputStream.bufferedReader().use { it.readText() }
+        } catch (_: Exception) {
+            return null
+        } finally {
+            connection.disconnect()
+        }
+    }
+
     private suspend fun currentTemplate(): String? {
         val s = settingsSnapshot ?: return null
         if (!s.artistImagesEnabled) return null
