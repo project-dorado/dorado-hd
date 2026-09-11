@@ -43,7 +43,7 @@ A code-verified snapshot (not README claims):
 | Gap | Evidence (current code) | Axis | Effort |
 |---|---|---|---|
 | Home-screen widget | ✅ Glance `NowPlayingWidget` + appwidget receiver | device | ✅ done |
-| Wi-Fi sync with Dorado | no `sync/` package; desktop already has `SyncModels.cs`, `SyncEngine.BuildPlan`, `IDeviceTransport` + `SimulatedDeviceTransport` | cross-project | L |
+| Wi-Fi sync with Dorado | ✅ mDNS discovery + paired LAN session + Device view | cross-project | ✅ done |
 | USB MTP/MTPZ to a physical Zune HD | stretch; spec is in `dorado/.agents/skills/zune-hardware-sync` (MTPZ handshake, F-marker ZMDB, PPP interceptor `0x922C/0x922D`, host `192.168.55.100` / device `.101`) | cross-project | XL |
 | Long-press → pin incomplete | was `onLongClick = {}` across `DetailScreens`/`MediaScreens`/`MusicScreen`/`Podcasts`/`MarketplaceScreens`; now pin + shared `trackMenuActions` | device (M4) | ✅ done |
 | Play-next / Quicklist action | was absent; now `trackMenuActions` adds play-next to every track row | device (M4) | ✅ done |
@@ -98,7 +98,7 @@ A code-verified snapshot (not README claims):
   `StaggerEntrance` clamp.
 - Keep `DesignInvariantTest` catching named `Color.Black/White/…`.
 
-### M8 — Device Link (Wi-Fi sync with Dorado) — *TODO (8.1–8.3 landed, 8.2b/8.4 pending)*
+### M8 — Device Link (Wi-Fi sync with Dorado) — *complete (8.1–8.3 + 8.2b landed)*
 
 Mirror the desktop Phase 9 semantics on the phone side, 1:1 with
 `Dorado.Domain/Models/SyncModels.cs`:
@@ -114,10 +114,12 @@ Mirror the desktop Phase 9 semantics on the phone side, 1:1 with
   system-partition accounting, category/title ordering) + `SyncEngine.applyPlan`
   (removals first, progress reporting), all unit-tested. `SyncProtocol` holds
   the JSON-RPC 2.0 contract constants and the 6-digit pairing-code generator.
-- ⬜ **M8.2b — live transport.** mDNS (`NsdManager`, `_dorado-sync._tcp`), TLS
-  socket, pairing handshake. The desktop side now exists (`SyncEndpointHost` +
-  `SyncTcpServer`, LAN port + pairing code in settings); the HD client is the
-  remaining half.
+- ✅ **M8.2b — live transport.** Discovery via mDNS (`NsdLanSyncDiscovery`,
+  `_dorado-sync._tcp`), a plain-TCP JSON-RPC session (`TcpSyncConnector` +
+  `LanSync`) running `sync.hello` → `sync.pair`, surfaced in the Device view
+  ("find dorado on your network" / "connect by address"). The desktop
+  advertises the service and hosts the socket. (TLS remains a hardening item;
+  the desktop endpoint is plain TCP today.)
 - ✅ **M8.3 — Device view.** `DeviceScreen` (Settings → device link): pairing
   state + 6-digit code, storage gas gauge, the four sync rules (tap to cycle
   presets), guest-session toggle, dry-run "what will sync" manifest,

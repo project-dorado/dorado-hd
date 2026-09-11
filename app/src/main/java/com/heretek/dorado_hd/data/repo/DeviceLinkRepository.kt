@@ -6,14 +6,21 @@ import android.provider.MediaStore
 import com.heretek.dorado_hd.data.model.Rating
 import com.heretek.dorado_hd.sync.DeviceSnapshot
 import com.heretek.dorado_hd.sync.DeviceTransport
+import com.heretek.dorado_hd.sync.DiscoveredDesktop
+import com.heretek.dorado_hd.sync.LanSync
+import com.heretek.dorado_hd.sync.LanSyncDiscovery
+import com.heretek.dorado_hd.sync.LanSyncResult
+import com.heretek.dorado_hd.sync.NsdLanSyncDiscovery
 import com.heretek.dorado_hd.sync.SimulatedDeviceTransport
 import com.heretek.dorado_hd.sync.SyncCategoryType
+import com.heretek.dorado_hd.sync.SyncConnector
 import com.heretek.dorado_hd.sync.SyncInput
 import com.heretek.dorado_hd.sync.SyncPhoto
 import com.heretek.dorado_hd.sync.SyncPodcastEpisode
 import com.heretek.dorado_hd.sync.SyncRuleSettings
 import com.heretek.dorado_hd.sync.SyncTrack
 import com.heretek.dorado_hd.sync.SyncVideo
+import com.heretek.dorado_hd.sync.TcpSyncConnector
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,13 +42,49 @@ data class PendingImport(
  * reverse-sync queue. The transport is simulated for now; M8.2b swaps in a LAN
  * implementation with no change to the Device view or this repository's API.
  */
-class DeviceLinkRepository(private val context: Context) {
+class DeviceLinkRepository(
+    private val context: Context,
+    private val discovery: LanSyncDiscovery = NsdLanSyncDiscovery(context),
+    private val connector: SyncConnector = TcpSyncConnector(),
+) {
 
     val transport: DeviceTransport =
         SimulatedDeviceTransport("DORADO-HD", "Zune HD (linked)", 32L * 1024 * 1024 * 1024)
 
     private val _pendingImports = MutableStateFlow<List<PendingImport>>(emptyList())
     val pendingImports: StateFlow<List<PendingImport>> = _pendingImports.asStateFlow()
+
+    /** Name of the desktop this phone has paired with over the LAN, or null. */
+    private val _linkedServer = MutableStateFlow<String?>(null)
+    val linkedServer: StateFlow<String?> = _linkedServer.asStateFlow()
+
+    /** Discover Dorado desktops advertising `_dorado-sync._tcp` on the LAN. */
+    suspend fun discoverDesktops(): List<DiscoveredDesktop> =
+        withContext(Dispatchers.IO) { runCatching { discovery.discover() }.getOrDefault(emptyList()) }
+
+    /** Connect and pair with a discovered desktop using the code it displays. */
+    suspend fun pair(desktop: DiscoveredDesktop, pairingCode: String): LanSyncResult =
+        withContext(Dispatchers.IO) {
+            val result = LanSync.connectAndPair(
+                connector = connector,
+                host = desktop.host,
+                port = desktop.port,
+                pairingCode = pairingCode,
+                deviceId = androidDeviceId(),
+                deviceName = "Dorado-HD",
+                appVersion = com.heretek.dorado_hd.BuildConfig.VERSION_NAME,
+            )
+            if (result is LanSyncResult.Paired) {
+                _linkedServer.value = result.serverName
+            }
+            result
+        }
+
+    private fun androidDeviceId(): String =
+        android.provider.Settings.Secure.getString(
+            context.contentResolver,
+            android.provider.Settings.Secure.ANDROID_ID,
+        ) ?: "dorado-hd"
 
     fun snapshot(): DeviceSnapshot =
         DeviceSnapshot(transport.totalCapacityBytes, transport.systemBytes, transport.contents())

@@ -135,7 +135,7 @@ archive. Binaries are encrypted (AES-ECB, marketplace DRM) and
 
 ### Tests
 
-153 Robolectric unit tests + a design-invariant source scanner that
+157 Robolectric unit tests + a design-invariant source scanner that
 forbids `RoundedCornerShape`, `spring(`, raw hex `Color(0x…)`, and
 named `Color.Black/White/Red/…` constants in `ui/` and `ui/apps/`.
 
@@ -194,7 +194,7 @@ mini-app platform.
 | Crossbar pivot nav | ✅ | ✅ | All collection screens have horizontal pivot pivots |
 | Screensaver / now-playing art | ✅ | ✅ | |
 | Widget (home-screen) | ✅ | ✅ | Glance `NowPlayingWidget`: Now Playing + transport |
-| Wi-Fi sync with Dorado (sibling project) | ✅ | ◐ | M8.1–8.3: engine + transport core + Device view (simulated target); LAN pairing pending M8.2b |
+| Wi-Fi sync with Dorado (sibling project) | ✅ | ✅ | M8: engine + transport + Device view; live mDNS discovery + pairing (M8.2b) |
 | USB MTPZ sync to physical Zune HD | ✅ | ❌ | Stretch goal — see roadmap |
 
 ### Design-invariant scanner (enforced by `DesignInvariantTest`)
@@ -254,8 +254,9 @@ The release build minifies with R8; keep rules in `app/proguard-rules.pro`.
 
 Next up: **M10 Always-on surfaces** — M9 Modern Listening is complete (audio
 similarity, Dynamic Mix, DSP features, Last.fm scrobbling, LRCLIB lyrics,
-persisted play counts). Outstanding elsewhere: M8 Device Link 8.2b (live LAN
-pairing) — see [`docs/parity-roadmap.md`](docs/parity-roadmap.md).
+persisted play counts), the M10 Glance widget ships, and M8 Device Link is
+complete (live mDNS discovery + pairing). See
+[`docs/parity-roadmap.md`](docs/parity-roadmap.md).
 
 ### M5 — Social + discovery
 
@@ -286,10 +287,10 @@ pairing) — see [`docs/parity-roadmap.md`](docs/parity-roadmap.md).
 
 ### Future (post-M7)
 
-- **Wi-Fi sync with Dorado** — the phone enrolls as a Zune-HD-like
-  device in Dorado's sync engine (JSON manifest, ZMDB-style database).
+- **Wi-Fi sync with Dorado** — ✅ landed (M8): the phone enrolls via a paired
+  LAN session (JSON manifest, mDNS discovery).
 - **Real MTP/MTPZ sync to a physical Zune HD over USB host** — stretch.
-- **Home-screen widget** — Zune-style Now Playing with transport.
+- **Home-screen widget** — ✅ landed (M10): Zune-style Now Playing + transport.
 - **Live radio cache** (M6) is contingent on a real-time streaming
   source being available.
 

@@ -30,6 +30,7 @@ import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.design.components.EdgeCropText
 import com.heretek.dorado_hd.sync.DeviceContentItem
 import com.heretek.dorado_hd.sync.DeviceTransport
+import com.heretek.dorado_hd.sync.DiscoveredDesktop
 import com.heretek.dorado_hd.sync.SyncEngine
 import com.heretek.dorado_hd.sync.SyncPlan
 import com.heretek.dorado_hd.sync.SyncProtocol
@@ -59,6 +60,9 @@ fun DeviceScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
     var plan by remember { mutableStateOf<SyncPlan?>(null) }
     var contents by remember { mutableStateOf(transport.contents()) }
     var busy by remember { mutableStateOf(false) }
+    var discoverStatus by remember { mutableStateOf<String?>(null) }
+    val linkedServer by graph.deviceLink.linkedServer.collectAsState()
+    val menus = com.heretek.dorado_hd.ui.components.LocalContextMenu.current
 
     suspend fun recompute() {
         busy = true
@@ -105,6 +109,85 @@ fun DeviceScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                 color = LocalDoradoColors.current.textSecondary,
                 modifier = Modifier.padding(horizontal = DoradoTokens.EDGE.dp),
             )
+
+            SectionLabel("network")
+            EdgeCropText(
+                text = linkedServer?.let { "paired with $it" } ?: discoverStatus ?: "not paired over wi-fi",
+                fontSize = DoradoTokens.TYPE_LIST.dp,
+                color = if (linkedServer != null) {
+                    LocalDoradoColors.current.accent
+                } else {
+                    LocalDoradoColors.current.textSecondary
+                },
+                modifier = Modifier.padding(horizontal = DoradoTokens.EDGE.dp),
+            )
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .height(DoradoTokens.ROW_HEIGHT.dp)
+                    .clickable {
+                        scope.launch {
+                            discoverStatus = "searching…"
+                            val desktops = graph.deviceLink.discoverDesktops()
+                            val first = desktops.firstOrNull()
+                            if (first == null) {
+                                discoverStatus = "no desktops found on this network"
+                            } else {
+                                discoverStatus = "found ${first.serviceName}"
+                                menus.showPrompt("pairing code", "code shown on ${first.serviceName}") { code ->
+                                    scope.launch {
+                                        when (val result = graph.deviceLink.pair(first, code)) {
+                                            is com.heretek.dorado_hd.sync.LanSyncResult.Paired ->
+                                                discoverStatus = "paired with ${result.serverName}"
+                                            is com.heretek.dorado_hd.sync.LanSyncResult.Rejected ->
+                                                discoverStatus = "pairing rejected: ${result.reason}"
+                                            is com.heretek.dorado_hd.sync.LanSyncResult.Failed ->
+                                                discoverStatus = "pairing failed: ${result.message}"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding(horizontal = DoradoTokens.EDGE.dp),
+            ) {
+                EdgeCropText(
+                    text = "find dorado on your network",
+                    fontSize = DoradoTokens.TYPE_LIST.dp,
+                    color = LocalDoradoColors.current.accent,
+                )
+            }
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .height(DoradoTokens.ROW_HEIGHT.dp)
+                    .clickable {
+                        menus.showPrompt("desktop address", "192.168.1.10:8787") { value ->
+                            val host = value.substringBeforeLast(':', value)
+                            val port = value.substringAfterLast(':', "8787").toIntOrNull() ?: 8787
+                            menus.showPrompt("pairing code", "code shown on the desktop") { code ->
+                                scope.launch {
+                                    val desktop = DiscoveredDesktop("manual", host, port)
+                                    when (val result = graph.deviceLink.pair(desktop, code)) {
+                                        is com.heretek.dorado_hd.sync.LanSyncResult.Paired ->
+                                            discoverStatus = "paired with ${result.serverName}"
+                                        is com.heretek.dorado_hd.sync.LanSyncResult.Rejected ->
+                                            discoverStatus = "pairing rejected: ${result.reason}"
+                                        is com.heretek.dorado_hd.sync.LanSyncResult.Failed ->
+                                            discoverStatus = "pairing failed: ${result.message}"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding(horizontal = DoradoTokens.EDGE.dp),
+            ) {
+                EdgeCropText(
+                    text = "connect by address",
+                    fontSize = DoradoTokens.TYPE_LIST.dp,
+                    color = LocalDoradoColors.current.accent,
+                )
+            }
 
             SectionLabel("storage")
             GasGauge(transport)
