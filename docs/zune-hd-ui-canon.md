@@ -96,6 +96,12 @@ placeholder.
 
 ## 4. Now Playing (the signature screen)
 
+**Source variants** (device scenes `GemNowPlayingRadioScene`,
+`GemNowPlayingPicturesScene`): a radio stream shows the station name and dial
+frequency with a **live** (non-seekable) transport and no queue/hearts; a
+picture presents full-bleed with a title/date caption, wrap-around prev/next
+and auto-hiding chrome. The music presentation below is unchanged.
+
 Layout (from ITPro Today's walkthrough):
 - Explicit **back arrow** top-left.
 - **Artist** name and **album** name (tappable: artist → their crossbar page

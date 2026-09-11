@@ -76,9 +76,11 @@ A code-verified snapshot (not README claims):
 
 ### M5 — Social + discovery
 
-- Now Playing system share sheet (`ACTION_SEND`, artist + title + album).
+- ✅ Now Playing system share sheet (`ACTION_SEND`, artist + title + album).
 - Zune-Card-style artwork export (PNG/JPEG).
-- On-device podcast search (curated top charts).
+- ✅ On-device podcast search: local subscribed-feed filter plus the
+  dorado-cloud podcast directory when enabled (`PodcastSearch.kt`,
+  `CloudPodcastDirectory.kt`; graceful local-only labelling).
 - Wire Smart DJ as a tap-to-build-mix action in the music crossbar.
 
 ### M6 — Community wishlist
@@ -236,7 +238,9 @@ explicitly documented (long-term / N-A) — no gap unplanned.
 - ✅ **B2** Dimmer ladder: `DoradoTokens.IDLE_DIM_MS` + a Now Playing dim veil.
 - ✅ **B3** Status OSD: battery percent + clock in the transport overlay (`StatusOsd`).
 - 🟡 **B4** Dedicated Radio / Picture Now Playing — the picture viewer gained pinch-zoom (B6); radio still reuses the unified Now Playing.
-- ⏳ **B5** Artist photo grid — **blocked on a multi-photo source** (catalog.zune.net is gone; today only a single MusicBrainz wallpaper exists).
+- ✅ **B5** Artist photo grid — cloud artwork module → MusicBrainz release
+  groups → Cover Art Archive → cached wallpaper fallback, with a full-bleed
+  photo viewer (`ArtistPhotos.kt`).
 - ✅ **B6** Picture pinch-zoom / pan / double-tap (`PictureDetailScreen`).
 - ✅ A4 remainder: item **snap** (`KineticList(snap = true)` on Songs).
 
