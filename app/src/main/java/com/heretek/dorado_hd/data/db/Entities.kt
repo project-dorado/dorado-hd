@@ -165,6 +165,18 @@ data class GameScoreEntity(
     val playedAt: Long,
 )
 
+/**
+ * Per-app opaque state blob (official-app reimplementation program, Phase 2).
+ * Games and stateful utilities persist a self-describing string here so save /
+ * resume, board snapshots, and settings travel with the app slug.
+ */
+@Entity(tableName = "app_state")
+data class AppStateEntity(
+    @PrimaryKey val app: String,
+    val value: String,
+    val updatedAt: Long,
+)
+
 /** Cached M9.3 audio-feature vector per track (metadata prior or DSP-refined). */
 @Entity(tableName = "track_features")
 data class TrackFeatureEntity(

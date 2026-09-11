@@ -152,3 +152,21 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         )
     }
 }
+
+/**
+ * Room v5 → v6: official-app reimplementation program. A per-app opaque state
+ * blob (`app_state`) backs save/resume, board snapshots and app settings.
+ * Existing data untouched.
+ */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `app_state` (
+                `app` TEXT NOT NULL,
+                `value` TEXT NOT NULL,
+                `updatedAt` INTEGER NOT NULL,
+                PRIMARY KEY(`app`)
+            )""",
+        )
+    }
+}

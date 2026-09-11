@@ -1,6 +1,7 @@
 package com.heretek.dorado_hd.data.repo
 
 import com.heretek.dorado_hd.data.db.AlarmEntity
+import com.heretek.dorado_hd.data.db.AppStateEntity
 import com.heretek.dorado_hd.data.db.AppointmentEntity
 import com.heretek.dorado_hd.data.db.GameScoreEntity
 import com.heretek.dorado_hd.data.db.NoteEntity
@@ -88,4 +89,16 @@ class GameRepository(private val db: DoradoDatabase) {
                 playedAt = System.currentTimeMillis(),
             ),
         )
+}
+
+/**
+ * Opaque per-app state (Phase 2 of the official-app program). Engines serialize
+ * their own compact format; the store only moves strings in and out of Room.
+ */
+class AppStateRepository(private val db: DoradoDatabase) {
+    fun observe(app: String): Flow<String?> = db.appStateDao().observe(app).map { it?.value }
+    suspend fun get(app: String): String? = db.appStateDao().get(app)?.value
+    suspend fun put(app: String, value: String) =
+        db.appStateDao().put(AppStateEntity(app, value, System.currentTimeMillis()))
+    suspend fun clear(app: String) = db.appStateDao().delete(app)
 }

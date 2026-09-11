@@ -24,8 +24,9 @@ import androidx.room.RoomDatabase
         TrackFeatureEntity::class,
         ScrobbleEntity::class,
         PlayCountEntity::class,
+        AppStateEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 abstract class DoradoDatabase : RoomDatabase() {
@@ -44,6 +45,7 @@ abstract class DoradoDatabase : RoomDatabase() {
     abstract fun trackFeatureDao(): TrackFeatureDao
     abstract fun scrobbleDao(): ScrobbleDao
     abstract fun playCountDao(): PlayCountDao
+    abstract fun appStateDao(): AppStateDao
 
     companion object {
         @Volatile
@@ -52,7 +54,7 @@ abstract class DoradoDatabase : RoomDatabase() {
         fun get(context: Context): DoradoDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(context, DoradoDatabase::class.java, "dorado_hd.db")
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build()
                     .also { instance = it }
             }

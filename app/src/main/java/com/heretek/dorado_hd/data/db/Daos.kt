@@ -329,6 +329,21 @@ interface GameScoreDao {
 }
 
 @Dao
+interface AppStateDao {
+    @Query("SELECT * FROM app_state WHERE app = :app")
+    suspend fun get(app: String): AppStateEntity?
+
+    @Query("SELECT * FROM app_state WHERE app = :app")
+    fun observe(app: String): Flow<AppStateEntity?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun put(state: AppStateEntity)
+
+    @Query("DELETE FROM app_state WHERE app = :app")
+    suspend fun delete(app: String)
+}
+
+@Dao
 interface TrackFeatureDao {
     @Query("SELECT * FROM track_features")
     suspend fun all(): List<TrackFeatureEntity>

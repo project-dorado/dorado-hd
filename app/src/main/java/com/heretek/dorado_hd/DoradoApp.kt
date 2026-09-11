@@ -51,6 +51,7 @@ class DoradoGraph(
     val cloudSignInCallback: com.heretek.dorado_hd.cloud.CloudSignInCallback,
     val cloudUpdates: com.heretek.dorado_hd.cloud.CloudUpdateService,
     val playCounts: com.heretek.dorado_hd.analysis.PlayCountStore,
+    val appState: com.heretek.dorado_hd.data.repo.AppStateRepository,
 )
 
 class DoradoApp : Application() {
@@ -120,11 +121,12 @@ class DoradoApp : Application() {
         )
         val cloudUpdates = com.heretek.dorado_hd.cloud.CloudUpdateService(settings = { latestSettings.get() })
         val equalizer = com.heretek.dorado_hd.media.EqualizerController()
+        val appState = com.heretek.dorado_hd.data.repo.AppStateRepository(db)
 
         graph = DoradoGraph(
             library, quickplay, settings, settings.settings, controller, nav,
             artistImages, artistBios, notes, calendar, alarms, radio, podcasts, games, deviceLink, analysis, mixes, scrobble, lyrics,
-            cloudSignIn, cloudSignInCallback, cloudUpdates, playCountStore,
+            cloudSignIn, cloudSignInCallback, cloudUpdates, playCountStore, appState,
         )
 
         appScope.launch {
