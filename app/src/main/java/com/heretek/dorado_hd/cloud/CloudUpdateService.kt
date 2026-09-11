@@ -46,6 +46,27 @@ class CloudUpdateService(
         )
     }
 
+    /** Rich result so callers can tell unreachable from up-to-date. */
+    sealed interface UpdateStatus {
+        data object Disabled : UpdateStatus
+        data object Unreachable : UpdateStatus
+        data object UpToDate : UpdateStatus
+        data class Available(val version: String, val verified: Boolean) : UpdateStatus
+    }
+
+    suspend fun checkStatus(app: String = "dorado-hd", channel: String = "stable"): UpdateStatus {
+        val current = settings()
+        if (!current.cloudEnabled || current.cloudBaseUrl.isBlank()) return UpdateStatus.Disabled
+        val client = clientFor(current)
+        val check = client.checkForUpdate(app, channel) ?: return UpdateStatus.Unreachable
+        if (!check.available) return UpdateStatus.UpToDate
+        val release = check.release ?: return UpdateStatus.UpToDate
+        return UpdateStatus.Available(
+            version = release.version,
+            verified = runCatching { client.verifyRelease(release) }.getOrDefault(false),
+        )
+    }
+
     private var cachedBaseUrl: String? = null
     private var cachedClient: DoradoCloudClient? = null
 

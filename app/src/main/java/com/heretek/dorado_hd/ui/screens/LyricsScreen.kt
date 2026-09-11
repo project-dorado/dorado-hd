@@ -57,7 +57,8 @@ fun LyricsScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
         Column(
             Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 36.dp),
         ) {
             val text = lyrics?.plain ?: lyrics?.synced?.let { LrcLibParser.plainFromSynced(it) }
             when {

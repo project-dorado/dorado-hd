@@ -59,6 +59,9 @@ fun RadioScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
     val stations by graph.radio.stations().collectAsState(initial = emptyList())
     var current by remember { mutableStateOf<RadioStationEntity?>(stations.firstOrNull()) }
     var dialKhz by remember { mutableStateOf(current?.frequencyKhz ?: 98700) }
+    // The drag detector must not be re-keyed on every frequency change (that
+    // cancelled the gesture mid-drag); read the latest value instead.
+    val latestDial = androidx.compose.runtime.rememberUpdatedState(dialKhz)
 
     DetailScaffold(title = "radio") {
         Column(Modifier.fillMaxSize()) {
@@ -75,10 +78,12 @@ fun RadioScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                     val w = size.width; val h = size.height
                     val freq = dialKhz.coerceIn(87500, 108000)
                     val frac = (freq - 87500).toFloat() / (108000 - 87500).toFloat()
-                    val cx = w * (1f - frac)
+                    // Needle maps left→right with frequency (it used to be
+                    // mirrored, pointing ~2.2 MHz off).
+                    val cx = w * frac
                     drawLine(colors.border, Offset(0f, h / 2), Offset(w, h / 2), 1f)
-                    for (mhz in 87..108) {
-                        val f = (mhz - 87) / (108 - 87).toFloat()
+                    for (mhz in 88..108) {
+                        val f = (mhz * 1000f - 87500f) / (108000f - 87500f)
                         val xx = w * f
                         val tickLen = if (mhz % 5 == 0) DoradoTokens.DIAL_TICK_MAJOR.dp.toPx() else DoradoTokens.DIAL_TICK_MINOR.dp.toPx()
                         drawLine(colors.border, Offset(xx, h / 2 - tickLen / 2), Offset(xx, h / 2 + tickLen / 2), 1f)
@@ -92,10 +97,10 @@ fun RadioScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .pointerInput(dialKhz) {
+                        .pointerInput(Unit) {
                             detectDragGestures { change, drag ->
                                 change.consume()
-                                dialKhz = stepFrequency(dialKhz, -drag.x)
+                                dialKhz = stepFrequency(latestDial.value, -drag.x)
                             }
                         },
                 )
@@ -210,6 +215,7 @@ private fun RadioStationList(
         items = stations,
         key = { it.id },
         letter = { firstLetterOf(it.name) },
+        bottomPadding = 36.dp,
         rowContent = { s, _ ->
             Row(
                 Modifier

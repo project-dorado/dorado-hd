@@ -93,7 +93,10 @@ fun DeviceScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
         ) {
             SectionLabel("status")
             EdgeCropText(
-                text = "not paired — start a sync from the dorado desktop, then enter this code",
+                // Derive the status copy from the actual pairing state; the
+                // block used to contradict the network section below.
+                text = linkedServer?.let { "paired with $it" }
+                    ?: "not paired — start a sync from the dorado desktop, then enter this code",
                 fontSize = DoradoTokens.TYPE_LIST.dp,
                 modifier = Modifier.padding(horizontal = DoradoTokens.EDGE.dp),
             )
@@ -352,7 +355,8 @@ private fun GasGauge(transport: DeviceTransport) {
 @Composable
 private fun ManifestList(plan: SyncPlan) {
     val colors = LocalDoradoColors.current
-    plan.items.take(200).forEach { item ->
+    val shown = plan.items.take(100)
+    shown.forEach { item ->
         val marker = when (item.action) {
             TransferAction.ADD -> "+"
             TransferAction.REMOVE -> "−"
@@ -366,6 +370,14 @@ private fun ManifestList(plan: SyncPlan) {
                 TransferAction.REMOVE -> colors.textSecondary
                 TransferAction.KEEP -> colors.textInactive
             },
+            modifier = Modifier.padding(horizontal = DoradoTokens.EDGE.dp, vertical = 2.dp),
+        )
+    }
+    if (plan.items.size > shown.size) {
+        EdgeCropText(
+            text = "+ ${plan.items.size - shown.size} more",
+            fontSize = DoradoTokens.TYPE_CAPTION.dp,
+            color = colors.textSecondary,
             modifier = Modifier.padding(horizontal = DoradoTokens.EDGE.dp, vertical = 2.dp),
         )
     }

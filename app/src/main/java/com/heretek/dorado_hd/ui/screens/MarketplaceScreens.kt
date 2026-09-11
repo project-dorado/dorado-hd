@@ -19,7 +19,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -119,7 +122,10 @@ fun MarketplaceScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                         alpha = 0.4f,
                         modifier = Modifier.padding(horizontal = DoradoTokens.EDGE.dp),
                     )
-                    else -> LazyColumn(Modifier.fillMaxSize()) {
+                    else -> LazyColumn(
+                        Modifier.fillMaxSize(),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 36.dp),
+                    ) {
                         items(results) { app ->
                             Column(
                                 Modifier
@@ -182,11 +188,14 @@ fun MarketplaceScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
 @Composable
 private fun MarketplaceDetails(app: OfficialApp, onBack: () -> Unit) {
     val colors = LocalDoradoColors.current
-    DetailScaffold(title = app.title) {
+    // onBack clears the in-place detail; without it the header popped the
+    // whole marketplace and there was no way back to the list.
+    DetailScaffold(title = app.title, onBack = onBack) {
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(horizontal = DoradoTokens.EDGE.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(start = DoradoTokens.EDGE.dp, end = DoradoTokens.EDGE.dp, bottom = 24.dp),
         ) {
             EdgeCropText(text = app.title, fontSize = DoradoTokens.TYPE_NOW_TITLE.dp)
             EdgeCropText(
@@ -194,10 +203,15 @@ private fun MarketplaceDetails(app: OfficialApp, onBack: () -> Unit) {
                 fontSize = DoradoTokens.TYPE_CAPTION.dp,
                 color = colors.accent,
             )
-            EdgeCropText(
+            // Wrapping description; EdgeCropText is single-line and clipped
+            // everything past the first screen-width.
+            BasicText(
                 text = app.description,
-                fontSize = DoradoTokens.TYPE_LIST.dp,
-                alpha = 0.85f,
+                style = TextStyle(
+                    fontFamily = Selawik,
+                    fontSize = DoradoTokens.TYPE_LIST.sp,
+                    color = colors.textPrimary.copy(alpha = 0.85f),
+                ),
                 modifier = Modifier.padding(top = 8.dp),
             )
             EdgeCropText(
@@ -221,6 +235,7 @@ private fun MarketplaceVideos() {
     val menus = com.heretek.dorado_hd.ui.components.LocalContextMenu.current
     val scope = rememberCoroutineScope()
     var videos by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
     LaunchedEffect(Unit) {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             val list = mutableListOf<VideoItem>()
@@ -253,16 +268,18 @@ private fun MarketplaceVideos() {
                 }
             }
             videos = list
+            loading = false
         }
     }
-    if (videos.isEmpty()) {
-        EmptyPivot("videos", "no videos on device")
+    if (videos.isEmpty() || loading) {
+        if (loading) EmptyPivot("videos", "loading…") else EmptyPivot("videos", "no videos on device")
         return
     }
     KineticList(
         items = videos,
         key = { it.id },
         letter = { firstLetterOf(it.title) },
+        bottomPadding = 36.dp,
         rowContent = { v, _ ->
             Row(
                 Modifier
@@ -310,6 +327,7 @@ private fun MarketplacePodcasts() {
         items = feeds,
         key = { it.id },
         letter = { firstLetterOf(it.title) },
+        bottomPadding = 36.dp,
         rowContent = { feed, _ ->
             Row(
                 Modifier
@@ -378,6 +396,7 @@ private fun GamesPivot() {
             items = catalogGames,
             key = { it.exe },
             letter = { firstLetterOf(it.title) },
+            bottomPadding = 36.dp,
             rowContent = { entry, _ -> AppsCatalogRow(entry) },
         )
     }
@@ -390,6 +409,10 @@ private fun MarketplaceMusic() {
     val scope = rememberCoroutineScope()
     val albums by graph.library.albums().collectAsState(initial = emptyList())
     val featured = remember(albums) { albums.take(12) }
+    if (featured.isEmpty()) {
+        EmptyPivot("music", "no albums on device")
+        return
+    }
     Column(Modifier.fillMaxSize().padding(horizontal = DoradoTokens.EDGE.dp, vertical = 8.dp)) {
         EdgeCropText(
             text = "featured",
@@ -508,6 +531,7 @@ private fun AppsPivot() {
             items = catalog,
             key = { it.exe },
             letter = { firstLetterOf(it.title) },
+            bottomPadding = 36.dp,
             rowContent = { entry, _ ->
                 AppsCatalogRow(entry)
             },

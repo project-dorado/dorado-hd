@@ -33,6 +33,7 @@ import com.heretek.dorado_hd.ui.components.DetailScaffold
 import com.heretek.dorado_hd.ui.components.LocalContextMenu
 import com.heretek.dorado_hd.ui.components.MenuAction
 import com.heretek.dorado_hd.ui.nav.DoradoDestination
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
@@ -64,6 +65,7 @@ object PodcastRss {
         val factory = XmlPullParserFactory.newInstance()
         val parser = factory.newPullParser().apply { setInput(stream, null) }
         var inChannel = false
+        var inItem = false
         var title = ""; var description = ""; var artworkUrl = ""
         var currentTitle = ""; var currentDate = 0L; var currentDur = 0L; var currentEnc = ""
         val episodes = mutableListOf<ParsedEpisode>()
@@ -74,23 +76,28 @@ object PodcastRss {
                     val tag = parser.name.lowercase()
                     when {
                         tag == "channel" || tag == "feed" -> inChannel = true
-                        tag == "title" && inChannel -> title = parser.nextText()
-                        tag == "description" || tag == "subtitle" || tag == "itunes:subtitle" -> {
-                            if (inChannel) description = parser.nextText()
-                        }
-                        tag == "image" || tag == "itunes:image" -> {
-                            artworkUrl = parser.getAttributeValue(null, "href") ?: ""
-                        }
                         tag == "item" || tag == "entry" -> {
+                            inItem = true
                             currentTitle = ""; currentDate = 0L; currentDur = 0L; currentEnc = ""
                         }
-                        tag == "title" && inChannel.not() -> { /* per-episode below */ }
-                        tag == "title" -> if (inChannel && title.isNotEmpty().not()) title = parser.nextText()
-                        tag == "title" -> currentTitle = parser.nextText()
-                        tag == "pubdate" || tag == "published" -> currentDate = parseDate(parser.nextText())
-                        tag == "duration" -> currentDur = parseDurationMs(parser.nextText())
-                        tag == "enclosure" -> currentEnc = parser.getAttributeValue(null, "url") ?: ""
-                        tag == "link" && currentEnc.isEmpty() -> currentEnc = parser.getAttributeValue(null, "href") ?: ""
+                        tag == "title" -> {
+                            // Scope titles: channel/feed title first, then per item.
+                            val text = parser.nextText().trim()
+                            if (inItem) currentTitle = text
+                            else if (inChannel && title.isEmpty()) title = text
+                        }
+                        tag == "description" || tag == "subtitle" || tag == "itunes:subtitle" || tag == "itunes:summary" -> {
+                            val text = parser.nextText().trim()
+                            if (!inItem && description.isEmpty()) description = text
+                        }
+                        tag == "image" || tag == "itunes:image" -> {
+                            val href = parser.getAttributeValue(null, "href")
+                            if (!href.isNullOrBlank() && artworkUrl.isEmpty()) artworkUrl = href
+                        }
+                        (tag == "pubdate" || tag == "published") && inItem -> currentDate = parseDate(parser.nextText())
+                        (tag == "duration" || tag == "itunes:duration") && inItem -> currentDur = parseDurationMs(parser.nextText())
+                        tag == "enclosure" && inItem -> currentEnc = parser.getAttributeValue(null, "url") ?: ""
+                        tag == "link" && inItem && currentEnc.isEmpty() -> currentEnc = parser.getAttributeValue(null, "href") ?: ""
                     }
                 }
                 XmlPullParser.END_TAG -> {
@@ -99,7 +106,9 @@ object PodcastRss {
                         if (currentTitle.isNotEmpty() && currentEnc.isNotEmpty()) {
                             episodes += ParsedEpisode(currentTitle, currentDate, currentDur, currentEnc)
                         }
+                        inItem = false
                     }
+                    if (tag == "channel" || tag == "feed") inChannel = false
                 }
             }
             event = parser.next()
@@ -126,8 +135,8 @@ object PodcastRss {
 }
 
 object PodcastFetcher {
-    suspend fun fetch(feedUrl: String): PodcastRss.Parsed? {
-        return try {
+    suspend fun fetch(feedUrl: String): PodcastRss.Parsed? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        try {
             val conn = URL(feedUrl).openConnection() as HttpURLConnection
             conn.connectTimeout = 8000
             conn.readTimeout = 15000
@@ -136,6 +145,29 @@ object PodcastFetcher {
             else PodcastRss.parse(conn.inputStream)
         } catch (_: Exception) { null }
     }
+}
+
+/** Re-fetch a feed and append only episodes not already stored. */
+private suspend fun refreshFeed(
+    graph: com.heretek.dorado_hd.DoradoGraph,
+    feed: PodcastFeedEntity,
+) {
+    val parsed = PodcastFetcher.fetch(feed.feedUrl) ?: return
+    val existing = graph.podcasts.episodes(feed.id).first().map { it.enclosureUrl }.toSet()
+    val fresh = parsed.episodes
+        .filter { it.enclosureUrl.isNotBlank() && it.enclosureUrl !in existing }
+        .map { e ->
+            PodcastEpisodeEntity(
+                feedId = feed.id,
+                title = e.title,
+                pubAt = e.pubAt,
+                durationMs = e.durationMs,
+                enclosureUrl = e.enclosureUrl,
+                played = false,
+                positionMs = 0,
+            )
+        }
+    if (fresh.isNotEmpty()) graph.podcasts.addEpisodes(fresh)
 }
 
 @Composable
@@ -195,10 +227,15 @@ fun PodcastsScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
             androidx.compose.foundation.pager.HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
                 when (page) {
                     0 -> PodcastsFeedList(feeds, onOpen = { feed -> graph.nav.push(DoradoDestination.PodcastFeed(feed.id)) })
-                    // 'video' is a placeholder on this build — we cannot distinguish
-                    // audio vs video podcasts reliably from RSS alone; surface the
-                    // same feeds as audio until MediaStore tagging exists.
-                    1 -> PodcastsFeedList(feeds, onOpen = { feed -> graph.nav.push(DoradoDestination.PodcastFeed(feed.id)) })
+                    // RSS cannot reliably distinguish audio/video enclosures in
+                    // this build — say so instead of duplicating the audio list.
+                    1 -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        EdgeCropText(
+                            text = "video podcasts are not supported in this build",
+                            fontSize = DoradoTokens.TYPE_CAPTION.dp,
+                            alpha = 0.4f,
+                        )
+                    }
                     2 -> PodcastsFeedList(feeds, onOpen = { feed -> graph.nav.push(DoradoDestination.PodcastFeed(feed.id)) })
                     else -> PodcastEpisodeList(episodes, onPlay = { ep ->
                         scope.launch {
@@ -243,6 +280,7 @@ private fun PodcastsFeedList(
         items = feeds,
         key = { it.id },
         letter = { com.heretek.dorado_hd.design.components.firstLetterOf(it.title) },
+        bottomPadding = 36.dp,
         rowContent = { feed, _ ->
             Row(
                 Modifier
@@ -254,6 +292,9 @@ private fun PodcastsFeedList(
                             menus.show(
                                 title = feed.title,
                                 actions = listOf(
+                                    com.heretek.dorado_hd.ui.components.MenuAction("refresh") {
+                                        scope.launch { refreshFeed(graph, feed) }
+                                    },
                                     com.heretek.dorado_hd.ui.components.MenuAction("pin to quickplay") {
                                         scope.launch {
                                             graph.quickplay.pin(
@@ -302,6 +343,7 @@ private fun PodcastEpisodeList(
         items = episodes,
         key = { it.episodeId },
         letter = { com.heretek.dorado_hd.design.components.firstLetterOf(it.title) },
+        bottomPadding = 36.dp,
         rowContent = { ep, _ ->
             Row(
                 Modifier
@@ -347,13 +389,25 @@ fun PodcastFeedScreen(feedId: Long, canvasWidth: androidx.compose.ui.unit.Dp) {
     val scope = rememberCoroutineScope()
     val menus = LocalContextMenu.current
     val episodes by graph.podcasts.episodes(feedId).collectAsState(initial = emptyList())
-    val feedTitle = remember(feedId) { "podcast" }
+    val feeds by graph.podcasts.feeds().collectAsState(initial = emptyList())
+    // Resolve the real feed title instead of a hardcoded "podcast".
+    val feedTitle = feeds.firstOrNull { it.id == feedId }?.title ?: "podcast"
+
+    if (episodes.isEmpty()) {
+        DetailScaffold(title = feedTitle) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                EdgeCropText(text = "no episodes", fontSize = DoradoTokens.TYPE_NOW_META.dp, alpha = 0.4f)
+            }
+        }
+        return
+    }
 
     DetailScaffold(title = feedTitle) {
         KineticList(
             items = episodes,
             key = { it.id },
             letter = { firstLetterOf(it.title) },
+            bottomPadding = 36.dp,
             rowContent = { ep, _ ->
                 Row(
                     Modifier

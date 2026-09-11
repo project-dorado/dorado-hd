@@ -27,9 +27,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.heretek.dorado_hd.BuildConfig
 import com.heretek.dorado_hd.design.LocalDoradoColors
+import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.design.DoradoAccent
 import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.design.components.EdgeCropText
@@ -54,6 +57,7 @@ fun SettingsScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
     val menus = com.heretek.dorado_hd.ui.components.LocalContextMenu.current
     var trackCount by remember { mutableStateOf<Int?>(null) }
     var updateStatus by remember { mutableStateOf<String?>(null) }
+    var cloudStatus by remember { mutableStateOf<String?>(null) }
     androidx.compose.runtime.LaunchedEffect(Unit) { trackCount = graph.library.trackCount() }
 
     // SAF tree picker → recursive import into the library.
@@ -236,8 +240,14 @@ fun SettingsScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
             if (settings.cloudAccessToken.isBlank()) {
                 SettingsRow(
                     label = "sign in",
-                    subLabel = "open the browser to authorize this device (oauth + pkce)",
-                    onClick = { scope.launch { graph.cloudSignIn.signIn() } },
+                    subLabel = cloudStatus ?: "open the browser to authorize this device (oauth + pkce)",
+                    onClick = {
+                        scope.launch {
+                            cloudStatus = "signing in…"
+                            val ok = graph.cloudSignIn.signIn()
+                            cloudStatus = if (ok) "signed in" else "sign-in failed"
+                        }
+                    },
                 )
             } else {
                 SettingsRow(
@@ -252,12 +262,12 @@ fun SettingsScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                 subLabel = updateStatus ?: "verify the latest signed release",
                 onClick = {
                     scope.launch {
-                        val info = graph.cloudUpdates.check("dorado-hd")
-                        updateStatus = when {
-                            !graph.cloudUpdates.isEnabled() -> "cloud disabled"
-                            info == null -> "up to date"
-                            !info.verified -> "update ${info.version} — signature not verified"
-                            else -> "update ${info.version} available"
+                        updateStatus = when (val st = graph.cloudUpdates.checkStatus("dorado-hd")) {
+                            is com.heretek.dorado_hd.cloud.CloudUpdateService.UpdateStatus.Disabled -> "cloud disabled"
+                            is com.heretek.dorado_hd.cloud.CloudUpdateService.UpdateStatus.Unreachable -> "update check failed — cloud unreachable"
+                            is com.heretek.dorado_hd.cloud.CloudUpdateService.UpdateStatus.UpToDate -> "up to date"
+                            is com.heretek.dorado_hd.cloud.CloudUpdateService.UpdateStatus.Available ->
+                                if (st.verified) "update ${st.version} available" else "update ${st.version} — signature not verified"
                         }
                     }
                 },
@@ -334,10 +344,17 @@ private fun SettingsInfoRow(label: String, subLabel: String) {
             .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 8.dp),
     ) {
         EdgeCropText(text = label, fontSize = DoradoTokens.TYPE_LIST.dp)
-        EdgeCropText(
+        // Multi-line info (paths, scan counts, import errors) must wrap;
+        // EdgeCropText is single-line and clipped it.
+        androidx.compose.foundation.text.BasicText(
             text = subLabel,
-            fontSize = DoradoTokens.TYPE_LIST_SECONDARY.dp,
-            color = colors.textSecondary,
+            style = TextStyle(
+                fontFamily = Selawik,
+                fontSize = DoradoTokens.TYPE_LIST_SECONDARY.sp,
+                color = colors.textSecondary,
+                lineHeight = (DoradoTokens.TYPE_LIST_SECONDARY * 1.35f).sp,
+            ),
+            maxLines = 4,
         )
     }
 }
