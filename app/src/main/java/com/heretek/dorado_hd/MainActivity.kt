@@ -44,16 +44,21 @@ class MainActivity : ComponentActivity() {
         handleCloudRedirect(intent)
     }
 
-    private fun requiredMediaPermissions(): Array<String> =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+    private fun requiredMediaPermissions(): Array<String> {
+        val media = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             arrayOf(
                 Manifest.permission.READ_MEDIA_AUDIO,
                 Manifest.permission.READ_MEDIA_VIDEO,
                 Manifest.permission.READ_MEDIA_IMAGES,
+                // Without this the media notification (and its transport
+                // controls) is suppressed on Android 13+.
+                Manifest.permission.POST_NOTIFICATIONS,
             )
         } else {
             arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
+        return media
+    }
 
     private fun requestMediaPermissionsIfNeeded() {
         val missing = requiredMediaPermissions().filter {
@@ -75,6 +80,9 @@ class MainActivity : ComponentActivity() {
     private fun handleCloudRedirect(intent: Intent?) {
         val data = intent?.data ?: return
         if (!data.scheme.equals("doradohd", ignoreCase = true)) return
+        // Only the declared `doradohd://oauth` redirect is accepted; the
+        // activity is exported, so a different host must not complete sign-in.
+        if (data.host != "oauth") return
         // Opaque URIs (e.g. `doradohd:foo`) are not hierarchical and
         // queryParameterNames() throws on them. Ignore anything that is not
         // a well-formed hierarchical redirect.

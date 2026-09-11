@@ -63,9 +63,17 @@ fun LockShade(
     val offset = remember { Animatable(0f) }
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
 
-    // System wallpaper (one-shot). Null if the user has no wallpaper or the
-    // platform refuses (rare; permission-free on API 24+).
-    val wallpaper = remember(context) { wallpaperDrawable(context) }
+    // While shaded, system Back dismisses the shade instead of backgrounding.
+    if (visible) {
+        androidx.activity.compose.BackHandler { onUnlock() }
+    }
+
+    // System wallpaper (one-shot, decoded off the main thread). Null if the
+    // user has no wallpaper or the platform refuses (permission-free API 24+).
+    var wallpaper by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    LaunchedEffect(context) {
+        wallpaper = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { wallpaperDrawable(context) }
+    }
 
     LaunchedEffect(visible) {
         if (visible) {
@@ -74,6 +82,9 @@ fun LockShade(
                 now = System.currentTimeMillis()
                 kotlinx.coroutines.delay(15_000)
             }
+        } else {
+            // Reset so the next reveal never starts pre-translated.
+            offset.snapTo(0f)
         }
     }
 
@@ -97,10 +108,14 @@ fun LockShade(
                         },
                         onDragEnd = {
                             if (offset.value > unlockPx) {
+                                // Let the slide-off animation finish before the
+                                // shade is dismissed (the old code flipped
+                                // visibility immediately, so the slide was never
+                                // seen).
                                 scope.launch {
                                     offset.animateTo(unlockPx * 1.6f, DoradoMotion.pivot())
+                                    onUnlock()
                                 }
-                                onUnlock()
                             } else {
                                 scope.launch { offset.animateTo(0f, DoradoMotion.pivot()) }
                             }
@@ -110,9 +125,10 @@ fun LockShade(
         ) {
             // Wallpaper underneath the translucent scrim — faithful to the
             // device's "user wallpaper behind a software shade" affordance.
-            if (wallpaper != null) {
+            val wp = wallpaper
+            if (wp != null) {
                 Image(
-                    bitmap = wallpaper,
+                    bitmap = wp,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
@@ -190,8 +206,12 @@ private fun wallpaperDrawable(context: android.content.Context): androidx.compos
 }
 
 private fun drawableToBitmap(drawable: android.graphics.drawable.Drawable): androidx.compose.ui.graphics.ImageBitmap {
-    val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 1080
-    val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 1920
+    val intrinsicW = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 1080
+    val intrinsicH = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 1920
+    // Downsample: a 4K wallpaper as ARGB_8888 is ~33MB.
+    val scale = minOf(1f, 1080f / intrinsicW, 1920f / intrinsicH)
+    val width = (intrinsicW * scale).toInt().coerceAtLeast(1)
+    val height = (intrinsicH * scale).toInt().coerceAtLeast(1)
     val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
     val canvas = android.graphics.Canvas(bitmap)
     drawable.setBounds(0, 0, width, height)

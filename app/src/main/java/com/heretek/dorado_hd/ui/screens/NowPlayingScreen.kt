@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -80,8 +81,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private const val SKIP_DRAG_THRESHOLD = DoradoTokens.SKIP_DRAG_PX.toFloat()
-
 /**
  * The Zune HD Now Playing: a metadata card floating over artist photography.
  * Swipe sideways to skip; tap for the transport overlay; idle and it becomes
@@ -93,6 +92,11 @@ fun NowPlayingScreen(canvasWidth: Dp) {
     val graph = LocalDoradoGraph.current
     val controller = graph.controller
     val colors = LocalDoradoColors.current
+    // The canon deadband is 25 design units; compare it in px so sensitivity
+    // does not change with display density.
+    val skipThresholdPx = with(androidx.compose.ui.platform.LocalDensity.current) {
+        DoradoTokens.SKIP_DRAG_PX.dp.toPx()
+    }
 
     val track by controller.nowPlaying.collectAsState()
     val isPlaying by controller.isPlaying.collectAsState()
@@ -130,11 +134,34 @@ fun NowPlayingScreen(canvasWidth: Dp) {
     }
 
     if (current == null) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        // The back arrow must still be available with nothing playing
+        // (canon §4: Now Playing is the explicit-back exception).
+        Box(Modifier.fillMaxSize()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(start = (DoradoTokens.EDGE - 13).coerceAtLeast(0).dp, top = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clickable { graph.nav.pop() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_back),
+                        contentDescription = "back",
+                        tint = colors.textPrimary.copy(alpha = 0.85f),
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
             EdgeCropText(
                 text = "nothing playing",
                 fontSize = DoradoTokens.TYPE_NOW_META.dp,
                 alpha = 0.4f,
+                modifier = Modifier.align(Alignment.Center),
             )
         }
         return
@@ -169,8 +196,8 @@ fun NowPlayingScreen(canvasWidth: Dp) {
                             change.consume()
                         },
                         onDragEnd = {
-                            if (totalDrag < -SKIP_DRAG_THRESHOLD) controller.next()
-                            else if (totalDrag > SKIP_DRAG_THRESHOLD) controller.previous()
+                            if (totalDrag < -skipThresholdPx) controller.next()
+                            else if (totalDrag > skipThresholdPx) controller.previous()
                         },
                     )
                 }
@@ -285,7 +312,10 @@ fun NowPlayingScreen(canvasWidth: Dp) {
                         tint = if (shuffle) colors.accent else colors.textInactive,
                         modifier = Modifier
                             .size(20.dp)
-                            .clickable { controller.setShuffle(!shuffle) },
+                            .clickable {
+                                poke()
+                                controller.setShuffle(!shuffle)
+                            },
                     )
                     Icon(
                         painter = painterResource(
@@ -295,7 +325,10 @@ fun NowPlayingScreen(canvasWidth: Dp) {
                         tint = if (repeat != RepeatMode.OFF) colors.accent else colors.textInactive,
                         modifier = Modifier
                             .size(20.dp)
-                            .clickable { controller.cycleRepeat() },
+                            .clickable {
+                                poke()
+                                controller.cycleRepeat()
+                            },
                     )
                     Spacer(Modifier.weight(1f))
                     Icon(
@@ -305,6 +338,7 @@ fun NowPlayingScreen(canvasWidth: Dp) {
                         modifier = Modifier
                             .size(20.dp)
                             .clickable {
+                                poke()
                                 controller.setRating(if (rating == Rating.BROKEN) Rating.NONE else Rating.BROKEN)
                             },
                     )
@@ -315,20 +349,12 @@ fun NowPlayingScreen(canvasWidth: Dp) {
                         modifier = Modifier
                             .size(20.dp)
                             .clickable {
+                                poke()
                                 controller.setRating(if (rating == Rating.HEART) Rating.NONE else Rating.HEART)
                             },
                     )
                 }
             }
-        }
-
-        // Dim ladder (device zhud_serv dim dwell) — a matte veil before sleep.
-        AnimatedVisibility(
-            visible = dim && !overlay,
-            enter = fadeIn(DoradoMotion.pivot()),
-            exit = fadeOut(DoradoMotion.pivot()),
-        ) {
-            Box(Modifier.fillMaxSize().background(colors.background))
         }
 
         // The screensaver: slowly drifting metadata over the photography.
@@ -353,6 +379,16 @@ fun NowPlayingScreen(canvasWidth: Dp) {
             ) {
                 ScreensaverLayer(current, positionMs, durationMs, isPlaying)
             }
+        }
+
+        // Dim ladder (device zhud_serv dim dwell) — a translucent veil *above*
+        // the saver; the old opaque layer underneath blacked out the photo.
+        AnimatedVisibility(
+            visible = dim && !overlay,
+            enter = fadeIn(DoradoMotion.pivot()),
+            exit = fadeOut(DoradoMotion.pivot()),
+        ) {
+            Box(Modifier.fillMaxSize().background(colors.background.copy(alpha = 0.85f)))
         }
 
         // Transport overlay.
@@ -513,8 +549,16 @@ private fun TransportOverlay(
     val controller = graph.controller
     val colors = LocalDoradoColors.current
     val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-    var volumePulse by remember { mutableStateOf(0) }
+    var volumePulse by remember { mutableStateOf(-1) }
     var showQueue by remember { mutableStateOf(false) }
+
+    // The volume readout is transient: hide it ~1.5s after the last change.
+    LaunchedEffect(volumePulse) {
+        if (volumePulse >= 0) {
+            delay(1500)
+            volumePulse = -1
+        }
+    }
 
     if (showQueue) {
         QueueOverlay(onDismiss = { showQueue = false })
@@ -633,8 +677,8 @@ private fun TransportOverlay(
                 .size(58.dp)
                 .clickable { controller.toggle() },
         )
-        // Transient volume readout
-        if (volumePulse > 0) {
+        // Transient volume readout (shows 0/mute too).
+        if (volumePulse >= 0) {
             androidx.compose.foundation.text.BasicText(
                 text = "volume $volumePulse",
                 style = TextStyle(
@@ -847,16 +891,30 @@ private fun TimeLabel(text: String) {
 private fun StatusOsd(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val colors = LocalDoradoColors.current
-    val battery = remember {
-        val intent = context.registerReceiver(
-            null,
+    // Live values: the battery receiver updates on change and the clock ticks,
+    // instead of freezing at first composition.
+    var battery by remember { mutableStateOf(-1) }
+    var clock by remember { mutableStateOf(osdClock()) }
+    DisposableEffect(context) {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(c: android.content.Context?, intent: android.content.Intent?) {
+                val level = intent?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: -1
+                val scale = intent?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1) ?: -1
+                battery = if (level >= 0 && scale > 0) level * 100 / scale else -1
+            }
+        }
+        context.registerReceiver(
+            receiver,
             android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED),
         )
-        val level = intent?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: -1
-        val scale = intent?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1) ?: -1
-        if (level >= 0 && scale > 0) level * 100 / scale else -1
+        onDispose { runCatching { context.unregisterReceiver(receiver) } }
     }
-    val clock = remember { java.time.LocalTime.now().toString().take(5) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            clock = osdClock()
+            delay(30_000)
+        }
+    }
     Box(modifier) {
         androidx.compose.foundation.text.BasicText(
             text = (if (battery >= 0) "$battery%  " else "") + clock,
@@ -868,6 +926,9 @@ private fun StatusOsd(modifier: Modifier = Modifier) {
         )
     }
 }
+
+private fun osdClock(): String =
+    java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
 
 @Composable
 private fun OverlayGlyph(text: String) {

@@ -35,14 +35,16 @@ fun AlbumArt(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalDoradoColors.current
+    var loadFailed by remember(model) { mutableStateOf(false) }
     Box(
         modifier = modifier
             .background(colors.tile)
             .border(0.5.dp, colors.border)
             .clipToBounds(),
     ) {
-        if (model == null) {
-            // Placeholder so an art-less tile is still legible against black.
+        if (model == null || loadFailed) {
+            // Placeholder so an art-less (or failed-to-load) tile is still
+            // legible against black.
             Box(
                 Modifier
                     .align(Alignment.Center)
@@ -55,6 +57,11 @@ fun AlbumArt(
                 contentDescription = contentDescription,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
+                onState = { state ->
+                    // A stale content:// URI or revoked permission previously
+                    // left a blank bordered square.
+                    loadFailed = state is coil3.compose.AsyncImagePainter.State.Error
+                },
             )
         }
     }

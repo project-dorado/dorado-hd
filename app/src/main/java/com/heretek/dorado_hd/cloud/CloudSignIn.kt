@@ -39,10 +39,14 @@ class CloudSignIn(
 
         val params = awaitRedirect(REDIRECT_URI, timeoutMs) ?: return false
         val code = params["code"]?.takeIf { it.isNotBlank() } ?: return false
-        if (params["state"] != null && params["state"] != state) return false
+        // The state must match exactly (a missing state is not acceptable).
+        if (params["state"] != state) return false
 
-        val tokens = OAuthPkce.exchangeCode(httpFactory(current.cloudBaseUrl), CLIENT_ID, code, pkce.verifier, REDIRECT_URI)
-            ?: return false
+        // The token exchange is blocking HttpURLConnection work; keep it off
+        // the main thread or the caller sees NetworkOnMainThreadException.
+        val tokens = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            OAuthPkce.exchangeCode(httpFactory(current.cloudBaseUrl), CLIENT_ID, code, pkce.verifier, REDIRECT_URI)
+        } ?: return false
 
         setToken(tokens.accessToken)
         setEnabled(true)
@@ -51,6 +55,8 @@ class CloudSignIn(
 
     suspend fun signOut() {
         setToken("")
+        // Disabling prevents unauthenticated requests after sign-out.
+        setEnabled(false)
     }
 
     private fun newState(random: SecureRandom = SecureRandom()): String =

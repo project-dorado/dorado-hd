@@ -54,6 +54,8 @@ import kotlinx.coroutines.launch
  * A–Z index — "tap any of the letters ... and that pops up the full alphabet"
  * (canon §3.5). The giant letter overlay confirms both paths.
  */
+private const val ALPHABET_RAIL_MIN_ITEMS = 12
+
 @Composable
 fun <T> KineticList(
     items: List<T>,
@@ -74,6 +76,10 @@ fun <T> KineticList(
         items.mapNotNull { letter(it) }.distinct().sorted()
     }
     val present = remember(letters) { letters.toSet() }
+    // Canon §3.5 scopes the rail to long lists; short lists (home menu, a
+    // single video) get no rail, and when it is shown the list reserves end
+    // padding so trailing labels are not covered by the 32dp rail.
+    val railVisible = showAlphabet && letters.isNotEmpty() && items.size >= ALPHABET_RAIL_MIN_ITEMS
 
     var indexOpen by remember { mutableStateOf(false) }
     var draggingLetter by remember { mutableStateOf<Char?>(null) }
@@ -94,7 +100,10 @@ fun <T> KineticList(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = bottomPadding),
+            contentPadding = PaddingValues(
+                bottom = bottomPadding,
+                end = if (railVisible) 36.dp else 0.dp,
+            ),
             flingBehavior = if (snap) {
                 androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(listState)
             } else {
@@ -109,7 +118,7 @@ fun <T> KineticList(
             }
         }
 
-        if (showAlphabet && letters.isNotEmpty()) {
+        if (railVisible) {
             AlphabetRail(
                 present = present,
                 modifier = Modifier

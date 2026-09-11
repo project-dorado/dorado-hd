@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -58,16 +59,23 @@ fun CrossbarBar(
             val target = if (isSelected) colors.textPrimary else colors.textInactive
             val color by animateColorAsState(target, label = "crossbar")
             // EdgeCropText implements the device's right-edge signature clipping.
-            EdgeCropText(
-                text = label,
-                fontSize = DoradoTokens.TYPE_CROSSBAR.dp,
-                color = color,
-                fontWeight = if (isSelected) FontWeight.Normal else FontWeight.Light,
+            // The clickable fills the full 34dp bar and the inter-pivot gap is
+            // outside it, so the gap no longer selects the previous pivot.
+            Box(
                 modifier = Modifier
+                    .fillMaxHeight()
                     .bringIntoViewRequester(requesters[index])
                     .clickable(onClick = { onSelect(index) })
                     .padding(end = 22.dp),
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                EdgeCropText(
+                    text = label,
+                    fontSize = DoradoTokens.TYPE_CROSSBAR.dp,
+                    color = color,
+                    fontWeight = if (isSelected) FontWeight.Normal else FontWeight.Light,
+                )
+            }
         }
     }
     Box(

@@ -73,7 +73,8 @@ object OAuthPkce {
         }.getOrNull() ?: return null
 
         if (!response.isSuccess) return null
-        val map = CloudJson.asObject(CloudJson.parse(response.body))
+        // A malformed/non-JSON 2xx body must not throw out of the exchange.
+        val map = runCatching { CloudJson.asObject(CloudJson.parse(response.body)) }.getOrNull() ?: return null
         val accessToken = CloudJson.string(map, "access_token") ?: return null
         return TokenSet(
             accessToken = accessToken,

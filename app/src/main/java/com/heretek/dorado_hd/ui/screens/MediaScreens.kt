@@ -10,8 +10,12 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,6 +69,7 @@ import com.heretek.dorado_hd.design.components.firstLetterOf
 import com.heretek.dorado_hd.design.components.KineticList
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.components.DetailScaffold
+import com.heretek.dorado_hd.ui.nav.DoradoDestination
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -84,7 +89,6 @@ fun VideosScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var videos by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
-    var playing by remember { mutableStateOf<VideoItem?>(null) }
     val pagerState = androidx.compose.foundation.pager.rememberPagerState(initialPage = 0, pageCount = { 4 })
 
     LaunchedEffect(Unit) {
@@ -122,12 +126,6 @@ fun VideosScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
         }
     }
 
-    val cur = playing
-    if (cur != null) {
-        VideoPlayerScreen(cur) { playing = null }
-        return
-    }
-
     // Bucket-name heuristics — MediaStore does not reliably expose category,
     // so we partition by substring match against the bucket display name.
     val movies = videos.filter { it.bucket.contains("movie", ignoreCase = true) || it.bucket.contains("film", ignoreCase = true) }
@@ -147,7 +145,10 @@ fun VideosScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                 VideoPivot.values()[page].let { pivot ->
                     VideoListContent(
                         videos = buckets[pivot.ordinal],
-                        onPlay = { playing = it },
+                        // Playback is a fullscreen nav destination so the
+                        // MiniPlayer is suppressed and the cropped header
+                        // returns to the list.
+                        onPlay = { v -> graph.nav.push(DoradoDestination.Video(v.title, v.uri.toString())) },
                     )
                 }
             }
@@ -174,6 +175,7 @@ private fun VideoListContent(videos: List<VideoItem>, onPlay: (VideoItem) -> Uni
         items = videos,
         key = { it.id },
         letter = { firstLetterOf(it.title) },
+        bottomPadding = 40.dp,
         rowContent = { v, _ ->
             Row(
                 Modifier
@@ -217,32 +219,38 @@ private fun VideoListContent(videos: List<VideoItem>, onPlay: (VideoItem) -> Uni
 @Composable
 fun VideoPlayerScreen(item: VideoItem, onExit: () -> Unit) {
     val context = LocalContext.current
+    val graph = LocalDoradoGraph.current
     val player = remember { androidx.media3.exoplayer.ExoPlayer.Builder(context).build() }
     var positionMs by remember { mutableStateOf(0L) }
     var durationMs by remember { mutableStateOf(0L) }
     var isPlaying by remember { mutableStateOf(true) }
+
     DisposableEffect(item.id) {
         player.setMediaItem(androidx.media3.common.MediaItem.fromUri(item.uri))
         player.prepare()
         player.play()
-        val poll = kotlinx.coroutines.GlobalScope.launch(Dispatchers.Main) {
-            try {
-                while (true) {
-                    positionMs = player.currentPosition.coerceAtLeast(0)
-                    durationMs = if (player.duration > 0) player.duration else 0
-                    isPlaying = player.isPlaying
-                    kotlinx.coroutines.delay(250)
-                }
-            } catch (_: kotlinx.coroutines.CancellationException) {
-                // cancelled by onDispose below
-            }
-        }
-        onDispose {
-            poll.cancel()
-            player.release()
+        // A second ExoPlayer must not play over the music session.
+        if (graph.controller.isPlaying.value) graph.controller.toggle()
+        onDispose { player.release() }
+    }
+    LaunchedEffect(item.id) {
+        while (true) {
+            positionMs = player.currentPosition.coerceAtLeast(0)
+            durationMs = player.duration.takeIf { it > 0 } ?: 0
+            isPlaying = player.isPlaying
+            kotlinx.coroutines.delay(250)
         }
     }
-    DetailScaffold(title = "video") {
+
+    fun seekToFraction(fraction: Float) {
+        if (durationMs > 0) {
+            player.seekTo((durationMs * fraction.coerceIn(0f, 1f)).toLong())
+        }
+    }
+
+    // The cropped header is the back affordance (canon §3.4); no extra
+    // in-content back button.
+    DetailScaffold(title = "video", onBack = onExit) {
         Column(Modifier.fillMaxSize()) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 AndroidView(
@@ -251,14 +259,6 @@ fun VideoPlayerScreen(item: VideoItem, onExit: () -> Unit) {
                         android.view.SurfaceView(ctx).also { player.setVideoSurface(it.holder.surface) }
                     },
                 )
-                Box(
-                    Modifier
-                        .align(Alignment.TopStart)
-                        .padding(8.dp)
-                        .clickable(onClick = onExit),
-                ) {
-                    EdgeCropText(text = "<- back", fontSize = DoradoTokens.TYPE_LIST.dp, color = LocalDoradoColors.current.accent)
-                }
                 Box(
                     Modifier
                         .align(Alignment.BottomStart)
@@ -270,7 +270,7 @@ fun VideoPlayerScreen(item: VideoItem, onExit: () -> Unit) {
                     )
                 }
             }
-            // Transport + scrubber bar.
+            // Transport + draggable/tappable scrubber.
             Column(Modifier.padding(horizontal = DoradoTokens.EDGE.dp, vertical = 6.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Box(
@@ -298,7 +298,16 @@ fun VideoPlayerScreen(item: VideoItem, onExit: () -> Unit) {
                     Modifier
                         .fillMaxWidth()
                         .height(6.dp)
-                        .background(LocalDoradoColors.current.tile),
+                        .background(LocalDoradoColors.current.tile)
+                        .pointerInput(durationMs) {
+                            detectTapGestures { offset -> seekToFraction(offset.x / size.width) }
+                        }
+                        .pointerInput(durationMs) {
+                            detectHorizontalDragGestures { change, _ ->
+                                change.consume()
+                                seekToFraction(change.position.x / size.width)
+                            }
+                        },
                 ) {
                     val frac = if (durationMs > 0) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
                     Box(
@@ -382,7 +391,13 @@ fun PicturesScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
 
     val viewing = selectedBucket
     if (viewing != null) {
-        val pagerStateBucket = rememberPagerState(initialPage = viewerIndex.coerceAtMost(viewing.items.lastIndex), pageCount = { viewing.items.size })
+        if (viewing.items.isEmpty()) {
+            selectedBucket = null
+            return
+        }
+        val pagerStateBucket = rememberPagerState(initialPage = viewerIndex.coerceIn(0, viewing.items.lastIndex), pageCount = { viewing.items.size })
+        // System Back closes the viewer instead of leaving Pictures entirely.
+        androidx.activity.compose.BackHandler { selectedBucket = null }
         Box(Modifier.fillMaxSize().background(LocalDoradoColors.current.background)) {
             HorizontalPager(state = pagerStateBucket, modifier = Modifier.fillMaxSize()) { p ->
                 val item = viewing.items[p]
@@ -422,32 +437,53 @@ fun PicturesScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                 when (PicturePivot.values()[page]) {
                     PicturePivot.ALL -> PictureListContent(
                         pictures = flat,
-                        onPicture = { selectedBucket = PictureBucket("all", flat); viewerIndex = 0 },
+                        onPicture = { p ->
+                            selectedBucket = PictureBucket("all", flat)
+                            viewerIndex = flat.indexOf(p).coerceAtLeast(0)
+                        },
                     )
-                    PicturePivot.ALBUMS -> Column {
-                        buckets.forEach { bucket ->
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(DoradoTokens.ROW_HEIGHT.dp)
-                                    .clickable { selectedBucket = bucket; viewerIndex = 0 }
-                                    .padding(horizontal = DoradoTokens.EDGE.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Column(Modifier.weight(1f)) {
-                                    EdgeCropText(text = bucket.name, fontSize = DoradoTokens.TYPE_LIST.dp)
-                                    EdgeCropText(text = "${bucket.items.size} photos", fontSize = DoradoTokens.TYPE_CAPTION.dp, color = LocalDoradoColors.current.textSecondary)
-                                }
-                            }
+                    PicturePivot.ALBUMS -> if (buckets.isEmpty()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            EdgeCropText(text = "no albums here", fontSize = DoradoTokens.TYPE_NOW_META.dp, alpha = 0.4f)
                         }
+                    } else {
+                        // Scrollable: the old plain Column dropped every album
+                        // past the fourth in device mode.
+                        KineticList(
+                            items = buckets,
+                            key = { it.name },
+                            letter = { firstLetterOf(it.name) },
+                            bottomPadding = 40.dp,
+                            rowContent = { bucket, _ ->
+                                Row(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(DoradoTokens.ROW_HEIGHT.dp)
+                                        .clickable { selectedBucket = bucket; viewerIndex = 0 }
+                                        .padding(horizontal = DoradoTokens.EDGE.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        EdgeCropText(text = bucket.name, fontSize = DoradoTokens.TYPE_LIST.dp)
+                                        EdgeCropText(text = "${bucket.items.size} photos", fontSize = DoradoTokens.TYPE_CAPTION.dp, color = LocalDoradoColors.current.textSecondary)
+                                    }
+                                }
+                            },
+                        )
                     }
                     PicturePivot.DATE_TAKEN -> PictureListContent(
                         pictures = flat,
-                        onPicture = { selectedBucket = PictureBucket("date taken", flat); viewerIndex = 0 },
+                        onPicture = { p ->
+                            selectedBucket = PictureBucket("date taken", flat)
+                            viewerIndex = flat.indexOf(p).coerceAtLeast(0)
+                        },
                     )
                     PicturePivot.FAVORITES -> PictureListContent(
                         pictures = favoriteItems,
-                        onPicture = { /* tapping a favorite reopens in viewer via subLabel URI */ },
+                        onPicture = { p ->
+                            selectedBucket = PictureBucket("favorites", favoriteItems)
+                            viewerIndex = favoriteItems.indexOf(p).coerceAtLeast(0)
+                        },
                     )
                 }
             }
@@ -474,6 +510,7 @@ private fun PictureListContent(pictures: List<PictureItem>, onPicture: (PictureI
         items = pictures,
         key = { it.id },
         letter = { firstLetterOf(it.displayName) },
+        bottomPadding = 40.dp,
         rowContent = { p, _ ->
             Row(
                 Modifier
@@ -610,17 +647,30 @@ fun InternetScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                     }
                 },
                 update = { wv -> wv.setBackgroundColor(android.graphics.Color.BLACK) },
+                // Release the WebView when the screen leaves composition so
+                // pages/media stop running in the background.
+                onRelease = { wv -> wv.stopLoading(); wv.destroy() },
             )
-            if (bookmarks.isNotEmpty() || history.isNotEmpty()) {
-                BasicText(
-                    text = "bookmarks: " + bookmarks.joinToString(" · "),
-                    style = TextStyle(
-                        fontFamily = Selawik,
-                        fontSize = DoradoTokens.TYPE_CAPTION.sp,
-                        color = LocalDoradoColors.current.textSecondary,
-                    ),
-                    modifier = Modifier.padding(DoradoTokens.EDGE.dp),
-                )
+            val recents = (history + bookmarks).distinct().takeLast(8)
+            if (recents.isNotEmpty()) {
+                // Tappable history/bookmark strip (the old joined string was
+                // display-only and untappable).
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    recents.forEach { u ->
+                        EdgeCropText(
+                            text = u.removePrefix("https://").removePrefix("http://").take(28),
+                            fontSize = DoradoTokens.TYPE_CAPTION.dp,
+                            color = LocalDoradoColors.current.accent,
+                            modifier = Modifier.clickable { navigate(u) }.padding(vertical = 4.dp),
+                        )
+                    }
+                }
             }
         }
     }
@@ -652,7 +702,12 @@ fun SocialScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
         )
     }
     DetailScaffold(title = "social") {
-        Column(Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 40.dp),
+        ) {
             // Zune Card — the device's GemUserCardScene, as a local substitute
             // for the dead Zune Social servers.
             card?.let { c ->
@@ -705,8 +760,20 @@ fun PictureDetailScreen(uri: String) {
                     // Device GemPictureTouchClient: pinch-zoom, pan and double-tap.
                     .pointerInput(Unit) {
                         detectTransformGestures { _, pan, zoom, _ ->
-                            scale = (scale * zoom).coerceIn(1f, 5f)
-                            offset = if (scale <= 1f) Offset.Zero else offset + pan
+                            val newScale = (scale * zoom).coerceIn(1f, 5f)
+                            scale = newScale
+                            offset = if (newScale <= 1f) {
+                                Offset.Zero
+                            } else {
+                                // Keep the image edge-constrained: the old code
+                                // allowed flinging it fully off-screen.
+                                val maxX = (size.width * (newScale - 1f)) / 2f
+                                val maxY = (size.height * (newScale - 1f)) / 2f
+                                Offset(
+                                    (offset.x + pan.x).coerceIn(-maxX, maxX),
+                                    (offset.y + pan.y).coerceIn(-maxY, maxY),
+                                )
+                            }
                         }
                     }
                     .pointerInput(Unit) {

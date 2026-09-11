@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -62,6 +63,7 @@ fun MusicScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
     val graph = LocalDoradoGraph.current
     val colors = LocalDoradoColors.current
     val scope = rememberCoroutineScope()
+    val menus = LocalContextMenu.current
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { PIVOTS.size })
     val selected = pagerState.currentPage
 
@@ -124,12 +126,23 @@ fun MusicScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                         alpha = 0.4f,
                         modifier = Modifier.padding(horizontal = DoradoTokens.EDGE.dp),
                     )
-                    else -> LazyColumn(Modifier.fillMaxSize()) {
+                    else -> LazyColumn(
+                        Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 40.dp),
+                    ) {
                         itemsIndexed(results, key = { index, t -> "$index:${t.mediaId}" }) { index, track ->
                             TrackRow(
                                 track = track,
                                 onClick = { graph.controller.play(results, index) },
-                                onLongClick = {},
+                                onLongClick = {
+                                    menus.show(
+                                        title = track.title,
+                                        actions = trackMenuActions(graph, scope, track) + listOf(
+                                            MenuAction("view album") { graph.nav.push(DoradoDestination.Album(track.albumId)) },
+                                            MenuAction("view artist") { graph.nav.push(DoradoDestination.Artist(track.artistId)) },
+                                        ),
+                                    )
+                                },
                             )
                         }
                     }
@@ -181,9 +194,13 @@ private fun AlbumsTab() {
     val scope = rememberCoroutineScope()
     val albums by graph.library.albums().collectAsState(initial = emptyList())
 
+    if (albums.isEmpty()) {
+        EmptyLibraryNote("no albums — import music in settings")
+        return
+    }
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = DoradoTokens.ALBUM_TILE.dp),
-        contentPadding = PaddingValues(DoradoTokens.EDGE.dp),
+        contentPadding = PaddingValues(start = DoradoTokens.EDGE.dp, end = DoradoTokens.EDGE.dp, top = DoradoTokens.EDGE.dp, bottom = 48.dp),
         horizontalArrangement = Arrangement.spacedBy(DoradoTokens.GRID_GUTTER.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier.fillMaxSize(),
@@ -215,7 +232,11 @@ private fun AlbumsTab() {
                 AlbumArt(
                     model = album.albumArtUri,
                     contentDescription = album.title,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        // Without a fixed square the tile collapsed to the
+                        // image's intrinsic height (or zero on failure).
+                        .aspectRatio(1f),
                 )
                 EdgeCropText(
                     text = album.title,
@@ -241,10 +262,16 @@ private fun ArtistsTab() {
     val scope = rememberCoroutineScope()
     val artists by graph.library.artists().collectAsState(initial = emptyList())
 
+    if (artists.isEmpty()) {
+        EmptyLibraryNote("no artists — import music in settings")
+        return
+    }
+
     KineticList(
         items = artists,
         key = { it.artistId },
         letter = { firstLetterOf(it.name) },
+        bottomPadding = 40.dp,
         rowContent = { artist, _ ->
             Row(
                 Modifier
@@ -294,6 +321,8 @@ private fun PlaylistsTab() {
             items = playlists,
             key = { it.id },
             letter = { firstLetterOf(it.name) },
+            // Leave room for the "+ new playlist" footer so it never covers a row.
+            bottomPadding = 56.dp,
             rowContent = { playlist, _ ->
                 Row(
                     Modifier
@@ -332,6 +361,17 @@ private fun PlaylistsTab() {
             },
         )
 
+        if (playlists.isEmpty()) {
+            EdgeCropText(
+                text = "no playlists yet — create one below",
+                fontSize = DoradoTokens.TYPE_LIST.dp,
+                alpha = 0.5f,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 8.dp),
+            )
+        }
+
         // Create playlist affordance, styled as plain text like everything else.
         EdgeCropText(
             text = "+ new playlist",
@@ -359,6 +399,11 @@ private fun SongsTab() {
     val songs by graph.library.tracks().collectAsState(initial = emptyList())
     val nowPlayingId by graph.controller.nowPlaying.collectAsState()
     val playlists by graph.library.playlists().collectAsState(initial = emptyList())
+
+    if (songs.isEmpty()) {
+        EmptyLibraryNote("no songs — import music in settings")
+        return
+    }
 
     KineticList(
         items = songs,
@@ -410,10 +455,16 @@ private fun GenresTab() {
     val scope = rememberCoroutineScope()
     val genres by graph.library.genres().collectAsState(initial = emptyList())
 
+    if (genres.isEmpty()) {
+        EmptyLibraryNote("no genres — import music in settings")
+        return
+    }
+
     KineticList(
         items = genres,
         key = { it.name },
         letter = { firstLetterOf(it.name) },
+        bottomPadding = 40.dp,
         rowContent = { genre, _ ->
             Row(
                 Modifier
@@ -453,5 +504,16 @@ private fun GenresTab() {
                 }
             }
         },
+    )
+}
+
+/** Shared empty-collection state so pivots never render a blank pane. */
+@Composable
+private fun EmptyLibraryNote(text: String) {
+    EdgeCropText(
+        text = text,
+        fontSize = DoradoTokens.TYPE_LIST.dp,
+        alpha = 0.5f,
+        modifier = Modifier.padding(horizontal = DoradoTokens.EDGE.dp, vertical = 12.dp),
     )
 }

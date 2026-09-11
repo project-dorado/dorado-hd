@@ -110,6 +110,7 @@ private val HOME_ENTRIES = listOf(
 @Composable
 fun HomeMenuScreen(canvasWidth: Dp) {
     val graph = LocalDoradoGraph.current
+    val nowPlaying by graph.controller.nowPlaying.collectAsState()
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             Spacer(Modifier.height(48.dp))
@@ -129,14 +130,22 @@ fun HomeMenuScreen(canvasWidth: Dp) {
                     )
                 },
             )
-            // Bottom watermark — canon §2 (textWatermark 0.08).
+            // Bottom watermark — canon §2 (textWatermark 0.08). Reserve the
+            // MiniPlayer strip when a track is loaded so it never covers it.
             EdgeCropText(
                 text = "dorado hd",
                 fontSize = DoradoTokens.TYPE_CROSSBAR.dp,
                 alpha = 0.08f,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = DoradoTokens.EDGE.dp, bottom = DoradoTokens.EDGE.dp),
+                    .padding(
+                        start = DoradoTokens.EDGE.dp,
+                        bottom = if (nowPlaying != null) {
+                            (DoradoTokens.MINI_PLAYER_HEIGHT + DoradoTokens.EDGE).dp
+                        } else {
+                            DoradoTokens.EDGE.dp
+                        },
+                    ),
             )
         }
     }
@@ -210,11 +219,11 @@ fun QuickplayScreen(canvasWidth: Dp) {
 
         Spacer(Modifier.height(8.dp))
         SectionLabel("pins")
-        QuickplayRow(graph, scope, cards = pins)
+        QuickplayRow(graph, scope, cards = pins, isPins = true)
 
         Spacer(Modifier.height(8.dp))
         SectionLabel("history")
-        QuickplayRow(graph, scope, cards = history)
+        QuickplayRow(graph, scope, cards = history, isPins = false)
 
         Spacer(Modifier.height(8.dp))
         SectionLabel("new")
@@ -241,9 +250,10 @@ private fun SmartDjRow(graph: DoradoGraph, scope: CoroutineScope) {
                     try {
                         val tracks = graph.library.tracks().first()
                         val ratings = graph.quickplay.ratings()
-                        val trackList = tracks.take(60)
+                        // Smart DJ draws from the whole library (the old
+                        // take(60) silently restricted it to A–C titles).
                         val current = graph.controller.nowPlaying.value
-                        val ordered = PlaybackController.smartShuffleOrder(trackList, ratings, current)
+                        val ordered = PlaybackController.smartShuffleOrder(tracks, ratings, current)
                         val mix = ordered.take(25)
                         if (mix.isNotEmpty()) graph.controller.play(mix, 0)
                     } finally {
@@ -349,7 +359,12 @@ private fun TopPlayedMixRow(graph: DoradoGraph, scope: CoroutineScope) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun QuickplayRow(graph: DoradoGraph, scope: CoroutineScope, cards: List<QuickplayCard>) {
+private fun QuickplayRow(
+    graph: DoradoGraph,
+    scope: CoroutineScope,
+    cards: List<QuickplayCard>,
+    isPins: Boolean,
+) {
     val menus = LocalContextMenu.current
     if (cards.isEmpty()) {
         EdgeCropText(
@@ -373,14 +388,33 @@ private fun QuickplayRow(graph: DoradoGraph, scope: CoroutineScope, cards: List<
                     .combinedClickable(
                         onClick = { openCard(graph, scope, card) },
                         onLongClick = {
-                            menus.show(
-                                title = card.label,
-                                actions = listOf(
+                            // Pins can be unpinned; history entries can be
+                            // pinned (the old "unpin" on history was a no-op).
+                            val actions = if (isPins) {
+                                listOf(
                                     com.heretek.dorado_hd.ui.components.MenuAction("unpin") {
                                         scope.launch { graph.quickplay.unpin(card.kind, card.refId) }
                                     },
-                                ),
-                            )
+                                )
+                            } else {
+                                listOf(
+                                    com.heretek.dorado_hd.ui.components.MenuAction("play") {
+                                        openCard(graph, scope, card)
+                                    },
+                                    com.heretek.dorado_hd.ui.components.MenuAction("pin to quickplay") {
+                                        scope.launch {
+                                            graph.quickplay.pin(
+                                                card.kind,
+                                                card.refId,
+                                                card.label,
+                                                card.subLabel,
+                                                card.artAlbumId,
+                                            )
+                                        }
+                                    },
+                                )
+                            }
+                            menus.show(title = card.label, actions = actions)
                         },
                     ),
             ) {
@@ -408,6 +442,15 @@ private fun NewRow() {
     val menus = LocalContextMenu.current
     val albums by graph.library.albums().collectAsState(initial = emptyList())
     val recent = albums.sortedByDescending { it.dateAdded }.take(12)
+    if (recent.isEmpty()) {
+        EdgeCropText(
+            text = "nothing new",
+            fontSize = DoradoTokens.TYPE_LIST.dp,
+            alpha = 0.4f,
+            modifier = Modifier.padding(horizontal = DoradoTokens.EDGE.dp, vertical = 4.dp),
+        )
+        return
+    }
     LazyRow(
         contentPadding = PaddingValues(horizontal = DoradoTokens.EDGE.dp),
         horizontalArrangement = Arrangement.spacedBy(DoradoTokens.GRID_GUTTER.dp),
