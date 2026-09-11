@@ -48,6 +48,7 @@ class DoradoGraph(
     val lyrics: com.heretek.dorado_hd.net.LrcLibService,
     val cloudSignIn: com.heretek.dorado_hd.cloud.CloudSignIn,
     val cloudSignInCallback: com.heretek.dorado_hd.cloud.CloudSignInCallback,
+    val cloudUpdates: com.heretek.dorado_hd.cloud.CloudUpdateService,
 )
 
 class DoradoApp : Application() {
@@ -114,11 +115,12 @@ class DoradoApp : Application() {
             },
             awaitRedirect = { _, timeoutMs -> cloudSignInCallback.await(timeoutMs) },
         )
+        val cloudUpdates = com.heretek.dorado_hd.cloud.CloudUpdateService(settings = { latestSettings.get() })
 
         graph = DoradoGraph(
             library, quickplay, settings, settings.settings, controller, nav,
             artistImages, artistBios, notes, calendar, alarms, radio, podcasts, games, deviceLink, analysis, mixes, scrobble, lyrics,
-            cloudSignIn, cloudSignInCallback,
+            cloudSignIn, cloudSignInCallback, cloudUpdates,
         )
 
         appScope.launch {

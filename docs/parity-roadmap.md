@@ -115,7 +115,9 @@ Mirror the desktop Phase 9 semantics on the phone side, 1:1 with
   (removals first, progress reporting), all unit-tested. `SyncProtocol` holds
   the JSON-RPC 2.0 contract constants and the 6-digit pairing-code generator.
 - ⬜ **M8.2b — live transport.** mDNS (`NsdManager`, `_dorado-sync._tcp`), TLS
-  socket, pairing handshake — blocked on a desktop-side sync endpoint.
+  socket, pairing handshake. The desktop side now exists (`SyncEndpointHost` +
+  `SyncTcpServer`, LAN port + pairing code in settings); the HD client is the
+  remaining half.
 - ✅ **M8.3 — Device view.** `DeviceScreen` (Settings → device link): pairing
   state + 6-digit code, storage gas gauge, the four sync rules (tap to cycle
   presets), guest-session toggle, dry-run "what will sync" manifest,

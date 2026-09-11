@@ -135,7 +135,7 @@ archive. Binaries are encrypted (AES-ECB, marketplace DRM) and
 
 ### Tests
 
-143 Robolectric unit tests + a design-invariant source scanner that
+148 Robolectric unit tests + a design-invariant source scanner that
 forbids `RoundedCornerShape`, `spring(`, raw hex `Color(0x…)`, and
 named `Color.Black/White/Red/…` constants in `ui/` and `ui/apps/`.
 

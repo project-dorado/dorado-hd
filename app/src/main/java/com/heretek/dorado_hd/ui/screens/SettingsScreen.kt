@@ -53,6 +53,7 @@ fun SettingsScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
     val lastImportResult by graph.library.lastImportResult.collectAsState()
     val menus = com.heretek.dorado_hd.ui.components.LocalContextMenu.current
     var trackCount by remember { mutableStateOf<Int?>(null) }
+    var updateStatus by remember { mutableStateOf<String?>(null) }
     androidx.compose.runtime.LaunchedEffect(Unit) { trackCount = graph.library.trackCount() }
 
     // SAF tree picker → recursive import into the library.
@@ -233,6 +234,22 @@ fun SettingsScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                     onClick = { scope.launch { graph.cloudSignIn.signOut() } },
                 )
             }
+
+            SettingsRow(
+                label = "check for updates",
+                subLabel = updateStatus ?: "verify the latest signed release",
+                onClick = {
+                    scope.launch {
+                        val info = graph.cloudUpdates.check("dorado-hd")
+                        updateStatus = when {
+                            !graph.cloudUpdates.isEnabled() -> "cloud disabled"
+                            info == null -> "up to date"
+                            !info.verified -> "update ${info.version} — signature not verified"
+                            else -> "update ${info.version} available"
+                        }
+                    }
+                },
+            )
 
             SectionLabel("about")
             SettingsRow(
