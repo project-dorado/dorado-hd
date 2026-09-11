@@ -1,18 +1,15 @@
 package com.heretek.dorado_hd.ui.apps.games
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -22,152 +19,406 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.design.LocalDoradoColors
 import com.heretek.dorado_hd.design.Selawik
-import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
+import com.heretek.dorado_hd.ui.apps.MiniSynth
+import com.heretek.dorado_hd.ui.apps.SfxBank
 import com.heretek.dorado_hd.ui.components.DetailScaffold
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlin.random.Random
 
 /* ============================================================ */
 /*                          Solitaire (Klondike)                  */
 /* ============================================================ */
 
+private data class SolPick(val from: SolPileRef, val count: Int)
+
+private class SolModeStats {
+    var played = 0
+    var wins = 0
+    var losses = 0
+    var best = Int.MIN_VALUE
+    var fastest = Int.MAX_VALUE
+    var fewest = Int.MAX_VALUE
+}
+
+@Composable
+private fun SolCardSlot(
+    card: SolCard,
+    width: Dp,
+    height: Dp,
+    highlighted: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = LocalDoradoColors.current
+    Box(Modifier.border(1.dp, if (highlighted) colors.accent else Color.Transparent)) {
+        SolCardView(card, width, height, onClick)
+    }
+}
+
+@Composable
+private fun EdgeToggle(label: String, active: Boolean, onClick: () -> Unit) {
+    val colors = LocalDoradoColors.current
+    EdgeText(
+        text = label,
+        color = if (active) colors.accent else colors.textSecondary,
+        onClick = onClick,
+    )
+}
+
 @Composable
 fun SolitaireApp() {
     val colors = LocalDoradoColors.current
-    var piles by remember { mutableStateOf(SolitaireEngine.newGame()) }
-    val tabs = piles.subList(0, 7)
-    val stock = piles[7]; val waste = piles[8]; val founds = piles.subList(9, 13)
+    val graph = LocalDoradoGraph.current
+    val scope = rememberCoroutineScope()
+    val synth = remember { MiniSynth(scope) }
+    val bank = remember { SfxBank(synth) }
 
-    /** Try to send [top] to a foundation or another column. */
-    fun placeTop(fromIndex: Int, from: Pile, top: SolCard) {
-        val fi = founds.indexOfFirst { f -> SolitaireEngine.toFoundation(top, f.cards.lastOrNull()) }
-        if (fi >= 0) {
-            val newPiles = piles.toMutableList()
-            newPiles[9 + fi] = founds[fi].copy(cards = founds[fi].cards + top)
-            newPiles[fromIndex] = from.copy(cards = SolitaireEngine.exposeTop(from.cards.dropLast(1)))
-            piles = newPiles
-            return
-        }
-        for (j in tabs.indices) {
-            if (j == fromIndex) continue
-            val dest = tabs[j]
-            val destTop = dest.cards.lastOrNull()?.takeIf { it.faceUp }
-            if (SolitaireEngine.legalMove(top, destTop)) {
-                val newPiles = piles.toMutableList()
-                newPiles[j] = dest.copy(cards = dest.cards + top)
-                newPiles[fromIndex] = from.copy(cards = SolitaireEngine.exposeTop(from.cards.dropLast(1)))
-                piles = newPiles
-                return
+    DisposableEffect(Unit) {
+        synth.start()
+        onDispose { synth.stop() }
+    }
+
+    var state by remember { mutableStateOf(SolitaireEngine.deal()) }
+    var elapsed by remember { mutableStateOf(0) }
+    var running by remember { mutableStateOf(true) }
+    var loaded by remember { mutableStateOf(false) }
+    var recorded by remember { mutableStateOf(false) }
+    var pick by remember { mutableStateOf<SolPick?>(null) }
+    var hint by remember { mutableStateOf<SolHint?>(null) }
+    var menu by remember { mutableStateOf(false) }
+    val scores by graph.games.top("solitaire", 200).collectAsState(initial = emptyList())
+
+    LaunchedEffect(Unit) {
+        graph.appState.get("solitaire")?.let { blob ->
+            SolitaireEngine.decode(blob)?.let { saved ->
+                state = saved
+                elapsed = saved.elapsedSeconds
+                running = !saved.won
+                recorded = saved.won
             }
+        }
+        loaded = true
+    }
+
+    LaunchedEffect(state, loaded) {
+        if (!loaded) return@LaunchedEffect
+        delay(600)
+        graph.appState.put("solitaire", SolitaireEngine.encode(state.copy(elapsedSeconds = elapsed)))
+    }
+
+    LaunchedEffect(running) {
+        while (running) {
+            delay(1000)
+            elapsed++
         }
     }
 
-    fun tapTab(c: Int) {
-        val tab = tabs[c]
-        val top = tab.cards.lastOrNull() ?: return
-        if (!top.faceUp) {
-            // Flip the exposed top card.
-            val newPiles = piles.toMutableList()
-            newPiles[c] = tab.copy(cards = tab.cards.dropLast(1) + top.copy(faceUp = true))
-            piles = newPiles
+    LaunchedEffect(hint) {
+        if (hint != null) {
+            delay(3000)
+            hint = null
+        }
+    }
+
+    // Win settlement pays the Standard time bonus exactly once.
+    LaunchedEffect(state.won) {
+        if (state.won && !state.timeBonusApplied) {
+            state = SolitaireEngine.complete(state, elapsed)
+            bank.play("win")
+        }
+    }
+
+    val over = remember(state) { !state.won && SolitaireEngine.isGameOver(state) }
+    if (loaded && (state.won || over) && !recorded) {
+        recorded = true
+        running = false
+        val mode = state.scoring.name.lowercase()
+        val result = if (state.won) "win" else "loss"
+        val moves = state.moves
+        LaunchedEffect(Unit) {
+            graph.games.record("solitaire", state.score, "$mode|$result|$elapsed|$moves")
+            if (result == "loss") bank.play("lose")
+        }
+    }
+
+    val stats = remember(scores) {
+        val out = mapOf("standard" to SolModeStats(), "vegas" to SolModeStats())
+        scores.forEach { row ->
+            val parts = (row.meta ?: "").split("|")
+            if (parts.size >= 4) {
+                val bucket = out[parts[0]] ?: return@forEach
+                bucket.played++
+                if (parts[1] == "win") {
+                    bucket.wins++
+                    val sec = parts[2].toIntOrNull() ?: 0
+                    val mv = parts[3].toIntOrNull() ?: 0
+                    if (sec > 0 && sec < bucket.fastest) bucket.fastest = sec
+                    if (mv > 0 && mv < bucket.fewest) bucket.fewest = mv
+                } else {
+                    bucket.losses++
+                }
+                if (row.score > bucket.best) bucket.best = row.score
+            }
+        }
+        out
+    }
+
+    fun newGame(deal: SolDealType = state.deal, scoring: SolScoringMethod = state.scoring) {
+        state = SolitaireEngine.deal(deal, scoring)
+        elapsed = 0
+        running = true
+        recorded = false
+        pick = null
+        hint = null
+        menu = false
+    }
+
+    fun attempt(from: SolPileRef, to: SolPileRef, count: Int): Boolean {
+        val next = SolitaireEngine.move(state, from, to, count)
+        if (next === state) return false
+        state = next
+        pick = null
+        hint = null
+        bank.play(if (to.kind == SolPileKind.FOUNDATION) "score" else "select")
+        return true
+    }
+
+    fun selectOrMove(from: SolPileRef, count: Int) {
+        val cur = pick
+        if (cur == null) {
+            pick = SolPick(from, count)
             return
         }
-        placeTop(c, tab, top)
+        if (cur.from == from) {
+            pick = null
+            return
+        }
+        if (!attempt(cur.from, from, cur.count)) pick = SolPick(from, count)
+    }
+
+    fun tapTableau(col: Int, card: Int) {
+        val cards = state.tableau[col]
+        val top = cards.lastOrNull() ?: run {
+            pick = null
+            return
+        }
+        if (!top.faceUp) {
+            val next = SolitaireEngine.flip(state, col)
+            if (next !== state) {
+                state = next
+                pick = null
+                bank.play("click")
+            }
+            return
+        }
+        if (SolitaireEngine.isRun(cards, card)) selectOrMove(SolPileRef(SolPileKind.TABLEAU, col), cards.size - card)
+    }
+
+    fun tapFoundation(f: Int) {
+        val cur = pick ?: return
+        attempt(cur.from, SolPileRef(SolPileKind.FOUNDATION, f), 1)
     }
 
     fun tapWaste() {
-        val top = waste.cards.lastOrNull()?.takeIf { it.faceUp } ?: return
-        placeTop(8, waste, top)
+        if (pick != null) {
+            pick = null
+            return
+        }
+        if (state.waste.lastOrNull() != null) pick = SolPick(SolPileRef(SolPileKind.WASTE), 1)
     }
 
     fun tapStock() {
-        if (stock.cards.isEmpty()) {
-            // recycle waste → stock
-            val recyc = waste.cards.reversed()
-            piles = piles.toMutableList().also {
-                it[7] = stock.copy(cards = recyc.map { c -> c.copy(faceUp = false) })
-                it[8] = waste.copy(cards = emptyList())
-            }
-            return
+        val next = SolitaireEngine.draw(state)
+        if (next !== state) {
+            state = next
+            pick = null
+            bank.play("click")
         }
-        val drawn = stock.cards.last()
-        piles = piles.toMutableList().also {
-            it[7] = stock.copy(cards = stock.cards.dropLast(1))
-            it[8] = waste.copy(cards = waste.cards + drawn.copy(faceUp = true))
+    }
+
+    fun showHint() {
+        hint = SolitaireEngine.hint(state)
+        bank.play(if (hint == null) "error" else "tick")
+    }
+
+    fun autoFinish() {
+        val next = SolitaireEngine.autoComplete(state)
+        if (next !== state) {
+            state = next
+            pick = null
+            hint = null
+            bank.play("win")
         }
     }
 
     DetailScaffold(title = "solitaire") {
-        Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                EdgeText(
-                    text = if (stock.cards.isEmpty()) "recycle" else "deal",
-                    color = colors.accent,
-                    onClick = { tapStock() },
-                )
-                Spacer(Modifier.width(10.dp))
-                // Waste is a real, playable pile now.
-                if (waste.cards.lastOrNull() != null) {
-                    SolCardView(waste.cards.last(), width = 26.dp, height = 36.dp) { tapWaste() }
-                } else {
+        Box(Modifier.fillMaxSize()) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(DoradoTokens.EDGE.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     BasicText(
-                        text = "waste",
+                        text = "score ${state.score}",
+                        style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    BasicText(
+                        text = "%d:%02d · %s · %s".format(elapsed / 60, elapsed % 60, if (state.deal == SolDealType.ONE) "1-card" else "3-card", state.scoring.name.lowercase()),
                         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
                     )
+                    Spacer(Modifier.weight(1f))
+                    EdgeText("undo", if (state.history.isEmpty()) colors.textInactive else colors.textPrimary) {
+                        val next = SolitaireEngine.undo(state)
+                        if (next !== state) {
+                            state = next
+                            pick = null
+                            if (over) {
+                                recorded = false
+                                running = true
+                            }
+                            bank.play("back")
+                        }
+                    }
+                    EdgeText("hint", colors.textPrimary) { showHint() }
+                    EdgeText("auto", if (SolitaireEngine.canAutoComplete(state)) colors.accent else colors.textInactive) { autoFinish() }
+                    EdgeText("menu", colors.textPrimary) { menu = true }
                 }
-            }
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                tabs.forEachIndexed { c, tab ->
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .background(colors.elevated)
-                            .padding(1.dp),
-                        verticalArrangement = Arrangement.spacedBy((-20).dp),
-                    ) {
-                        tab.cards.forEach { card ->
-                            SolCardView(card, width = 28.dp, height = 38.dp) { tapTab(c) }
+
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val dealing = hint?.kind == SolHintKind.DRAW
+                    EdgeText(
+                        text = when {
+                            state.stock.isNotEmpty() -> "deal"
+                            SolitaireEngine.canRecycle(state) -> "recycle"
+                            else -> "empty"
+                        },
+                        color = if (dealing) colors.accentBright else colors.accent,
+                        onClick = { tapStock() },
+                    )
+                    if (state.waste.isNotEmpty()) {
+                        SolCardSlot(state.waste.last(), 26.dp, 36.dp, pick?.from?.kind == SolPileKind.WASTE) { tapWaste() }
+                    } else {
+                        Box(Modifier.size(width = 26.dp, height = 36.dp).background(colors.elevated)) {}
+                    }
+                    Spacer(Modifier.weight(1f))
+                    state.foundations.forEachIndexed { i, f ->
+                        val hinted = hint?.to == SolPileRef(SolPileKind.FOUNDATION, i)
+                        val top = f.lastOrNull()
+                        if (top != null) {
+                            SolCardSlot(top, 26.dp, 36.dp, hinted) { tapFoundation(i) }
+                        } else {
+                            Box(
+                                Modifier
+                                    .size(width = 26.dp, height = 36.dp)
+                                    .background(if (hinted) colors.tilePressed else colors.elevated)
+                                    .pointerInput(i) { detectTapGestures(onTap = { tapFoundation(i) }) },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                BasicText(
+                                    text = suitGlyph(SolSuit.values()[i]),
+                                    style = TextStyle(fontFamily = Selawik, fontSize = 10.sp, color = colors.textSecondary),
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Row(modifier = Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    for (c in 0 until 7) {
+                        val col = state.tableau[c]
+                        val hintedTo = hint?.to?.kind == SolPileKind.TABLEAU && hint?.to?.index == c
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .background(if (hintedTo) colors.tilePressed else colors.elevated)
+                                .padding(1.dp),
+                            verticalArrangement = Arrangement.spacedBy((-22).dp),
+                        ) {
+                            col.forEachIndexed { idx, card ->
+                                val selected = pick?.from?.kind == SolPileKind.TABLEAU && pick?.from?.index == c &&
+                                    idx >= col.size - (pick?.count ?: 0)
+                                val hintedCard = hint?.from?.kind == SolPileKind.TABLEAU && hint?.from?.index == c &&
+                                    idx >= col.size - (hint?.count ?: 0)
+                                SolCardSlot(card, 26.dp, 36.dp, selected || hintedCard) { tapTableau(c, idx) }
+                            }
                         }
                     }
                 }
             }
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                founds.forEach { f ->
-                    Box(
-                        Modifier
-                            .size(width = 28.dp, height = 38.dp)
-                            .background(colors.elevated)
-                            .padding(1.dp),
-                    ) {
-                        val top = f.cards.lastOrNull()
-                        if (top != null) SolCardView(top, width = 26.dp, height = 36.dp) {}
-                        else BasicText(
-                            text = if (f.name.contains("SPADE")) "♠" else if (f.name.contains("HEART")) "♥" else if (f.name.contains("CLUB")) "♣" else "♦",
-                            style = TextStyle(fontFamily = Selawik, fontSize = 10.sp, color = colors.textSecondary),
-                            modifier = Modifier.padding(2.dp),
+
+            if (menu) {
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .background(colors.background)
+                        .padding(DoradoTokens.EDGE.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    BasicText(
+                        text = "options",
+                        style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        BasicText(
+                            text = "deal",
+                            style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textSecondary),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        EdgeToggle("one", state.deal == SolDealType.ONE) { newGame(deal = SolDealType.ONE) }
+                        EdgeToggle("three", state.deal == SolDealType.THREE) { newGame(deal = SolDealType.THREE) }
+                        Spacer(Modifier.width(12.dp))
+                        BasicText(
+                            text = "score",
+                            style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textSecondary),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        EdgeToggle("standard", state.scoring == SolScoringMethod.STANDARD) { newGame(scoring = SolScoringMethod.STANDARD) }
+                        EdgeToggle("vegas", state.scoring == SolScoringMethod.VEGAS) { newGame(scoring = SolScoringMethod.VEGAS) }
+                    }
+                    BasicText(
+                        text = "changing deal or scoring starts a new game",
+                        style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textInactive),
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        EdgeText("new game", colors.accent) { newGame() }
+                        Spacer(Modifier.width(12.dp))
+                        EdgeText("close", colors.textPrimary) { menu = false }
+                    }
+                    state.scoring.let { mode ->
+                        val key = mode.name.lowercase()
+                        val s = stats[key] ?: SolModeStats()
+                        BasicText(
+                            text = "$key  played ${s.played} · wins ${s.wins} · losses ${s.losses} · best ${if (s.best == Int.MIN_VALUE) 0 else s.best} · fastest ${if (s.fastest == Int.MAX_VALUE) "—" else "${s.fastest}s"} · fewest ${if (s.fewest == Int.MAX_VALUE) "—" else s.fewest}",
+                            style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST_SECONDARY.sp, color = colors.textSecondary),
                         )
                     }
+                    BasicText(
+                        text = "tap a card to pick a run, then tap its destination",
+                        style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textInactive),
+                    )
+                    BasicText(
+                        text = if (over) "no moves left — game over" else if (state.won) "you win" else " ",
+                        style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.accent),
+                    )
                 }
             }
         }
