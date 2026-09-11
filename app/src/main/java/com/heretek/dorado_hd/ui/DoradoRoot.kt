@@ -199,6 +199,7 @@ private fun MiniPlayer(canvasWidth: Dp) {
     val controller = graph.controller
     val nowPlaying by controller.nowPlaying.collectAsState()
     val isPlaying by controller.isPlaying.collectAsState()
+    val immersive by graph.immersive.collectAsState()
     val colors = LocalDoradoColors.current
 
     // Canon §8: mini-apps and fullscreen viewers open without the MiniPlayer.
@@ -210,7 +211,7 @@ private fun MiniPlayer(canvasWidth: Dp) {
         -> true
         else -> false
     }
-    if (fullscreenRoute || nowPlaying == null) return
+    if (fullscreenRoute || immersive || nowPlaying == null) return
 
     Box(
         Modifier

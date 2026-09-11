@@ -52,7 +52,13 @@ class DoradoGraph(
     val cloudUpdates: com.heretek.dorado_hd.cloud.CloudUpdateService,
     val playCounts: com.heretek.dorado_hd.analysis.PlayCountStore,
     val appState: com.heretek.dorado_hd.data.repo.AppStateRepository,
-)
+) {
+    /**
+     * True while a full-bleed presentation (picture viewer) owns the screen
+     * from a non-fullscreen route; the shell hides the MiniPlayer for it.
+     */
+    val immersive = kotlinx.coroutines.flow.MutableStateFlow(false)
+}
 
 open class DoradoApp : Application() {
 

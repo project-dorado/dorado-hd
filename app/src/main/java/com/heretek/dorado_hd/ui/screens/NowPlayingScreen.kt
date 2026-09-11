@@ -105,6 +105,9 @@ fun NowPlayingScreen(canvasWidth: Dp) {
     val shuffle by controller.shuffle.collectAsState()
     val repeat by controller.repeat.collectAsState()
     val rating by controller.currentRating.collectAsState()
+    val source by controller.source.collectAsState()
+    // Radio stations back the dial-frequency lookup for the station card.
+    val stations by graph.radio.stations().collectAsState(initial = emptyList())
 
     var overlay by remember { mutableStateOf(false) }
     var screensaver by remember { mutableStateOf(false) }
@@ -167,8 +170,11 @@ fun NowPlayingScreen(canvasWidth: Dp) {
         return
     }
 
-    val backdropFile by rememberArtistBackdropFile(current)
-    val washColors by rememberArtWash(current)
+    // Non-null when the active queue is a radio stream (B4).
+    val radio = radioNowPlayingMeta(source, current.title, current.mediaId, stations)
+    // Streams have no artist photography or album art to fetch.
+    val backdropFile by rememberArtistBackdropFile(current, enabled = radio == null)
+    val washColors by rememberArtWash(current, enabled = radio == null)
 
     Box(
         Modifier
@@ -212,31 +218,38 @@ fun NowPlayingScreen(canvasWidth: Dp) {
             enter = fadeIn(DoradoMotion.pivot()),
             exit = fadeOut(DoradoMotion.pivot()),
         ) {
-            Column(Modifier.fillMaxSize()) {
-                // Explicit back arrow, per the canon.
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(start = (DoradoTokens.EDGE - 13).coerceAtLeast(0).dp, top = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+            // Explicit back arrow, per the canon — shared by the track and
+            // radio presentations.
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(start = (DoradoTokens.EDGE - 13).coerceAtLeast(0).dp, top = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clickable { graph.nav.pop() },
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clickable { graph.nav.pop() },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_back),
-                            contentDescription = "back",
-                            tint = colors.textPrimary.copy(alpha = 0.85f),
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
+                    Icon(
+                        painter = painterResource(R.drawable.ic_back),
+                        contentDescription = "back",
+                        tint = colors.textPrimary.copy(alpha = 0.85f),
+                        modifier = Modifier.size(22.dp),
+                    )
                 }
+            }
 
-                Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(12.dp))
 
+            // Radio gets a dedicated presentation: station identity + live tag,
+            // no track chrome (device GemNowPlayingRadioScene / B4).
+            if (radio != null) {
+                RadioIdentity(radio)
+                return@AnimatedVisibility
+            }
+            Column(Modifier.fillMaxSize()) {
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -377,7 +390,7 @@ fun NowPlayingScreen(canvasWidth: Dp) {
                         )
                     },
             ) {
-                ScreensaverLayer(current, positionMs, durationMs, isPlaying)
+                ScreensaverLayer(current, positionMs, durationMs, isPlaying, radio)
             }
         }
 
@@ -401,6 +414,7 @@ fun NowPlayingScreen(canvasWidth: Dp) {
                 isPlaying = isPlaying,
                 positionMs = positionMs,
                 durationMs = durationMs,
+                isRadio = radio != null,
                 onDismiss = {
                     overlay = false
                     dim = false
@@ -408,6 +422,36 @@ fun NowPlayingScreen(canvasWidth: Dp) {
                 },
             )
         }
+    }
+}
+
+/**
+ * Radio identity card (device `GemNowPlayingRadioScene`): station name, its
+ * dial frequency when known, and the live tag. No art tile, no navigation to
+ * artist/album pages — those are track-only surfaces.
+ */
+@Composable
+private fun RadioIdentity(meta: RadioNowPlayingMeta) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = DoradoTokens.EDGE.dp),
+    ) {
+        EdgeCropText(
+            text = meta.stationName,
+            fontSize = DoradoTokens.TYPE_NOW_TITLE.dp,
+        )
+        EdgeCropText(
+            text = meta.dialLine,
+            fontSize = DoradoTokens.TYPE_NOW_META.dp,
+            alpha = 0.85f,
+        )
+        EdgeCropText(
+            text = meta.live,
+            fontSize = DoradoTokens.TYPE_CAPTION.dp,
+            alpha = 0.6f,
+            modifier = Modifier.padding(top = 6.dp),
+        )
     }
 }
 
@@ -478,6 +522,7 @@ private fun ScreensaverLayer(
     positionMs: Long,
     durationMs: Long,
     isPlaying: Boolean,
+    radio: RadioNowPlayingMeta?,
 ) {
     val colors = LocalDoradoColors.current
     val liveLevels = rememberLiveSpectrum(isPlaying, bars = 24)
@@ -498,23 +543,40 @@ private fun ScreensaverLayer(
                 .graphicsLayer { translationY = driftDp.dp.toPx() }
                 .padding(start = DoradoTokens.EDGE.dp, end = 80.dp),
         ) {
-            EdgeCropText(text = track.title, fontSize = DoradoTokens.TYPE_SAVER_TITLE.dp)
             EdgeCropText(
-                text = track.artist,
-                fontSize = DoradoTokens.TYPE_SAVER_ARTIST.dp,
-                alpha = 0.9f,
+                text = radio?.stationName ?: track.title,
+                fontSize = DoradoTokens.TYPE_SAVER_TITLE.dp,
             )
-            EdgeCropText(
-                text = track.album,
-                fontSize = DoradoTokens.TYPE_SAVER_ALBUM.dp,
-                alpha = 0.7f,
-            )
-            EdgeCropText(
-                text = formatTime(durationMs),
-                fontSize = DoradoTokens.TYPE_CAPTION.dp,
-                alpha = 0.5f,
-                modifier = Modifier.padding(top = 8.dp),
-            )
+            if (radio == null) {
+                EdgeCropText(
+                    text = track.artist,
+                    fontSize = DoradoTokens.TYPE_SAVER_ARTIST.dp,
+                    alpha = 0.9f,
+                )
+                EdgeCropText(
+                    text = track.album,
+                    fontSize = DoradoTokens.TYPE_SAVER_ALBUM.dp,
+                    alpha = 0.7f,
+                )
+                EdgeCropText(
+                    text = formatTime(durationMs),
+                    fontSize = DoradoTokens.TYPE_CAPTION.dp,
+                    alpha = 0.5f,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            } else {
+                // Live stream: dial identity, then the live tag — no elapsed time.
+                EdgeCropText(
+                    text = radio.dialLine,
+                    fontSize = DoradoTokens.TYPE_SAVER_ARTIST.dp,
+                    alpha = 0.9f,
+                )
+                EdgeCropText(
+                    text = radio.live,
+                    fontSize = DoradoTokens.TYPE_SAVER_ALBUM.dp,
+                    alpha = 0.7f,
+                )
+            }
         }
         SpectrumVisualizer(
             isPlaying = isPlaying,
@@ -524,15 +586,18 @@ private fun ScreensaverLayer(
                 .fillMaxWidth()
                 .padding(start = DoradoTokens.EDGE.dp, end = 84.dp, bottom = DoradoTokens.EDGE.dp),
         )
-        AlbumArt(
-            model = track.albumArtUri,
-            contentDescription = null,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(DoradoTokens.EDGE.dp)
-                .size(56.dp)
-                .graphicsLayer { alpha = 0.92f },
-        )
+        // Streams carry no album art; the station identity is the whole card.
+        if (radio == null) {
+            AlbumArt(
+                model = track.albumArtUri,
+                contentDescription = null,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(DoradoTokens.EDGE.dp)
+                    .size(56.dp)
+                    .graphicsLayer { alpha = 0.92f },
+            )
+        }
     }
 }
 
@@ -545,6 +610,7 @@ private fun TransportOverlay(
     isPlaying: Boolean,
     positionMs: Long,
     durationMs: Long,
+    isRadio: Boolean,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -696,16 +762,19 @@ private fun TransportOverlay(
             )
         }
 
-        // Showlist / queue (top-right) — the device's GemQueueList.
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(end = (DoradoTokens.EDGE - 13).coerceAtLeast(0).dp, top = 2.dp)
-                .size(48.dp)
-                .clickable { showQueue = true },
-            contentAlignment = Alignment.Center,
-        ) {
-            OverlayGlyph(text = "\u2261")
+        // Showlist / queue (top-right) — the device's GemQueueList. A radio
+        // stream has no meaningful queue, so the glyph is hidden.
+        if (!isRadio) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(end = (DoradoTokens.EDGE - 13).coerceAtLeast(0).dp, top = 2.dp)
+                    .size(48.dp)
+                    .clickable { showQueue = true },
+                contentAlignment = Alignment.Center,
+            ) {
+                OverlayGlyph(text = "\u2261")
+            }
         }
 
         // Share (device GemLibrarySendCompose) — system share sheet.
@@ -732,24 +801,40 @@ private fun TransportOverlay(
             )
         }
 
-        // Scrubber + elapsed/remaining (device HUD ProgressSlider).
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 4.dp),
-        ) {
-            SeekBar(
-                positionMs = positionMs,
-                durationMs = durationMs,
-                onSeek = { controller.seekTo(it) },
+        // Scrubber + elapsed/remaining (device HUD ProgressSlider). A live
+        // stream has no seekable position: show the live tag instead (device
+        // HudMediaControllerRadioScene).
+        if (isRadio) {
+            androidx.compose.foundation.text.BasicText(
+                text = "live",
+                style = TextStyle(
+                    fontFamily = Selawik,
+                    fontSize = DoradoTokens.TYPE_NOW_META.sp,
+                    color = colors.accent,
+                ),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = (DoradoTokens.EDGE / 2).dp),
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+        } else {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 4.dp),
             ) {
-                TimeLabel(formatTime(positionMs))
-                TimeLabel("-" + formatTime((durationMs - positionMs).coerceAtLeast(0)))
+                SeekBar(
+                    positionMs = positionMs,
+                    durationMs = durationMs,
+                    onSeek = { controller.seekTo(it) },
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    TimeLabel(formatTime(positionMs))
+                    TimeLabel("-" + formatTime((durationMs - positionMs).coerceAtLeast(0)))
+                }
             }
         }
     }
@@ -975,26 +1060,37 @@ private fun OverlayGlyph(text: String) {
     )
 }
 
-/** Cached artist background photography fetch. */
+/** Cached artist background photography fetch; [enabled] is false for radio. */
 @Composable
-private fun rememberArtistBackdropFile(track: Track): androidx.compose.runtime.State<File?> {
+private fun rememberArtistBackdropFile(track: Track, enabled: Boolean): androidx.compose.runtime.State<File?> {
     val graph = LocalDoradoGraph.current
-    val file = androidx.compose.runtime.produceState<File?>(initialValue = null, key1 = track.artist) {
-        val enabled = graph.artistImages.settingsSnapshot?.artistImagesEnabled ?: true
-        if (!enabled) {
-            value = null
-        } else {
-            value = graph.artistImages.backgroundFor(track.artist)
-        }
+    val file = androidx.compose.runtime.produceState<File?>(
+        initialValue = null,
+        key1 = track.artist,
+        key2 = enabled,
+    ) {
+        val imagesEnabled = graph.artistImages.settingsSnapshot?.artistImagesEnabled ?: true
+        value = if (!enabled || !imagesEnabled) null else graph.artistImages.backgroundFor(track.artist)
     }
     return file
 }
 
-/** Palette wash extracted from the album art when no photo is available. */
+/** Palette wash extracted from the album art; [enabled] is false for radio. */
 @Composable
-private fun rememberArtWash(track: Track): androidx.compose.runtime.State<Pair<Color, Color>?> {
+private fun rememberArtWash(
+    track: Track,
+    enabled: Boolean,
+): androidx.compose.runtime.State<Pair<Color, Color>?> {
     val context = LocalContext.current
-    return androidx.compose.runtime.produceState<Pair<Color, Color>?>(initialValue = null, key1 = track.albumId) {
+    return androidx.compose.runtime.produceState<Pair<Color, Color>?>(
+        initialValue = null,
+        key1 = track.albumId,
+        key2 = enabled,
+    ) {
+        if (!enabled) {
+            value = null
+            return@produceState
+        }
         value = withContext(Dispatchers.IO) {
             try {
                 val bitmap: Bitmap? = context.contentResolver.openInputStream(track.albumArtUri)?.use { input ->

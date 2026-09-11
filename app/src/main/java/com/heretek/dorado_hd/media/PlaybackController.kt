@@ -27,6 +27,14 @@ import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
 
 /**
+ * Which presentation the current queue belongs to. `Radio.kt` marks its
+ * streams [RADIO] when it starts them; Now Playing uses that explicit signal
+ * to show the station identity and a live tag instead of the scrubber
+ * (device `GemNowPlayingRadioScene`). Every other surface stays [LIBRARY].
+ */
+enum class PlaybackSource { LIBRARY, RADIO }
+
+/**
  * App-side playback coordinator. Bridges the Compose UI to the Media3 session
  * service and owns queue ordering (Zune-style shuffle), repeat, ratings and
  * Quickplay history.
@@ -73,6 +81,10 @@ class PlaybackController(
 
     private val _currentRating = MutableStateFlow(Rating.NONE)
     val currentRating: StateFlow<Rating> = _currentRating.asStateFlow()
+
+    /** Where the current queue came from (library vs. a live radio stream). */
+    private val _source = MutableStateFlow(PlaybackSource.LIBRARY)
+    val source: StateFlow<PlaybackSource> = _source.asStateFlow()
 
     /** Sleep-timer countdown in ms; 0 when no timer is armed. */
     private val _sleepRemainingMs = MutableStateFlow(0L)
@@ -276,10 +288,11 @@ class PlaybackController(
         }
     }
 
-    fun play(tracks: List<Track>, startIndex: Int = 0) {
+    fun play(tracks: List<Track>, startIndex: Int = 0, source: PlaybackSource = PlaybackSource.LIBRARY) {
         if (tracks.isEmpty()) return
         baseOrder = tracks
         _queue.value = tracks
+        _source.value = source
         val items = tracks.map { it.toMediaItem() }
         val player = controller ?: return
         player.setMediaItems(items, startIndex, 0L)

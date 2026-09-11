@@ -6,6 +6,9 @@ import android.content.ContentUris
 import android.net.Uri
 import android.provider.MediaStore
 import android.webkit.WebView
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -46,6 +49,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
@@ -61,6 +65,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import coil3.compose.AsyncImage
 import com.heretek.dorado_hd.design.LocalDoradoColors
 import com.heretek.dorado_hd.design.Selawik
+import com.heretek.dorado_hd.design.DoradoMotion
 import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.design.components.AlbumArt
 import com.heretek.dorado_hd.design.components.CrossbarBar
@@ -71,6 +76,7 @@ import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import com.heretek.dorado_hd.ui.nav.DoradoDestination
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -337,6 +343,12 @@ fun PicturesScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
     var flat by remember { mutableStateOf<List<PictureItem>>(emptyList()) }
     var selectedBucket by remember { mutableStateOf<PictureBucket?>(null) }
     var viewerIndex by remember { mutableStateOf(0) }
+    var presenting by remember { mutableStateOf(false) }
+    // Hide the shell MiniPlayer while the full-bleed presentation is up.
+    DisposableEffect(presenting) {
+        graph.immersive.value = presenting
+        onDispose { graph.immersive.value = false }
+    }
     val pagerState = androidx.compose.foundation.pager.rememberPagerState(initialPage = 0, pageCount = { 4 })
     val pinned by graph.quickplay.pins().collectAsState(initial = emptyList())
     val favoriteItems = remember(pinned, flat) {
@@ -398,6 +410,19 @@ fun PicturesScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
         val pagerStateBucket = rememberPagerState(initialPage = viewerIndex.coerceIn(0, viewing.items.lastIndex), pageCount = { viewing.items.size })
         // System Back closes the viewer instead of leaving Pictures entirely.
         androidx.activity.compose.BackHandler { selectedBucket = null }
+        if (presenting) {
+            // Full-bleed presentation over the current bucket. Exiting puts the
+            // normal viewer back on the picture that was on screen.
+            PicturePresentation(
+                items = viewing.items,
+                initialIndex = pagerStateBucket.currentPage,
+                onExit = { finalIndex ->
+                    scope.launch { pagerStateBucket.scrollToPage(finalIndex) }
+                    presenting = false
+                },
+            )
+            return
+        }
         Box(Modifier.fillMaxSize().background(LocalDoradoColors.current.background)) {
             HorizontalPager(state = pagerStateBucket, modifier = Modifier.fillMaxSize()) { p ->
                 val item = viewing.items[p]
@@ -408,16 +433,30 @@ fun PicturesScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                     contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                 )
             }
-            Box(
+            Row(
                 Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(8.dp)
-                    .clickable {
+                    .padding(
+                        end = DoradoTokens.EDGE.dp,
+                        // Clear the MiniPlayer that floats over this route.
+                        bottom = (DoradoTokens.EDGE + DoradoTokens.MINI_PLAYER_HEIGHT).dp,
+                    ),
+                horizontalArrangement = Arrangement.spacedBy(DoradoTokens.EDGE.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    Modifier.clickable { presenting = true },
+                ) {
+                    EdgeCropText(text = "present", fontSize = DoradoTokens.TYPE_LIST.dp, color = LocalDoradoColors.current.accent)
+                }
+                Box(
+                    Modifier.clickable {
                         val item = viewing.items[pagerStateBucket.currentPage]
                         scope.launch { graph.quickplay.pin(com.heretek.dorado_hd.data.model.PinKind.PICTURE, item.id, item.displayName, item.uri.toString(), 0) }
                     },
-            ) {
-                EdgeCropText(text = "pin", fontSize = DoradoTokens.TYPE_LIST.dp, color = LocalDoradoColors.current.accent)
+                ) {
+                    EdgeCropText(text = "pin", fontSize = DoradoTokens.TYPE_LIST.dp, color = LocalDoradoColors.current.accent)
+                }
             }
             Box(Modifier.align(Alignment.TopStart).padding(8.dp).clickable { selectedBucket = null }) {
                 EdgeCropText(text = "<- albums", fontSize = DoradoTokens.TYPE_LIST.dp, color = LocalDoradoColors.current.accent)
@@ -548,6 +587,88 @@ private fun PictureListContent(pictures: List<PictureItem>, onPicture: (PictureI
             }
         },
     )
+}
+
+/**
+ * Full-bleed picture presentation (device `GemNowPlayingPicturesScene`):
+ * fit-to-screen image, title/date caption in Zune typography that auto-hides,
+ * horizontal swipe within the current bucket (wrapping at either end), and
+ * tap or system back to exit. This is the presentation mode the zoom/pan
+ * viewer opens — it does not replace or duplicate that viewer.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun PicturePresentation(
+    items: List<PictureItem>,
+    initialIndex: Int = 0,
+    onExit: (Int) -> Unit,
+) {
+    if (items.isEmpty()) return
+    val colors = LocalDoradoColors.current
+    val count = items.size
+    val exit = rememberUpdatedState(onExit)
+    // Virtual pages let a swipe past either end wrap inside the bucket;
+    // wrapPictureIndex maps the pager's page back onto the item list.
+    val startPage = remember(count, initialIndex) {
+        val anchor = Int.MAX_VALUE / 2
+        anchor - (anchor % count) + wrapPictureIndex(initialIndex, count)
+    }
+    val pager = rememberPagerState(initialPage = startPage, pageCount = { Int.MAX_VALUE })
+    var chrome by remember { mutableStateOf(true) }
+
+    // Auto-hide the caption after the Now Playing idle dwell; each settled
+    // page brings it back for another few seconds.
+    LaunchedEffect(pager.settledPage) {
+        chrome = true
+        delay(DoradoTokens.IDLE_SCREENSAVER_MS)
+        chrome = false
+    }
+
+    androidx.activity.compose.BackHandler {
+        exit.value(wrapPictureIndex(pager.currentPage, count))
+    }
+
+    Box(Modifier.fillMaxSize().background(colors.background)) {
+        HorizontalPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
+            val item = items[wrapPictureIndex(page, count)]
+            AsyncImage(
+                model = item.uri,
+                contentDescription = item.displayName,
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    // Tap exits; the pager consumes drags, so swipes still page.
+                    .pointerInput(Unit) {
+                        detectTapGestures { exit.value(wrapPictureIndex(page, count)) }
+                    },
+            )
+        }
+        AnimatedVisibility(
+            visible = chrome,
+            enter = fadeIn(DoradoMotion.pivot()),
+            exit = fadeOut(DoradoMotion.pivot()),
+            modifier = Modifier.align(Alignment.BottomStart),
+        ) {
+            val caption = items[wrapPictureIndex(pager.currentPage, count)]
+            Column(
+                Modifier.padding(
+                    start = DoradoTokens.EDGE.dp,
+                    // Clear the MiniPlayer that floats over the Pictures route.
+                    bottom = (DoradoTokens.EDGE + DoradoTokens.MINI_PLAYER_HEIGHT).dp,
+                ),
+            ) {
+                EdgeCropText(text = caption.displayName, fontSize = DoradoTokens.TYPE_LIST.dp)
+                pictureDateLabel(caption.dateTaken)?.let { date ->
+                    EdgeCropText(
+                        text = date,
+                        fontSize = DoradoTokens.TYPE_CAPTION.dp,
+                        color = colors.textSecondary,
+                        alpha = 0.8f,
+                    )
+                }
+            }
+        }
+    }
 }
 
 /*                          Internet                                */
@@ -748,6 +869,20 @@ fun SocialScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
 fun PictureDetailScreen(uri: String) {
     var scale by remember { mutableStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
+    var presenting by remember { mutableStateOf(false) }
+    val item = remember(uri) {
+        PictureItem(
+            id = 0L,
+            displayName = uri.substringAfterLast('/').ifBlank { "picture" },
+            uri = android.net.Uri.parse(uri),
+            dateTaken = 0L,
+        )
+    }
+
+    if (presenting) {
+        PicturePresentation(items = listOf(item), initialIndex = 0, onExit = { presenting = false })
+        return
+    }
 
     DetailScaffold(title = "picture") {
         Box(Modifier.fillMaxSize().background(LocalDoradoColors.current.background)) {
@@ -795,6 +930,14 @@ fun PictureDetailScreen(uri: String) {
                         translationY = offset.y
                     },
             )
+            Box(
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(DoradoTokens.EDGE.dp)
+                    .clickable { presenting = true },
+            ) {
+                EdgeCropText(text = "present", fontSize = DoradoTokens.TYPE_LIST.dp, color = LocalDoradoColors.current.accent)
+            }
         }
     }
 }

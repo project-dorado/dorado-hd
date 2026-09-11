@@ -37,6 +37,7 @@ import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.design.components.EdgeCropText
 import com.heretek.dorado_hd.design.components.KineticList
 import com.heretek.dorado_hd.design.components.firstLetterOf
+import com.heretek.dorado_hd.media.PlaybackSource
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import com.heretek.dorado_hd.ui.components.LocalContextMenu
@@ -256,5 +257,7 @@ private fun playStation(graph: com.heretek.dorado_hd.DoradoGraph, station: Radio
         year = "",
         uri = android.net.Uri.parse(station.streamUrl),
     )
-    graph.controller.play(listOf(track))
+    // Explicitly mark the queue as radio so Now Playing switches to the
+    // station presentation instead of the track one (B4).
+    graph.controller.play(listOf(track), source = PlaybackSource.RADIO)
 }
