@@ -57,25 +57,28 @@ import kotlin.math.abs
 @Composable
 fun CalculatorApp() {
     val colors = LocalDoradoColors.current
-    var expr by remember { mutableStateOf("") }
-    var result by remember { mutableStateOf<Double?>(null) }
-    var scientific by remember { mutableStateOf(false) }
+    var state by remember { mutableStateOf(CalculatorState()) }
+    val tilt = rememberTilt()
+    var explicitLandscape by remember { mutableStateOf<Boolean?>(null) }
+    val tiltLandscape = tilt.value.available && abs(tilt.value.rollDeg) > 45f
+    val landscape = explicitLandscape ?: tiltLandscape
 
-    val rows = if (scientific) SCIENTIFIC_KEYS else BASIC_KEYS
+    val onKey: (String) -> Unit = { key ->
+        val next = state.press(key, landscape)
+        state = next
+        when (key) {
+            "sci" -> explicitLandscape = next.landscape
+            "basic" -> {
+                explicitLandscape = false
+                state = state.copy(landscape = false)
+            }
+        }
+    }
 
     DetailScaffold(title = "calculator") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            BasicText(
-                text = result?.let { formatNumber(it) } ?: expr.ifEmpty { "0" },
-                style = TextStyle(
-                    fontFamily = Selawik,
-                    fontWeight = FontWeight.Light,
-                    fontSize = DoradoTokens.TYPE_NOW_TITLE.sp,
-                    color = if (result != null) colors.accent else colors.textPrimary,
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(4.dp))
+            CalcDisplay(state, landscape)
+            Spacer(Modifier.height(6.dp))
             Box(
                 Modifier
                     .fillMaxWidth()
@@ -83,91 +86,98 @@ fun CalculatorApp() {
                     .background(colors.border),
             )
             Spacer(Modifier.height(6.dp))
-            // Weighted rows so every keypad row (basic or scientific) always
-            // fits the 224dp device-mode content area; nothing is clipped.
-            Column(
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+            if (landscape) {
+                LandscapeKeypad(state, onKey, Modifier.weight(1f))
+            } else {
+                Keypad(PORTRAIT_KEYS, onKey, Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+/** Right-aligned value plus a status line (angle / memory / pending operand). */
+@Composable
+private fun CalcDisplay(state: CalculatorState, landscape: Boolean) {
+    val colors = LocalDoradoColors.current
+    Column(Modifier.fillMaxWidth()) {
+        BasicText(
+            text = state.render(),
+            style = TextStyle(
+                fontFamily = Selawik,
+                fontWeight = FontWeight.Light,
+                fontSize = (if (landscape) DoradoTokens.TYPE_NOW_TITLE else DoradoTokens.TYPE_HEADER_CROPPED).sp,
+                color = if (state.error) colors.textInactive else colors.textPrimary,
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        val memo = buildString {
+            append(state.angle.name.lowercase())
+            if (state.memory != 0.0) append("  m ${CalculatorState.formatValue(state.memory)}")
+            state.pendingOp?.let { append("  $it") }
+            if (state.population.isNotEmpty()) {
+                append("  n=${state.population.size}")
+            }
+        }
+        EdgeCropText(text = memo, fontSize = DoradoTokens.TYPE_CAPTION.dp, color = colors.textSecondary)
+        if (landscape && state.population.isNotEmpty()) {
+            EdgeCropText(
+                text = state.population.takeLast(8).joinToString("  ") { CalculatorState.formatValue(it, true) },
+                fontSize = DoradoTokens.TYPE_CAPTION.dp,
+                color = colors.textInactive,
+            )
+        }
+    }
+}
+
+@Composable
+private fun Keypad(rows: List<List<String>>, onKey: (String) -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        rows.forEach { row ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
             ) {
-                rows.forEach { row ->
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                    ) {
-                        row.forEach { key ->
-                            KeyButton(key, Modifier.weight(1f).fillMaxHeight()) { label ->
-                                when (label) {
-                                    "C" -> { expr = ""; result = null }
-                                    "=" -> {
-                                        val v = CalcEngine.eval(expr)
-                                        result = v
-                                        expr = v?.let { formatNumber(it) } ?: expr
-                                    }
-                                    "±" -> {
-                                        // Toggle the sign of the last operand without
-                                        // corrupting a preceding subtraction: "5-3" →
-                                        // "5-(-3)" and "5-(-3)" → "5-(3)".
-                                        val num = Regex("\\d+(?:\\.\\d+)?$").find(expr)
-                                        if (num != null) {
-                                            val start = num.range.first
-                                            val raw = num.value
-                                            val prev = expr.getOrNull(start - 1)
-                                            val beforeMinus = if (prev == '-') expr.getOrNull(start - 2) else null
-                                            val minusIsSign = prev == '-' &&
-                                                (beforeMinus == null || beforeMinus in "+-*/^(")
-                                            expr = when {
-                                                minusIsSign -> expr.removeRange(start - 1, start)
-                                                prev == '-' -> expr.substring(0, start) + "(-" + raw + ")"
-                                                else -> expr.substring(0, start) + "-" + raw
-                                            }
-                                            result = null
-                                        }
-                                    }
-                                    "sci" -> scientific = !scientific
-                                    "del" -> { if (expr.isNotEmpty()) expr = expr.dropLast(1); result = null }
-                                    else -> { expr += label; result = null }
-                                }
-                            }
-                        }
-                    }
+                row.forEach { key ->
+                    KeyButton(key, Modifier.weight(1f).fillMaxHeight(), onKey)
                 }
             }
         }
     }
 }
 
-private fun formatNumber(v: Double): String =
-    if (v == v.toLong().toDouble()) v.toLong().toString()
-    else "%.6f".format(v).trimEnd('0').trimEnd('.')
-
-private val BASIC_KEYS = listOf(
-    listOf("7", "8", "9", "/"),
-    listOf("4", "5", "6", "*"),
-    listOf("1", "2", "3", "-"),
-    listOf("0", ".", "(", ")"),
-    listOf("+", "±", "C", "del", "="),
-    listOf("sci"),
-)
-
-private val SCIENTIFIC_KEYS = listOf(
-    listOf("7", "8", "9", "/"),
-    listOf("4", "5", "6", "*"),
-    listOf("1", "2", "3", "-"),
-    listOf("0", ".", "(", ")"),
-    listOf("+", "±", "C", "del", "="),
-    listOf("sci"),
-    listOf("sin", "cos", "tan", "%"),
-    listOf("log", "ln", "sqrt", "^"),
-)
+/** Scientific panel: fn cycles four pages, numeric pad is shared below. */
+@Composable
+private fun LandscapeKeypad(state: CalculatorState, onKey: (String) -> Unit, modifier: Modifier = Modifier) {
+    val page = SCI_FN_PAGES[state.page.coerceIn(0, SCI_FN_PAGES.lastIndex)]
+    val rows = page + LANDSCAPE_NUMERIC + listOf(LANDSCAPE_CONTROLS)
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        rows.forEach { row ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+            ) {
+                row.forEach { key ->
+                    KeyButton(key, Modifier.weight(1f).fillMaxHeight(), onKey)
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun KeyButton(label: String, modifier: Modifier = Modifier, onClick: (String) -> Unit) {
     val colors = LocalDoradoColors.current
-    val accent = label in setOf("=", "C", "sci")
+    val accent = label in ACCENT_KEYS
     Box(
         modifier
             .background(if (accent) colors.elevated else Color.Transparent)
@@ -186,4 +196,47 @@ private fun KeyButton(label: String, modifier: Modifier = Modifier, onClick: (St
     }
 }
 
-/* ============================== Notes ============================== */
+private val ACCENT_KEYS = setOf("=", "C", "AC", "sci", "basic", "fn")
+
+private val PORTRAIT_KEYS = listOf(
+    listOf("MC", "M+", "MR", "±"),
+    listOf("7", "8", "9", "/"),
+    listOf("4", "5", "6", "*"),
+    listOf("1", "2", "3", "-"),
+    listOf("0", ".", "(", ")"),
+    listOf("+", "%", "C", "del"),
+    listOf("AC", "sci", "="),
+)
+
+private val LANDSCAPE_NUMERIC = listOf(
+    listOf("7", "8", "9", "/"),
+    listOf("4", "5", "6", "*"),
+    listOf("1", "2", "3", "-"),
+    listOf("0", ".", "+", "="),
+)
+
+private val LANDSCAPE_CONTROLS = listOf("AC", "C", "del", "fn", "basic")
+
+/** Four scientific pages, twelve keys each (trig / log / root-power / stats). */
+private val SCI_FN_PAGES: List<List<List<String>>> = listOf(
+    listOf(
+        listOf("sin", "cos", "tan", "asin"),
+        listOf("acos", "atan", "deg", "rad"),
+        listOf("grad", "pi", "2pi", "halfpi"),
+    ),
+    listOf(
+        listOf("ln", "log", "logy", "e"),
+        listOf("exp", "tenx", "twox", "rand"),
+        listOf("inv", "fact", "%", "clearPop"),
+    ),
+    listOf(
+        listOf("sqrt", "cbrt", "sq", "cube"),
+        listOf("yroot", "^", "(", ")"),
+        listOf("inv", "fact", "%", "rand"),
+    ),
+    listOf(
+        listOf("pop", "clearPop", "sum", "mean"),
+        listOf("count", "stdev", "pi", "e"),
+        listOf("2pi", "halfpi", "rand", "%"),
+    ),
+)
