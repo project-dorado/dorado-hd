@@ -77,6 +77,7 @@ dependencies {
     implementation(libs.coil.network.okhttp)
     implementation(libs.palette.ktx)
     implementation(libs.datastore.preferences)
+    implementation(libs.glance.appwidget)
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)

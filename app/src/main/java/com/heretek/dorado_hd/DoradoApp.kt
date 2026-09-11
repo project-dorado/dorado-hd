@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -146,6 +147,24 @@ class DoradoApp : Application() {
         // Flush any scrobbles queued while offline (no-op until enabled + configured).
         appScope.launch {
             runCatching { scrobble.flush() }
+        }
+
+        // M10: mirror the current track into the home-screen widget. No-op when no
+        // widget is placed; failures (e.g. Glance unavailable) are swallowed.
+        appScope.launch {
+            combine(controller.nowPlaying, controller.isPlaying) { track, playing -> track to playing }
+                .collect { (track, playing) ->
+                    val state = com.heretek.dorado_hd.widget.NowPlayingWidgetStateMapper.from(
+                        title = track?.title,
+                        artist = track?.artist,
+                        album = track?.album,
+                        artUri = track?.albumArtUri?.toString(),
+                        isPlaying = playing,
+                    )
+                    runCatching {
+                        com.heretek.dorado_hd.widget.NowPlayingWidgetUpdater.update(this@DoradoApp, state)
+                    }
+                }
         }
 
         // Opt-in MediaStore watcher (Settings > collection > watch media store).

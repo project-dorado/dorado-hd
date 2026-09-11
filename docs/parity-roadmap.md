@@ -42,7 +42,7 @@ A code-verified snapshot (not README claims):
 
 | Gap | Evidence (current code) | Axis | Effort |
 |---|---|---|---|
-| Home-screen widget | no `appwidget`/Glance; `AndroidManifest.xml` has no receiver | device | M |
+| Home-screen widget | ✅ Glance `NowPlayingWidget` + appwidget receiver | device | ✅ done |
 | Wi-Fi sync with Dorado | no `sync/` package; desktop already has `SyncModels.cs`, `SyncEngine.BuildPlan`, `IDeviceTransport` + `SimulatedDeviceTransport` | cross-project | L |
 | USB MTP/MTPZ to a physical Zune HD | stretch; spec is in `dorado/.agents/skills/zune-hardware-sync` (MTPZ handshake, F-marker ZMDB, PPP interceptor `0x922C/0x922D`, host `192.168.55.100` / device `.101`) | cross-project | XL |
 | Long-press → pin incomplete | was `onLongClick = {}` across `DetailScreens`/`MediaScreens`/`MusicScreen`/`Podcasts`/`MarketplaceScreens`; now pin + shared `trackMenuActions` | device (M4) | ✅ done |
@@ -187,11 +187,12 @@ referencing `dorado/src/Dorado.Application`); re-run it after any desktop
 
 ### M10 — Always-on surfaces
 
-- **Glance widget**: Zune-style Now Playing + transport; add the appwidget
-  receiver to `AndroidManifest.xml`. RemoteViews are outside Compose, so keep
-  widget XML zero-corner-radius to honor the invariant's spirit.
-- Richer lock-screen Now Playing art/controls.
-- Optional sleep timer (post-device extension).
+- ✅ **Glance widget** (`widget/NowPlayingWidget`): Zune-style Now Playing +
+  square transport glyphs, driven by the shared Media3 session; receiver
+  declared in `AndroidManifest.xml`. No Material chrome; the matte-black canvas
+  and white/muted text honor the invariant's spirit.
+- ⬜ Richer lock-screen Now Playing art/controls.
+- ⬜ Optional sleep timer (post-device extension).
 
 ### M11 — Hardware stretch (capability-gated)
 

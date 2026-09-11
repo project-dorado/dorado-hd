@@ -135,7 +135,7 @@ archive. Binaries are encrypted (AES-ECB, marketplace DRM) and
 
 ### Tests
 
-150 Robolectric unit tests + a design-invariant source scanner that
+153 Robolectric unit tests + a design-invariant source scanner that
 forbids `RoundedCornerShape`, `spring(`, raw hex `Color(0x…)`, and
 named `Color.Black/White/Red/…` constants in `ui/` and `ui/apps/`.
 
@@ -193,7 +193,7 @@ mini-app platform.
 | Mini-app platform | ✅ | ✅ | 29 apps (12 utilities + 9 games + 8 mocks) |
 | Crossbar pivot nav | ✅ | ✅ | All collection screens have horizontal pivot pivots |
 | Screensaver / now-playing art | ✅ | ✅ | |
-| Widget (home-screen) | ✅ | ❌ | Not yet — see roadmap |
+| Widget (home-screen) | ✅ | ✅ | Glance `NowPlayingWidget`: Now Playing + transport |
 | Wi-Fi sync with Dorado (sibling project) | ✅ | ◐ | M8.1–8.3: engine + transport core + Device view (simulated target); LAN pairing pending M8.2b |
 | USB MTPZ sync to physical Zune HD | ✅ | ❌ | Stretch goal — see roadmap |
 
