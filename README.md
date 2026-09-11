@@ -147,7 +147,9 @@ The full firmware reverse-engineering corpus (109 reconstructed ARM32 PE modules
 `scripts/ghidra_corpus.py` into the out-of-tree `zune-hd-disassembly/`. Synthesized
 analysis lives in [`docs/zune-hd-module-inventory.md`](docs/zune-hd-module-inventory.md),
 [`docs/zune-hd-api-reference.md`](docs/zune-hd-api-reference.md) and
-[`docs/zune-hd-assets.md`](docs/zune-hd-assets.md).
+[`docs/zune-hd-assets.md`](docs/zune-hd-assets.md). The on-device parity audit is
+[`docs/zune-hd-parity-audit.md`](docs/zune-hd-parity-audit.md) (machine-readable
+register: [`docs/zune-hd-parity-gaps.json`](docs/zune-hd-parity-gaps.json)).
 
 ### Tests
 

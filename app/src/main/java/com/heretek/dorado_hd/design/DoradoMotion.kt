@@ -20,13 +20,17 @@ object DoradoMotion {
     const val STAGGER_MS = 20L
 
     /**
-     * Kinetic scroller velocity retention per 60 Hz frame. This is
-     * `XuiTouchSettings[0x1C]` as the Zune HD shell applied it
-     * (`gemstone.exe` VA `0x1C900`–`0x1CB64`; the XUI default is 0.7, the
-     * shell raised it to 0.95 for the device's long glide).
-     * See docs/zune-hd-touch-settings.md §2–3.
+     * Kinetic scroller velocity retention per frame — an **empirical
+     * approximation**, not a device constant. The Zune HD integrator
+     * (`xuidll.dll@0x41841D58`) is a dt-scaled glide (`pos += (dt_ms/1000)·v`,
+     * with dt floored at 33.333 ms) that updates `v' = v·(1 + c[+0xB0])` clamped
+     * to `±(step·c[+0xB4])` and ticks at 16 ms (62.5 Hz). It reads the element's
+     * touch-settings fields `[0x08]/[0x0C]` — **not** `[0x1C]`.
+     * See docs/zune-hd-touch-settings.md §6 and docs/zune-hd-parity-audit.md §3.
      */
     const val KINETIC_FRAME_RETENTION = 0.95f
+
+    /** Device tick is 62.5 Hz (`FUN_41848B98`, 16 ms); 60 Hz is the closest frame rate. */
     const val KINETIC_FRAME_HZ = 60f
 
     /**

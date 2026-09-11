@@ -175,7 +175,8 @@ Raw decompiled C, symbol dumps and string dumps are Microsoft-derived and stay i
 the external corpus; the repository keeps only synthesized metadata
 ([`zune-hd-module-inventory.md`](zune-hd-module-inventory.md),
 [`zune-hd-api-reference.md`](zune-hd-api-reference.md),
-[`zune-hd-assets.md`](zune-hd-assets.md)).
+[`zune-hd-assets.md`](zune-hd-assets.md)), plus the on-device parity audit
+([`zune-hd-parity-audit.md`](zune-hd-parity-audit.md)).
 
 ### Output Directory Structure (`zune-hd-disassembly/`)
 

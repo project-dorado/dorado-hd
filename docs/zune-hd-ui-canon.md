@@ -136,11 +136,18 @@ Ratings (tri-state heart, from the Zune desktop/HD family):
 - Everything fast: Metro is "designed to feel fast and responsive".
 - The device's touch/kinetic parameters are the `XuiTouchSettings` values the
   shell applied (`gemstone.exe` VA `0x1C900`–`0x1CB64`, handed to
-  `XuiSetTouchSettings`). Dorado-HD consumes the corroborated fields:
-  the drag/skip deadband `25.0` (`0x10` → `DoradoTokens.SKIP_DRAG_PX`) and the
-  per-frame kinetic velocity retention `0.95` (`0x1C` →
-  `DoradoMotion.KINETIC_FRAME_RETENTION`). Full extraction:
-  `docs/zune-hd-touch-settings.md`.
+  `XuiSetTouchSettings`). Dorado-HD consumes the corroborated drag/skip deadband
+  `25.0` (`0x10` → `DoradoTokens.SKIP_DRAG_PX`).
+- **Kinetic integrator (device, cited).** `xuidll.dll@0x41841D58` integrates
+  `pos += (dt_ms/1000)·v` with `dt` floored at 33.333 ms (30 fps), updates
+  `v' = v·(1 + c[+0xB0])` clamped to `±(step·c[+0xB4])`, and ticks at 16 ms
+  (62.5 Hz, `FUN_41848B98`); drag velocity is capped at 32.0 (`FUN_4184C310`).
+  **Correction:** the earlier attribution of HD's retention `0.95` to
+  `XuiTouchSettings[0x1C]` is wrong — the integrator reads `[0x08]/[0x0C]`, never
+  `[0x1C]`. `DoradoMotion.KINETIC_FRAME_RETENTION` (0.95) /
+  `…LANE_FRAME_RETENTION` (0.94) are empirical approximations of this glide.
+  Full extraction: `docs/zune-hd-touch-settings.md` §6; audit:
+  `docs/zune-hd-parity-audit.md` §3.
 
 ## 7. Banned in Dorado-HD (invariant list, mirrors Dorado)
 - `RoundedCornerShape` / any nonzero corner radius on UI chrome.
@@ -199,8 +206,24 @@ and Device Link (mDNS discovery + paired LAN sync).
 **Pending:** EQ presets, crossfade, live-radio pause-and-cache, richer lock-screen
 art/controls, and a sleep timer — tracked in `docs/parity-roadmap.md` (M5/M6/M10).
 
-- **Lane fling tuning.** The device applied one global kinetic retention to
-  every surface (`XuiTouchSettings[0x1C]` = 0.95). Dorado-HD keeps that for
-  vertical lists but uses a shorter retention
-  (`DoradoMotion.KINETIC_LANE_FRAME_RETENTION` = 0.94) for horizontal lanes,
-  because the device value over-glides a carousel on a modern phone.
+- **Lane fling tuning.** The device's kinetic glide is `pos += (dt/1000)·v` at
+  62.5 Hz (`xuidll.dll@0x41841D58`; see §6). Dorado-HD approximates it with a
+  `KINETIC_FRAME_RETENTION` of 0.95 for vertical lists and 0.94 for horizontal
+  lanes (the longer retention over-glides a carousel on a modern phone). These are
+  empirical approximations, not device constants (`zune-hd-parity-audit.md` §3).
+
+## 11. Device label vocabulary (cited)
+
+Original wording recovered from the shell resource keys, recorded so display copy
+can be aligned canon-first (do not change copy without updating this section):
+
+- `"Various Artist"` (`gemstone.exe@0x119A4`) — HD currently uses `"unknown artist"`.
+- `" by "` title/artist separator (`gemstone.exe@0x15A60`) — HD uses an em dash.
+- Empty-state keys `noItems` / `noItems_local` / `noItems_online` / `Empty`
+  (`gemstone.exe@0x14160/0x148BC/0x14840/0x12B7C`) — HD uses bespoke per-screen copy.
+- Transport/status words `Ffwd`, `Mute`, `Disconnected`, `Refresh`, `Wishlist`
+  (`gemstone.exe@0x19D18/0x19D2C/0x19D50/0x12054/0x19790`).
+- Transport labels and the volume formatter also live in `zhud_serv.dll`
+  (`Play/Pause/Ffwd/Mute@0x419B4C58-84`, `FormatVolumeEx@0x419D7E88`).
+
+Tracked in [`zune-hd-parity-audit.md`](zune-hd-parity-audit.md) §10.

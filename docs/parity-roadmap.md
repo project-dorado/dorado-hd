@@ -235,6 +235,11 @@ referencing `dorado/src/Dorado.Application`); re-run it after any desktop
 1. **M10 closeout** (S–M) — richer lock-screen Now Playing art/controls + optional sleep timer.
 2. **M5/M6 community wishlist** (M) — share-sheet + Zune-Card artwork export, EQ presets, crossfade, live-radio cache.
 3. **Corpus mining** (M) — the full 109-module corpus is built (66.6k functions, symbols applied); mine the decompilation/strings for behavioral ground truth to tighten the canon.
+4. **Parity-audit follow-ups** (see [`zune-hd-parity-audit.md`](zune-hd-parity-audit.md) + [`zune-hd-parity-gaps.json`](zune-hd-parity-gaps.json)) — queue surface, picture pinch-zoom, Now Playing scrubber, library-search UI, HUD dimmer/status OSD, built-in playlists, inbox/user-card, PIN/Wi-Fi settings, string-parity pass, font-import decision.
+
+The audit also re-derives the kinetic model: the device glide is dt-scaled
+(62.5 Hz, 30 fps floor) and the `0.95` retention is an empirical approximation
+(canon §6; `zune-hd-touch-settings.md` §6).
 
 Front-loads the remaining always-on surfaces, then the community wishlist and
 disassembly-driven fidelity work.

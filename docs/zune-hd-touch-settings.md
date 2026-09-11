@@ -33,7 +33,7 @@ typedef struct XuiTouchSettings {  // 80 bytes, 20 x float32
 | `XuiScrollEndGetDirection` | `0x41832010` | Returns the scroll-end direction. |
 | `XuiTouchEnableAxisHysteresis/HorizontalAxis/VerticalAxis` | `0x418331CC` / … | Axis lock + hysteresis toggles. |
 | `XuiTouchGetPositionOffset` / `XuiTouchGetPositionTarget` / `XuiTouchGetState` / `XuiTouchGetCanvasSize` | `0x4183301C` … | Scroller state getters. |
-| `XuiProcessMultiTouchMessage` | — | Multi-touch dispatch. |
+| `XuiProcessMultiTouchMessage` | `0x4181F100` | Multi-touch dispatch. |
 
 The default struct is populated by `FUN_4184C660` (`xuidll.dll` VA `0x4184C660`).
 
@@ -95,9 +95,17 @@ remain here for a future pass if symbol data surfaces.
 
 - **High confidence:** the existence, address, size and 20 values of
   `XuiTouchSettings`; the accessor/override model; the per-offset values in §2.
-- **Low confidence:** any field *name*. No `.pdb`/`.map`/`.sym` is present in
-  `PavoBaseline.Cab`; the Xbox 360/Windows CE XUI headers are not public.
-  Names are therefore intentionally omitted rather than guessed.
+- **Medium confidence (recovered 2026-09-10):** the field *vocabulary*. The `xuidll`
+  string table (`0x41803F74–0x41804150`) exposes ~20 touch/scroll property names —
+  `HorzScroll`, `VertScroll`, `HorizontalFling`, `VerticalFling`,
+  `HorizontalScrub`, `VerticalScrub`, `HorizontalRubberBand`,
+  `VerticalRubberBand`, `FadeIn`, `FadeOut`, `PositionOffset`,
+  `CenterSmallCanvas`, `EnableBandBreak`, `KeyScrollDistance`, `SmoothScroll`,
+  `ScrollPaddingBefore/After`, `ZoomTarget`, `Hollow`, `Direction` — matching the
+  struct arity. The name→offset **mapping is not proven**, so offsets remain the
+  authoritative identifier.
+- **Low confidence:** the exact name↔offset assignment (no `.pdb`/`.map`/`.sym`
+  exists in `PavoBaseline.Cab`; the XUI headers are not public).
 - **Method:** `scripts/disassemble_zune_hd.py` (ROM TOC → ARM32 PE rebuild),
   `llvm-objdump --triple=armv6-none-eabi`, and Ghidra headless decompilation
   (`ZuneHD_Project`). Float literals resolved from the reconstructed map.
@@ -108,10 +116,12 @@ These were investigated for app parity and could not be pinned to a value from
 the corpus, so **no code change was made** (a guessed value would violate the
 canon-first rule):
 
-- **HUD/overlay/volume dwell** — `zhud_serv.dll` drives its overlay timers
-  through imported `XuiSetTimer`/`XuiKillTimer` (indirect via the IAT) and
-  timeline assets rather than inline constants, so the dwell is not a
-  recoverable float. Dorado-HD keeps its existing timing tokens.
+- **HUD/overlay/volume dwell — RECOVERED (2026-09-10).** `zhud_serv.dll` hides its
+  dwell values behind `XuiSetTimer` call sites, recoverable from the decompiled
+  timer arguments: **7000 ms** dim (`FUN_419CD420`), **5000 ms** screensaver,
+  **3000 ms** notifications (`FUN_419CDAC8`/`FUN_419CDF00`), **30000 ms** background
+  (`FUN_419C0584`), **12000 ms** constant. HD's single `IDLE_SCREENSAVER_MS = 5000`
+  matches the saver but has no dimmer/notification ladder.
 - **Now Playing screensaver idle timeout** — no inline timeout constant is
   present near `GemNowPlayingMusicShowScene`; the value arrives through the
   shell's config reader (`gemstone.exe` `0x704AC`), not a literal.
@@ -122,23 +132,33 @@ canon-first rule):
   not redistributed; Dorado-HD ships metric-compatible Selawik, so no token
   change is warranted.
 
-## 6. Kinetic scroll integrator (observed)
+## 6. Kinetic scroll integrator (resolved 2026-09-10)
 
-The XUI scroll tick lives at `xuidll.dll` VA `0x41841D58` (`FUN_41841D58`).
-It steps a scroll object's float state each frame:
+The XUI scroll tick is `xuidll.dll` VA `0x41841D58`. State (uint index → byte
+offset): flags `[0x25]`=+0x94 (bit 2 = active), velocity `[0x2A]`=+0xA8,
+position `[0x27]`=+0x9C, target `[0x28]`=+0xA0, step `[0x22]`=+0x88, last-tick
+`[0x2E]`=+0xB8, coefficients `[0x2C]`=+0xB0 and `[0x2D]`=+0xB4 (the element's
+in-place touch block at `+0xA8`, fields `+0x08`/`+0x0C`).
 
-- velocity at `+0xA8`, position at `+0x9C`, bound/target at `+0xA0`;
-- decay coefficients read from `+0xB0` and `+0xB4` (the element's in-place
-  `XuiTouchSettings` bytes `+0x08` and `+0x0C` — both `1.9` in the shell, the
-  second the only field the shell tuned down from the XUI default `1.5` to
-  `1.2`);
-- the new velocity is clamped against `param[0x22] * coefficient` and applied
-  to the position.
+- **Position:** `pos += (dt_ms / 1000) · v`, dt floored at **33.333 ms** (30 fps);
+  the divisor literal is `1000.0` (`xuidll@0x41801920`) and the floor is
+  `33.333` (`@0x41803CE4`).
+- **Velocity:** `v' = v · (1 + c[+0xB0])`, clamped to `±( step · c[+0xB4] )`.
+- **Stop:** when `pos` reaches the target the timer is killed (`XuiKillTimer`)
+  and the shell snap callback runs; the velocity zero-compare is `0.0`.
+- **Tick:** `XuiSetTimer(elem, 1, 0x10)` = **16 ms (62.5 Hz)** (`FUN_41848B98`).
+- **Drag→velocity:** `(Δpx/Δt)·scale`, capped at **32.0** (`FUN_4184C310`;
+  literal `@0x41804168 = 32`).
+- **Rubber-band:** explicit damped spring
+  `-(pos−target)·k[+0xD8] − v[+0x50]·d[+0xD4] + v[+0x50]` (`FUN_41848FC4`).
 
-This is the engine behind the `KINETIC_FRAME_RETENTION` model in
-`DoradoMotion`: velocity is reduced proportionally each frame and the position
-integrates until the velocity threshold is reached — proportional (exponential)
-decay, no springs. Exact per-field names remain unavailable (see §4), so the
-integrator is recorded here for provenance rather than turned into tokens.
+**Correction:** the earlier claim that `XuiTouchSettings[0x1C]` (=0.95) is the
+per-frame retention is **not supported** — the integrator reads `+0xB0/+0xB4`
+(= fields `[0x08]/[0x0C]`; defaults 1.9/1.5, shell 1.9/1.2), never `[0x1C]`
+(default 0.7). The device is a **dt-scaled, clamped proportional glide at 62.5 Hz
+with a 30 fps floor**, not a per-frame `retention^k` model. HD's
+`DoradoMotion.KINETIC_FRAME_RETENTION` (0.95) / `KINETIC_LANE_FRAME_RETENTION`
+(0.94) are empirically tuned approximations of this glide and should be labelled
+as such (see [`zune-hd-parity-audit.md`](zune-hd-parity-audit.md) §3).
 
 
