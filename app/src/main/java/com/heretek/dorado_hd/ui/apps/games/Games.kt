@@ -499,7 +499,8 @@ fun SudokuApp() {
                     .weight(1f),
                 contentAlignment = Alignment.Center,
             ) {
-                val cell = minOf(maxWidth, maxHeight) / 9
+                // Account for the 1dp row gaps: 9 cells + 8 gaps must fit.
+                val cell = (minOf(maxWidth, maxHeight) - 9.dp) / 9
                 Column {
                     for (r in 0 until 9) {
                         Row(horizontalArrangement = Arrangement.spacedBy(1.dp)) {
@@ -627,17 +628,20 @@ fun HexicApp() {
                 val w = size.width; val h = size.height
                 val cellW = w / n
                 val cellH = h / n
+                // Radius follows the tighter axis; using cellW alone made
+                // circles overflow their cells (and clip the score line).
+                val slot = minOf(cellW, cellH)
                 for (r in 0 until n) for (c in 0 until n) {
                     val cx = c * cellW + cellW / 2
                     val cy = r * cellH + cellH / 2
-                    drawCircle(hexicBg, cellW * 0.45f, Offset(cx, cy))
+                    drawCircle(hexicBg, slot * 0.45f, Offset(cx, cy))
                     val color = when (board[r][c]) {
                         HexColor.A -> Color.White
                         HexColor.B -> hexicAccent
                         HexColor.C -> Color.Yellow
                         HexColor.EMPTY -> hexicBg
                     }
-                    drawCircle(color, cellW * 0.25f, Offset(cx, cy))
+                    drawCircle(color, slot * 0.25f, Offset(cx, cy))
                 }
             }
             Spacer(Modifier.height(6.dp))
@@ -724,7 +728,8 @@ fun ReversiApp() {
                     .weight(1f),
                 contentAlignment = Alignment.Center,
             ) {
-                val cell = minOf(maxWidth, maxHeight) / 8
+                // Account for the 1dp gaps between cells.
+                val cell = (minOf(maxWidth, maxHeight) - 9.dp) / 8
                 Column {
                     for (r in 0 until 8) {
                         Row(horizontalArrangement = Arrangement.spacedBy(1.dp)) {
