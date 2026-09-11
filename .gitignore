@@ -23,3 +23,7 @@ tools/sync_golden/obj/
 
 # Reverse-engineering corpus (never commit Microsoft binaries)
 review/
+
+# Python
+__pycache__/
+*.pyc
