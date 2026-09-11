@@ -55,6 +55,16 @@ android {
     }
 }
 
+// Golden screenshots are test inputs: re-run (and in CI, compare) whenever a
+// golden changes, and allow re-recording with -Dgolden.update=true.
+tasks.withType<Test>().configureEach {
+    inputs.dir(layout.projectDirectory.dir("src/test/goldens"))
+        .withPropertyName("goldens")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .optional()
+    systemProperty("golden.update", providers.systemProperty("golden.update").getOrElse("false"))
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

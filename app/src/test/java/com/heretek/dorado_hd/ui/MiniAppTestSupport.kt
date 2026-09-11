@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
@@ -44,7 +45,7 @@ fun MiniAppHarness(slug: String, mode: HarnessMode) {
             LocalDoradoGraph provides graph,
             com.heretek.dorado_hd.ui.components.LocalContextMenu provides menus,
         ) {
-            Box(Modifier.requiredSize(mode.width, mode.height)) {
+            Box(Modifier.requiredSize(mode.width, mode.height).testTag("miniapp-harness")) {
                 DeviceCanvas(deviceMode = mode.deviceMode) { canvasWidth, _ ->
                     MiniAppScreen(slug, canvasWidth)
                 }
