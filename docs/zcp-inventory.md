@@ -87,5 +87,6 @@ behavior, never extracted or bundled.
 
 All packages target platform `Zune.v3.1` (XNA Game Studio 3.1, Zune
 distribution) and are signed by Microsoft Zune Publisher. Two packages
-share GUID `97cfdcae937f46d999651163741d1f5x` (ColorSpill, Reversi,
-Vine Climb) — upstream packaging quirk.
+share GUID `97cfdcae937f46d999651163741d1f59` (ColorSpill and Reversi) —
+an upstream packaging quirk. Vine Climb is a distinct package
+(`…1f60`).

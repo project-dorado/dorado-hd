@@ -98,6 +98,15 @@ spec'd 380 ms deceleration via `DoradoMotion.PIVOT_SLIDE_MS`.
   removed counts, last import result).
 - **About** footer with the canonical Selawik↔Zegoe attribution.
 
+### Modern listening &amp; always-on (canon §10 extensions)
+
+- **Dynamic Mix** — similar-to-track / album / favorites, plus **Top Played** from persisted play counts (Room DB v5, `PlayCountStore`).
+- **On-device audio features** — DSP (FFT / RMS / zero-crossing / tempo) behind `AudioAnalysisService`, used for similarity and the related-artists pivot.
+- **Scrobbling &amp; lyrics** — Last.fm with a durable offline queue (`ScrobbleStore`) and LRCLIB lyrics.
+- **Device Link** — mDNS discovery (`_dorado-sync._tcp`) + a paired LAN sync session against the Dorado desktop.
+- **Now Playing widget** — a Glance home-screen widget with transport over the shared Media3 session.
+- **Cloud update-check** — verifies a signed (RS256) release manifest.
+
 ### Mini-app platform (canon §8 — 29 apps, behavioral re-implementation)
 
 The `DoradoApps.all` registry is a `by lazy` build so it's populated before
@@ -252,10 +261,10 @@ The release build minifies with R8; keep rules in `app/proguard-rules.pro`.
   `EmptyPivot("coming soon")` is gone, and a `games` pivot joins the
   crossbar.
 
-Next up: **M10 Always-on surfaces** — M9 Modern Listening is complete (audio
-similarity, Dynamic Mix, DSP features, Last.fm scrobbling, LRCLIB lyrics,
-persisted play counts), the M10 Glance widget ships, and M8 Device Link is
-complete (live mDNS discovery + pairing). See
+Status: **M4, M7, M8 and M9 are complete.** M10 ships the Glance Now Playing
+widget (richer lock-screen art/controls + a sleep timer remain). M5 (share /
+Zune-Card export, podcast search) and M6 (EQ presets, crossfade, live-radio
+cache) remain on the wishlist. See
 [`docs/parity-roadmap.md`](docs/parity-roadmap.md).
 
 ### M5 — Social + discovery
@@ -277,7 +286,7 @@ complete (live mDNS discovery + pairing). See
 - Soft keyboard with "bulge around the user's finger" (Wikipedia-cited
   affordance).
 
-### M7 — Design-token + invariant-test hygiene
+### M7 — Design-token + invariant-test hygiene ✅ *complete*
 
 - Token-ize the screensaver's raw dp sizes (already done in Sprint 1).
 - Add unit tests for `KineticList` A–Z popup, `HomePages` parallax math,

@@ -51,8 +51,8 @@ A code-verified snapshot (not README claims):
 | Games pivot in Marketplace | was absent; now a 5th crossbar pivot over installed + frozen catalog games | device (M4) | ✅ done |
 | Share / Zune-Card artwork export | no `ACTION_SEND` anywhere | device (M5) | S |
 | EQ presets / crossfade | 0 matches; `PlaybackController` has shuffle/repeat/rating only | modern (M6) | M |
-| Related-artists pivot is a thin empty-state | honest text at `DetailScreens.kt:321-335` ("only artists who share genres… a thin slice") | modern | M |
-| Scrobbling / lyrics / tag editor | 0 matches; `dorado` already uses Last.fm + LRCLIB | modern | M |
+| Related-artists pivot | ✅ ranks by on-device audio similarity (M9.1); shows an empty-state only when no comparable tracks | modern | ✅ done |
+| Tag editor | Scrobbling + lyrics shipped (M9.4: `ScrobbleStore`, `LrcLibService`); only an on-device tag editor remains | modern | M |
 | Live-radio pause-and-cache | `Radio.kt` dial/presets only | device (M6) | M |
 | Canon drift | §3.1 still says only `music`/`settings` functional; §5 still calls the in-app shade a stretch goal | doc | XS |
 
@@ -148,7 +148,7 @@ The golden generator is vendored at `tools/sync_golden/` (C# console
 referencing `dorado/src/Dorado.Application`); re-run it after any desktop
 `SyncEngine` change.
 
-### M9 — Modern Listening (Rune-inspired) — *in progress*
+### M9 — Modern Listening (Rune-inspired) — *complete*
 
 - ✅ **M9.1 — audio feature + similarity core.** Ported the sibling desktop
   Phase 13a (`AudioFeatures`, `AudioFeatureExtractor`, `AudioAnalysisService`,
@@ -187,7 +187,7 @@ referencing `dorado/src/Dorado.Application`); re-run it after any desktop
   is real.
 - All of the above are canon §10 post-device extensions.
 
-### M10 — Always-on surfaces
+### M10 — Always-on surfaces — *in progress (widget shipped)*
 
 - ✅ **Glance widget** (`widget/NowPlayingWidget`): Zune-style Now Playing +
   square transport glyphs, driven by the shared Media3 session; receiver
@@ -216,15 +216,11 @@ referencing `dorado/src/Dorado.Application`); re-run it after any desktop
 | [whoozle/android-file-transfer-linux](https://github.com/whoozle/android-file-transfer-linux) | MTP client reference for the stretch transport | reference only |
 | sibling `dorado` | `SyncModels.cs`, `SyncEngine`, `IDeviceTransport`, `Plugins.Protocol` | MIT — same project family |
 
-## 6. Canon + doc changes required first
+## 6. Canon + doc changes (applied)
 
-1. **Canon §3.1** — functional home entries are now all 9 (`music…settings`);
-   add a Sept-2009 source citation.
-2. **Canon §5** — promote the in-app shade from "stretch goal" to implemented
-   (WallpaperManager-backed; `DoradoRoot.kt:115`), citing ITPro Today.
-3. **New canon §10 — Post-device extensions** — EQ, crossfade, scrobble,
-   lyrics, Mix, widget, sleep timer. Label so they are never mistaken for
-   device-canon behavior.
+1. ✅ **Canon §3.1** — all nine home entries are functional; Sept-2009 source citation added.
+2. ✅ **Canon §5** — the in-app shade is implemented (`WallpaperManager`-backed; `DoradoRoot.kt`), citing ITPro Today.
+3. ✅ **Canon §10 — Post-device extensions** — reclassified into shipped (Mix, DSP, scrobble, lyrics, play counts, widget, cloud update-check, Device Link) and pending (EQ, crossfade, live-radio cache, richer lock screen, sleep timer).
 
 ## 7. Verification gates (every milestone)
 
@@ -234,12 +230,11 @@ referencing `dorado/src/Dorado.Application`); re-run it after any desktop
 - New sizes/colors/durations go through `DoradoTokens` / `LocalDoradoColors`.
 - New pure-logic engines unit-tested (the games set this bar).
 
-## 8. Recommended first sprint
+## 8. Next sprint
 
-1. **Doc sync** (XS) — canon §3.1/§5 + new §10.
-2. **M4 closeout** (S–M) — pin wiring + play-next + games/curated pivots.
-3. **M8.1** (M) — land the Kotlin `SyncModels` mirror + `SyncEngine.buildPlan()`
-   with golden tests against the desktop semantics (pure JVM, unblocks M8).
+1. **M10 closeout** (S–M) — richer lock-screen Now Playing art/controls + optional sleep timer.
+2. **M5/M6 community wishlist** (M) — share-sheet + Zune-Card artwork export, EQ presets, crossfade, live-radio cache.
+3. **Corpus mining** (M) — mine the exported Ghidra decompilation for behavioral ground truth to tighten the canon.
 
-Front-loads cheap device-parity wins, then the one architectural gap that
-crosses into the sister project.
+Front-loads the remaining always-on surfaces, then the community wishlist and
+disassembly-driven fidelity work.

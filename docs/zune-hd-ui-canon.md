@@ -33,8 +33,10 @@ Every screen in Dorado-HD must be checkable against this document.
 
 ### 3.1 Home menu (default view)
 A vertical text list: `music · videos · pictures · radio · marketplace ·
-social · podcasts · internet · settings` (Zune HD firmware 4.x). In Dorado-HD
-the functional entries are `music` and `settings`; future pivots may join.
+social · podcasts · internet · settings` (Zune HD firmware 4.x). All nine entries
+are functional in Dorado-HD — matching the launch reviews (Sept 2009: Engadget,
+CNET, Gizmodo), which document every entry as a first-class surface rather than a
+placeholder.
 - Flick vertically to scroll (kinetic).
 - Tap an entry to enter. The whole entry is the button — text only.
 - Items are cropped at the right edge as a signature.
@@ -121,8 +123,10 @@ Ratings (tri-state heart, from the Zune desktop/HD family):
 
 ## 5. Lock/wake behavior
 - Wake shows the user wallpaper behind a "software shade"; **slide the shade
-  up** to reveal the home screen (ITPro Today). Dorado-HD v1 treats the Android
-  lock screen as the wake surface; the in-app shade is a stretch goal.
+  up** to reveal the home screen (ITPro Today). Dorado-HD implements this as an
+  in-app `WallpaperManager`-backed shade (`ui/DoradoRoot.kt`,
+  `design/components/LockShade.kt`); the Android lock screen remains the OS wake
+  surface beneath it.
 
 ## 6. Motion rules
 - Navigation: content slides horizontally with deceleration; deeper screens
@@ -153,9 +157,11 @@ Ratings (tri-state heart, from the Zune desktop/HD family):
 - Dorado-HD ships behavioral re-implementations only — no Microsoft code,
   binaries or assets: utilities (calculator, notes, stopwatch, metronome,
   alarm clock, calendar, level, piano, drum machine, chord finder, music
-  quiz, shuffle by album), games (solitaire, sudoku, hexic, reversi), and
-  offline mock shells for dead services (weather, twitter, facebook, email,
-  messenger, msn money, zune reader).
+  quiz, shuffle by album), games (solitaire, sudoku, hexic, reversi, hearts,
+  spades, checkers, chess, texas hold 'em), and offline mock shells for dead
+  services (weather, twitter, facebook, email, messenger, msn money, zune
+  reader, zunesocial). The 12 utilities / 9 games / 8 mocks split is the
+  ZuneRedux `zune-hd-apps` archive inventory (`docs/zcp-inventory.md`).
 
 ## 9. Reference library
 - dorado (desktop) design-system skill + extracted Zune assets (MIT).
@@ -183,9 +189,15 @@ Ratings (tri-state heart, from the Zune desktop/HD family):
 ## 10. Post-device extensions
 
 Behaviors Dorado-HD adds that the Zune HD did **not** ship. These are never
-canon; they must be labelled as extensions wherever they surface. The full
-roadmap is `docs/parity-roadmap.md` §M5 onward (EQ, crossfade, scrobbling,
-lyrics, Dynamic Mix, widget, sleep timer).
+canon; they must be labelled as extensions wherever they surface.
+
+**Shipped:** Dynamic Mix (similar-to-track/album/favorites + Top Played from
+persisted play counts), on-device DSP audio features, Last.fm scrobbling with an
+offline queue, LRCLIB lyrics, the Glance Now Playing widget, cloud update-check,
+and Device Link (mDNS discovery + paired LAN sync).
+
+**Pending:** EQ presets, crossfade, live-radio pause-and-cache, richer lock-screen
+art/controls, and a sleep timer — tracked in `docs/parity-roadmap.md` (M5/M6/M10).
 
 - **Lane fling tuning.** The device applied one global kinetic retention to
   every surface (`XuiTouchSettings[0x1C]` = 0.95). Dorado-HD keeps that for
