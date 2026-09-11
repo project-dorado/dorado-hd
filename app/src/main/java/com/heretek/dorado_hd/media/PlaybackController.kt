@@ -13,6 +13,7 @@ import com.heretek.dorado_hd.data.model.Rating
 import com.heretek.dorado_hd.data.model.Track
 import com.heretek.dorado_hd.data.repo.QuickplayRepository
 import com.heretek.dorado_hd.data.repo.LibraryRepository
+import com.heretek.dorado_hd.analysis.PlayCountStore
 import com.heretek.dorado_hd.scrobble.ScrobbleService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,6 +36,7 @@ class PlaybackController(
     private val library: LibraryRepository,
     private val quickplay: QuickplayRepository,
     private val scrobble: ScrobbleService? = null,
+    private val playCounts: PlayCountStore? = null,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var controller: MediaController? = null
@@ -97,10 +99,13 @@ class PlaybackController(
             _nowPlaying.value = track
             _durationMs.value = controller?.duration ?: 0L
             candidateReachedThreshold = false
-            if (scrobble != null && previous != null && previousReached && previous.mediaId != track?.mediaId) {
+            if (previous != null && previousReached && previous.mediaId != track?.mediaId) {
                 val finished = previous
                 scope.launch {
-                    scrobble.record(finished.artist, finished.title, finished.album, (finished.durationMs / 1000).toInt())
+                    scrobble?.record(finished.artist, finished.title, finished.album, (finished.durationMs / 1000).toInt())
+                }
+                scope.launch {
+                    playCounts?.increment(finished.mediaId)
                 }
             }
             if (track != null) {

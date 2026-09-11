@@ -354,3 +354,25 @@ interface ScrobbleDao {
     @Query("SELECT COUNT(*) FROM scrobble_queue")
     suspend fun count(): Int
 }
+
+@Dao
+interface PlayCountDao {
+    @Query("SELECT * FROM play_counts")
+    suspend fun all(): List<PlayCountEntity>
+
+    @Query("SELECT count FROM play_counts WHERE mediaId = :mediaId")
+    suspend fun countFor(mediaId: Long): Int?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(row: PlayCountEntity)
+
+    @Query("DELETE FROM play_counts")
+    suspend fun clear()
+
+    /** Atomic read-increment-write so concurrent transitions cannot lose a play. */
+    @Transaction
+    suspend fun increment(mediaId: Long, now: Long) {
+        val next = (countFor(mediaId) ?: 0) + 1
+        upsert(PlayCountEntity(mediaId = mediaId, count = next, lastPlayedAt = now))
+    }
+}

@@ -188,3 +188,11 @@ data class ScrobbleEntity(
     val durationSeconds: Int,
     val timestampSec: Long,
 )
+
+/** Persisted per-track play count (M9.2b); drives the "Top Played" dynamic mix. */
+@Entity(tableName = "play_counts")
+data class PlayCountEntity(
+    @PrimaryKey val mediaId: Long,
+    val count: Int,
+    val lastPlayedAt: Long,
+)

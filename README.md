@@ -135,7 +135,7 @@ archive. Binaries are encrypted (AES-ECB, marketplace DRM) and
 
 ### Tests
 
-148 Robolectric unit tests + a design-invariant source scanner that
+150 Robolectric unit tests + a design-invariant source scanner that
 forbids `RoundedCornerShape`, `spring(`, raw hex `Color(0x…)`, and
 named `Color.Black/White/Red/…` constants in `ui/` and `ui/apps/`.
 
@@ -253,9 +253,9 @@ The release build minifies with R8; keep rules in `app/proguard-rules.pro`.
   crossbar.
 
 Next up: **M10 Always-on surfaces** — M9 Modern Listening is complete (audio
-similarity, Dynamic Mix, DSP features, Last.fm scrobbling, LRCLIB lyrics).
-Outstanding elsewhere: M8 Device Link 8.2b (live LAN pairing) and M9.2b
-(persisted play counts) — see [`docs/parity-roadmap.md`](docs/parity-roadmap.md).
+similarity, Dynamic Mix, DSP features, Last.fm scrobbling, LRCLIB lyrics,
+persisted play counts). Outstanding elsewhere: M8 Device Link 8.2b (live LAN
+pairing) — see [`docs/parity-roadmap.md`](docs/parity-roadmap.md).
 
 ### M5 — Social + discovery
 

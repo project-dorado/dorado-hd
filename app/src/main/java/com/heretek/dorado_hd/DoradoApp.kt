@@ -49,6 +49,7 @@ class DoradoGraph(
     val cloudSignIn: com.heretek.dorado_hd.cloud.CloudSignIn,
     val cloudSignInCallback: com.heretek.dorado_hd.cloud.CloudSignInCallback,
     val cloudUpdates: com.heretek.dorado_hd.cloud.CloudUpdateService,
+    val playCounts: com.heretek.dorado_hd.analysis.PlayCountStore,
 )
 
 class DoradoApp : Application() {
@@ -66,6 +67,7 @@ class DoradoApp : Application() {
         val settings = SettingsRepository(this)
         val latestSettings = java.util.concurrent.atomic.AtomicReference(com.heretek.dorado_hd.data.repo.DoradoSettings())
         val scrobbleStore = com.heretek.dorado_hd.data.repo.RoomScrobbleStore(db.scrobbleDao())
+        val playCountStore = com.heretek.dorado_hd.data.repo.RoomPlayCountStore(db.playCountDao())
         val scrobbleSink = com.heretek.dorado_hd.net.LastFmClient(
             apiKey = { latestSettings.get().lastFmApiKey },
             secret = { latestSettings.get().lastFmApiSecret },
@@ -80,7 +82,7 @@ class DoradoApp : Application() {
                 if (cloudMetadata.isEnabled()) cloudMetadata.recordListen(artist, title, album)
             },
         )
-        val controller = PlaybackController(this, library, quickplay, scrobble)
+        val controller = PlaybackController(this, library, quickplay, scrobble, playCountStore)
         val nav = DoradoNav()
         val artistImages = ArtistImageService(this, db, settings, cloudMetadata)
         val artistBios = com.heretek.dorado_hd.net.ArtistBioService(this, cloudMetadata)
@@ -120,7 +122,7 @@ class DoradoApp : Application() {
         graph = DoradoGraph(
             library, quickplay, settings, settings.settings, controller, nav,
             artistImages, artistBios, notes, calendar, alarms, radio, podcasts, games, deviceLink, analysis, mixes, scrobble, lyrics,
-            cloudSignIn, cloudSignInCallback, cloudUpdates,
+            cloudSignIn, cloudSignInCallback, cloudUpdates, playCountStore,
         )
 
         appScope.launch {

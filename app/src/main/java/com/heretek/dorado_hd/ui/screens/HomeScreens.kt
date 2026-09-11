@@ -206,6 +206,7 @@ fun QuickplayScreen(canvasWidth: Dp) {
         Spacer(Modifier.height(8.dp))
         SectionLabel("mixes")
         FavoritesMixRow(graph, scope)
+        TopPlayedMixRow(graph, scope)
 
         Spacer(Modifier.height(8.dp))
         SectionLabel("pins")
@@ -299,6 +300,47 @@ private fun FavoritesMixRow(graph: DoradoGraph, scope: CoroutineScope) {
     ) {
         EdgeCropText(
             text = if (building) "building mix…" else "play favorites mix",
+            fontSize = DoradoTokens.TYPE_NOW_META.dp,
+            color = colors.accent,
+        )
+    }
+}
+
+/** Materialize and play the Top Played mix (M9.2b) from persisted play counts. */
+@Composable
+private fun TopPlayedMixRow(graph: DoradoGraph, scope: CoroutineScope) {
+    val colors = LocalDoradoColors.current
+    var building by remember { mutableStateOf(false) }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(DoradoTokens.ROW_HEIGHT.dp)
+            .clickable(enabled = !building) {
+                building = true
+                scope.launch {
+                    try {
+                        val library = graph.library.tracks().first()
+                        val counts = graph.playCounts.counts()
+                        val mix = graph.mixes.materialize(
+                            com.heretek.dorado_hd.analysis.DynamicMix(
+                                name = "top played mix",
+                                kind = com.heretek.dorado_hd.analysis.DynamicMixKind.TOP_PLAYED,
+                                trackLimit = 50,
+                            ),
+                            library = library,
+                            playCounts = counts,
+                        )
+                        if (mix.isNotEmpty()) graph.controller.play(mix, 0)
+                    } finally {
+                        building = false
+                    }
+                }
+            }
+            .padding(horizontal = DoradoTokens.EDGE.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        EdgeCropText(
+            text = if (building) "building mix…" else "play top played mix",
             fontSize = DoradoTokens.TYPE_NOW_META.dp,
             color = colors.accent,
         )

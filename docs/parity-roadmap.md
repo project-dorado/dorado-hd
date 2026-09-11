@@ -156,8 +156,9 @@ referencing `dorado/src/Dorado.Application`); re-run it after any desktop
   fallback. Pure JVM, unit-tested.
 - ✅ **M9.2 — Dynamic Mix.** `DynamicMix`/`DynamicMixService` (mirrors the
   desktop): SimilarToTrack / SimilarToAlbum / SimilarToFavorites /
-  PlaylistsIncludingArtist, plus TopPlayed (reads an injected play-count map;
-  title-order until counts are persisted in M9.2b). Surfaced as **start mix**
+  PlaylistsIncludingArtist, plus TopPlayed (reads persisted play counts via
+  `PlayCountStore`; surfaced as a **play top played mix** row in Quickplay).
+  Surfaced as **start mix**
   in every track's long-press menu and a **play favorites mix** row in
   Quickplay.
 - ✅ **M9.3 — DSP + persistence.** `FeatureMath` (radix-2 FFT, RMS,
@@ -178,8 +179,10 @@ referencing `dorado/src/Dorado.Application`); re-run it after any desktop
   user-supplied API key/secret/session key, and a manual flush. Lyrics via
   LRCLIB (`LrcLibService` + pure `LrcLibParser`) surfaced from Now Playing.
   Signing, queue semantics and parsing tested; the HTTP clients are glue.
-- ⬜ **M9.2b — play counts.** Persist per-track counts so *Top Played* mixes
-  are real (currently title-order until counts exist).
+- ✅ **M9.2b — play counts.** Persisted per-track counts (`play_counts`, DB v5 +
+  `MIGRATION_4_5`, `PlayCountStore`/`RoomPlayCountStore`), recorded at the
+  playback transition behind the same threshold as scrobbling, so *Top Played*
+  is real.
 - All of the above are canon §10 post-device extensions.
 
 ### M10 — Always-on surfaces

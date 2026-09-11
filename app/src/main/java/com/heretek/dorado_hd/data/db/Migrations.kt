@@ -136,3 +136,19 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         )
     }
 }
+
+/**
+ * Room v4 → v5: M9.2b persisted per-track play counts. Existing data untouched;
+ * counts start at zero and accrue from the next playback.
+ */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `play_counts` (
+                `mediaId` INTEGER PRIMARY KEY NOT NULL,
+                `count` INTEGER NOT NULL,
+                `lastPlayedAt` INTEGER NOT NULL
+            )""",
+        )
+    }
+}
