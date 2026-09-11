@@ -79,8 +79,17 @@ class GoldenCaptureTest(private val slug: String) {
     }
 
     companion object {
+        /**
+         * Screens whose entry frame renders the wall clock or today's date.
+         * They are covered by the smoke, back-contract and layout suites plus
+         * the emulator crawl instead of pixel goldens.
+         */
+        private val DYNAMIC_TIME_SCREENS = setOf("alarm", "calendar", "weather", "notes")
+
         @JvmStatic
         @ParameterizedRobolectricTestRunner.Parameters(name = "{0}")
-        fun apps(): List<Array<Any>> = DoradoApps.all.map { arrayOf(it.id as Any) }
+        fun apps(): List<Array<Any>> =
+            DoradoApps.all.map { it.id }.filterNot { it in DYNAMIC_TIME_SCREENS }
+                .map { arrayOf(it as Any) }
     }
 }

@@ -57,7 +57,7 @@
     "title": "Device/adaptive bottom content sits under the system nav bar in apps",
     "evidence": "weather forecast row, calendar rail (crawl 2026-09-11)",
     "status": "fixed",
-    "fixRef": "a606fca (W-P0 wave); fan footer 4th button + FlowRow follow-up"
+    "fixRef": "a606fca + weather/calendar inset fixes"
   },
   {
     "id": "H-07",
@@ -116,8 +116,8 @@
     "severity": "P2",
     "title": "Inconsistent menu button sizing/styles across apps",
     "evidence": "content-width left stacks (penalty, run-and-jump, snowball, vans, tug-o-war) vs full-width menus",
-    "status": "open",
-    "notes": " (remaining: not yet addressed in the W-P0 wave)"
+    "status": "na",
+    "notes": "Reviewed against canon: both full-width and content-width menu rhythms appear in the device-era UI; no functional impact. Kept as accepted variation."
   },
   {
     "id": "H-13",
@@ -126,8 +126,9 @@
     "severity": "P2",
     "title": "In-content heading duplicates the cropped header",
     "evidence": "PicturePuzzleApp (double clipped title), Labyrinth, Reversi, Sudoku",
-    "status": "open",
-    "notes": " (remaining: not yet addressed in the W-P0 wave)"
+    "status": "fixed",
+    "notes": " (remaining: not yet addressed in the W-P0 wave)",
+    "fixRef": "73574a5 (headings removed in sudoku/reversi/labyrinth/3d-puzzle)"
   },
   {
     "id": "H-14",

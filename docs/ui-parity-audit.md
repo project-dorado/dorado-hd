@@ -81,3 +81,44 @@ banner crop.
 
 Every fix updates its register row to `fixed` with the commit SHA; the
 register is the falsifiable progress tracker for the program.
+
+---
+
+## 7. Remediation results (Phase 2/4 closeout)
+
+**Register:** all P0/P1 rows are `fixed`; the two remaining P2 rows are closed
+(H-13 duplicate headings) or documented as accepted variation (H-12 menu
+rhythm, matching both rhythms present in the device-era UI).
+
+**Harness (W-H):** hardware back follows the in-app header contract on every
+sub-screen (`DetailScaffold(onBack)` → `BackHandler`); the context
+menu/prompt anchors bottom-center and resets per request; the root applies
+IME insets with `adjustResize`; the wake shade triggers on `ON_STOP` only;
+`MiniSynth.start()` added where missing; Room writes throttled.
+
+**Per-app (W-P0):** the 24 game-breakers (softlocks, frozen retries, dropped
+inputs, stale captures, lost saves, buy-in loss, GL rebuild storms, sensorless
+dead ends, exact-alarm crashes, cold-start clobber races) and the layout
+overflow class are fixed, each with a regression test where the defect is
+engine-expressible.
+
+**Verification layers now in CI (`testDebugUnitTest`):**
+
+| Layer | Coverage | Result |
+|---|---|---|
+| Unit/engine suites | 1,406 tests | green |
+| `AppSmokeSuite` | 63 apps × 3 parity configs | green |
+| `LayoutBoundsTest` | 63 apps × portrait/landscape: no unreachable clickables | 126 green |
+| `BackContractTest` | system back on game sub-screens returns in-app | green |
+| `GoldenCaptureTest` | 59 apps' device-mode entry frames, pixel tolerance | green |
+| `DesignInvariantTest` | token/corner/motion invariants | 0 violations |
+| Emulator crawl | 63 apps deep-link launch, crash + blank scan | 63/63 ok |
+
+**Residual, documented:** four clock/date screens (alarm, calendar, weather,
+notes) are excluded from pixel goldens because their entry frame renders the
+wall clock/date — they stay covered by smoke, layout, back and crawl layers;
+GL resource behaviour is guarded by pure cache-policy tests rather than GL
+instrumentation; IME correctness is structural (root insets + `adjustResize`)
+and visually spot-checked on the emulator rather than simulated in Robolectric;
+canvas-drawn text is not exposed to the accessibility tree (a standing
+fidelity/accessibility opportunity, not a parity regression).

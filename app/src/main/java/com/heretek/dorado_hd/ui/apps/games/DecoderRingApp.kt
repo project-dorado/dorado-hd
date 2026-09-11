@@ -9,7 +9,6 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -177,7 +176,7 @@ fun DecoderRingApp() {
                 )
             }
             Spacer(Modifier.height(3.dp))
-            BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
+            Box(Modifier.fillMaxWidth().weight(1f)) {
                 Canvas(
                     Modifier
                         .fillMaxSize()

@@ -8,7 +8,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -201,7 +200,7 @@ fun BbqBattleApp() {
             Column(Modifier.fillMaxSize()) {
                 BbqHud(current, speed, bestFlow.firstOrNull()?.score ?: 0) { persistSnapshot(); paused = true }
                 Spacer(Modifier.height(2.dp))
-                BoxWithConstraints(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                     Canvas(
                         modifier = Modifier
                             .fillMaxSize()
