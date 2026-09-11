@@ -28,6 +28,8 @@ fun SpectrumVisualizer(
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
     barCount: Int = 24,
+    /** Live FFT bands (0..1) from [com.heretek.dorado_hd.media.VisualizerBus]; null falls back to the procedural animation. */
+    levels: FloatArray? = null,
 ) {
     val colors = LocalDoradoColors.current
     val accent = colors.accent
@@ -81,7 +83,14 @@ fun SpectrumVisualizer(
 
             // EQ weighting: slightly tapered treble rolloff
             val eqCurve = (1f - normalizedIdx * 0.35f)
-            val barFraction = if (isPlaying) (composite * eqCurve).coerceIn(0.05f, 0.95f) else 0.02f
+            val live = levels?.takeIf { it.isNotEmpty() }?.let { lv ->
+                lv[((i.toFloat() / barCount) * lv.size).toInt().coerceIn(0, lv.size - 1)]
+            }
+            val barFraction = when {
+                !isPlaying -> 0.02f
+                live != null -> live.coerceIn(0.05f, 0.98f)
+                else -> (composite * eqCurve).coerceIn(0.05f, 0.95f)
+            }
             val barHeight = maxHeight * barFraction
             val x = i * (barWidth + barSpacing)
             val y = maxHeight - barHeight

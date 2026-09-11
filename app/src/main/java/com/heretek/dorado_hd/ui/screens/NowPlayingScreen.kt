@@ -480,6 +480,7 @@ private fun ScreensaverLayer(
     isPlaying: Boolean,
 ) {
     val colors = LocalDoradoColors.current
+    val liveLevels = rememberLiveSpectrum(isPlaying, bars = 24)
     val transition = rememberInfiniteTransition(label = "saver-drift")
     // Drift in dp (the old raw-px values were density-dependent).
     val driftDp by transition.animateFloat(
@@ -517,6 +518,7 @@ private fun ScreensaverLayer(
         }
         SpectrumVisualizer(
             isPlaying = isPlaying,
+            levels = liveLevels,
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
@@ -928,6 +930,28 @@ private fun StatusOsd(modifier: Modifier = Modifier) {
             ),
         )
     }
+}
+
+/**
+ * Per-frame poll of the playback PCM tap. Returns null before the first full
+ * window (playback start) and resets the bus on pause so old bars never replay.
+ */
+@Composable
+private fun rememberLiveSpectrum(isPlaying: Boolean, bars: Int): FloatArray? {
+    var levels by remember { mutableStateOf<FloatArray?>(null) }
+    LaunchedEffect(isPlaying) {
+        if (!isPlaying) {
+            com.heretek.dorado_hd.media.VisualizerBus.reset()
+            levels = null
+            return@LaunchedEffect
+        }
+        while (true) {
+            androidx.compose.runtime.withFrameNanos {
+                levels = com.heretek.dorado_hd.media.VisualizerBus.snapshot(bars)
+            }
+        }
+    }
+    return levels
 }
 
 private fun osdClock(): String =

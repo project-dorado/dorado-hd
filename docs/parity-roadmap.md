@@ -242,7 +242,11 @@ explicitly documented (long-term / N-A) — no gap unplanned.
 
 - ✅ **C1** EQ presets: `analysis/EqPreset` + `media/EqualizerController` (best-effort platform `Equalizer` on the session) + Settings selector.
 - ✅ **C4** Sort-key normalization (`data/model/SortKeys`) + tests.
-- ⏳ **C5** Real-FFT visualizer binding (the palette visualizer is still procedural; `FeatureMath` FFT is not yet fed to it).
+- ✅ **C5** Real-FFT visualizer binding: `TeeAudioProcessor` PCM tap in the
+  playback service (`TapRenderersFactory` → `VisualizerBus`), log-spaced bands
+  with perceptual scaling in `analysis/SpectrumBands.kt`, per-frame polling in
+  the Now Playing screensaver (falls back to the procedural animation before
+  the first window). Permission-free; no `RECORD_AUDIO`.
 
 ### M15 — Social / content / commerce
 

@@ -224,7 +224,9 @@ Device Link (mDNS discovery + paired LAN sync), EQ presets, **fade-through
 crossfade** (`crossfade` setting: linear volume ramp over the track tail plus a
 fade-in on the next item — Media3 has no overlapping crossfade; labelled
 "fade-through" wherever it surfaces), and the **sleep timer**
-(settings ▸ playback; countdown shown in the Now Playing status OSD).
+(settings ▸ playback; countdown shown in the Now Playing status OSD), and the
+**live FFT visualizer** (permission-free PCM tap into `FeatureMath`'s FFT;
+procedural animation remains the fallback).
 
 **Pending:** live-radio pause-and-cache and richer lock-screen art/controls —
 tracked in `docs/parity-roadmap.md` (M5/M6/M10).
