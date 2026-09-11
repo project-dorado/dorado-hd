@@ -179,6 +179,14 @@ class PlaybackController(
         controller?.seekTo(index, 0L)
     }
 
+    /** Removes the queue entry at [index] (the device's showlist/queue list). */
+    fun removeAt(index: Int) {
+        val queueNow = _queue.value
+        if (index !in queueNow.indices) return
+        controller?.removeMediaItem(index)
+        _queue.value = queueNow.toMutableList().also { it.removeAt(index) }
+    }
+
     fun setShuffle(enabled: Boolean) {
         _shuffle.value = enabled
         val player = controller ?: return

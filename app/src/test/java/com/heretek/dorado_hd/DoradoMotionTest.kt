@@ -9,9 +9,22 @@ import org.junit.Test
 
 /**
  * Locks the Zune HD kinetic scroller mapping derived from the shell's
- * `XuiTouchSettings` (docs/zune-hd-touch-settings.md §3).
+ * `XuiTouchSettings`/integrator (docs/zune-hd-touch-settings.md §6,
+ * docs/zune-hd-parity-audit.md §3).
  */
 class DoradoMotionTest {
+
+    @Test
+    fun `kinetic tick matches the device 62 point 5 hz`() {
+        assertEquals(62.5f, DoradoMotion.KINETIC_FRAME_HZ, 1e-3f)
+    }
+
+    @Test
+    fun `fling velocity is clamped to the device cap`() {
+        assertEquals(DoradoMotion.KINETIC_MAX_VELOCITY, DoradoMotion.clampFlingVelocity(99_999f), 1e-3f)
+        assertEquals(-DoradoMotion.KINETIC_MAX_VELOCITY, DoradoMotion.clampFlingVelocity(-99_999f), 1e-3f)
+        assertEquals(50f, DoradoMotion.clampFlingVelocity(50f), 1e-3f)
+    }
 
     @Test
     fun `kinetic multiplier glides longer than the platform default`() {

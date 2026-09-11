@@ -18,7 +18,8 @@ Every screen in Dorado-HD must be checkable against this document.
 
 - White text on matte black. Typography **is** the UI; chrome is banned.
 - Font: Zegoe UI (Microsoft-modified Segoe). We ship **Selawik** (OFL,
-  Segoe-metric) by default; users may import Zegoe themselves.
+  Segoe-metric) by default; authentic Zegoe import is not implemented in v1
+  (planned/post-device).
 - Menu labels are lowercase, oversized, and **deliberately cropped at the
   right screen edge** (Gizmodo: "the word marketplace is cut off at the
   penultimate letter").
@@ -227,3 +228,7 @@ can be aligned canon-first (do not change copy without updating this section):
   (`Play/Pause/Ffwd/Mute@0x419B4C58-84`, `FormatVolumeEx@0x419D7E88`).
 
 Tracked in [`zune-hd-parity-audit.md`](zune-hd-parity-audit.md) §10.
+
+> **Decision (M12).** The strings above are recovered from the shell's *resource
+> keys*, not confirmed display copy; the copy is therefore left unchanged in v1
+> rather than guessed. Revisit only with a confirmed display-string source.

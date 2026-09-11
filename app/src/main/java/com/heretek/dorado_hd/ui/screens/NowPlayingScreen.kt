@@ -13,17 +13,22 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -338,6 +343,8 @@ fun NowPlayingScreen(canvasWidth: Dp) {
         ) {
             TransportOverlay(
                 isPlaying = isPlaying,
+                positionMs = positionMs,
+                durationMs = durationMs,
                 onDismiss = {
                     overlay = false
                     interactionKey++
@@ -476,6 +483,8 @@ private fun ScreensaverLayer(
 @Composable
 private fun TransportOverlay(
     isPlaying: Boolean,
+    positionMs: Long,
+    durationMs: Long,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -484,6 +493,12 @@ private fun TransportOverlay(
     val colors = LocalDoradoColors.current
     val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     var volumePulse by remember { mutableStateOf(0) }
+    var showQueue by remember { mutableStateOf(false) }
+
+    if (showQueue) {
+        QueueOverlay(onDismiss = { showQueue = false })
+        return
+    }
 
     Box(
         Modifier
@@ -544,11 +559,11 @@ private fun TransportOverlay(
         ) {
             OverlayGlyph(text = "+")
         }
-        // Volume down (bottom)
+        // Volume down (bottom) — above the scrubber.
         Box(
             Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 18.dp)
+                .padding(bottom = 52.dp)
                 .clickable {
                     val now = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
                     if (now > 0) {
@@ -606,7 +621,174 @@ private fun TransportOverlay(
                     .padding(top = 56.dp),
             )
         }
+
+        // Showlist / queue (top-right) — the device's GemQueueList.
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(end = (DoradoTokens.EDGE - 13).coerceAtLeast(0).dp, top = 2.dp)
+                .size(48.dp)
+                .clickable { showQueue = true },
+            contentAlignment = Alignment.Center,
+        ) {
+            OverlayGlyph(text = "\u2261")
+        }
+
+        // Scrubber + elapsed/remaining (device HUD ProgressSlider).
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 4.dp),
+        ) {
+            SeekBar(
+                positionMs = positionMs,
+                durationMs = durationMs,
+                onSeek = { controller.seekTo(it) },
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                TimeLabel(formatTime(positionMs))
+                TimeLabel("-" + formatTime((durationMs - positionMs).coerceAtLeast(0)))
+            }
+        }
     }
+}
+
+/** The device's showlist: the current queue, with tap-to-jump and long-press remove. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun QueueOverlay(onDismiss: () -> Unit) {
+    val graph = LocalDoradoGraph.current
+    val colors = LocalDoradoColors.current
+    val queue by graph.controller.queue.collectAsState()
+    val currentIndex by graph.controller.currentIndex.collectAsState()
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(colors.background.copy(alpha = 0.95f))
+            .pointerInput(Unit) { detectTapGestures(onTap = { onDismiss() }) },
+    ) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(DoradoTokens.EDGE.dp),
+        ) {
+            EdgeCropText(
+                text = "showlist",
+                fontSize = DoradoTokens.TYPE_NOW_META.dp,
+                color = colors.accent,
+            )
+            LazyColumn(Modifier.fillMaxSize()) {
+                itemsIndexed(queue, key = { index, t -> "$index:${t.mediaId}" }) { index, t ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(DoradoTokens.ROW_HEIGHT.dp)
+                            .combinedClickable(
+                                onClick = {
+                                    graph.controller.seekToIndex(index)
+                                    onDismiss()
+                                },
+                                onLongClick = { graph.controller.removeAt(index) },
+                            ),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        EdgeCropText(
+                            text = t.title,
+                            fontSize = DoradoTokens.TYPE_LIST.dp,
+                            color = if (index == currentIndex) colors.accent else colors.textPrimary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        EdgeCropText(
+                            text = t.artist,
+                            fontSize = DoradoTokens.TYPE_LIST_SECONDARY.dp,
+                            alpha = 0.55f,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Hairline seek line with horizontal drag-seek (device HUD ProgressSlider). */
+@Composable
+private fun SeekBar(
+    positionMs: Long,
+    durationMs: Long,
+    onSeek: (Long) -> Unit,
+) {
+    val colors = LocalDoradoColors.current
+    var dragging by remember { mutableStateOf(false) }
+    var dragX by remember { mutableStateOf(0f) }
+
+    BoxWithConstraints(
+        Modifier
+            .fillMaxWidth()
+            .height(20.dp),
+    ) {
+        val width = constraints.maxWidth.toFloat().coerceAtLeast(1f)
+        val progress = if (durationMs > 0) {
+            (positionMs.toFloat() / durationMs).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+        val shown = if (dragging) (dragX / width).coerceIn(0f, 1f) else progress
+        Box(
+            Modifier
+                .fillMaxSize()
+                .pointerInput(durationMs, width) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { offset ->
+                            dragging = true
+                            dragX = offset.x
+                        },
+                        onHorizontalDrag = { change, _ ->
+                            change.consume()
+                            dragX = change.position.x
+                        },
+                        onDragEnd = {
+                            dragging = false
+                            if (durationMs > 0) {
+                                onSeek(((dragX / width).coerceIn(0f, 1f) * durationMs).toLong())
+                            }
+                        },
+                        onDragCancel = { dragging = false },
+                    )
+                },
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(colors.border),
+            )
+            Box(
+                Modifier
+                    .fillMaxWidth(shown)
+                    .height(1.dp)
+                    .background(colors.accent),
+            )
+        }
+    }
+}
+
+@Composable
+private fun TimeLabel(text: String) {
+    val colors = LocalDoradoColors.current
+    androidx.compose.foundation.text.BasicText(
+        text = text,
+        style = TextStyle(
+            fontFamily = Selawik,
+            fontSize = DoradoTokens.TYPE_CAPTION.sp,
+            color = colors.textSecondary,
+        ),
+    )
 }
 
 @Composable

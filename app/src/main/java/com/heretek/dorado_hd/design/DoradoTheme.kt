@@ -10,7 +10,7 @@ import com.heretek.dorado_hd.R
 
 /**
  * Selawik — the OFL Segoe-metric font family that stands in for Zegoe UI.
- * Users may import Zegoe in a later release; Selawik ships by default.
+ * Zegoe font import is not implemented in v1; Selawik ships by default.
  */
 val Selawik = FontFamily(
     Font(R.font.selawkl, FontWeight.Light),

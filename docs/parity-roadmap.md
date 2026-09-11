@@ -202,6 +202,65 @@ referencing `dorado/src/Dorado.Application`); re-run it after any desktop
   per `zune-hardware-sync`. Likely N-A; document rather than ship. Never
   bundle Microsoft binaries.
 
+---
+
+## Parity closeout program (M12–M15, approved 2026-09-10)
+
+Derived from the on-device parity audit
+([`zune-hd-parity-audit.md`](zune-hd-parity-audit.md)) and its machine-readable
+register ([`zune-hd-parity-gaps.json`](zune-hd-parity-gaps.json)). **Goal:** every
+device scene/behaviour (74 `Gem*Scene` + HUD/service surfaces) is implemented or
+explicitly documented (long-term / N-A) — no gap unplanned.
+
+### M12 — Quick wins + kinetics *(first sprint)*
+
+| # | Task | Device evidence | HD anchor |
+|---|---|---|---|
+| A1 | Now Playing scrubber + elapsed/remaining | `zhud_serv` ProgressSlider/PlayPosition/Elapsed/Remaining | `PlaybackController.seekTo`; `NowPlayingScreen.kt` |
+| A2 | Queue surface (showlist) | `GemQueueListScene` | `enqueue` / `queue` StateFlow |
+| A3 | Library search UI | `zcontent_serv` content service | unused `LibraryRepository.search` |
+| A4 | Fling velocity cap + item snap | `xuidll FUN_4184C310` (32.0), `XuiTouchSnapToTarget@0x41833134` | `ZuneFling.kt`, `KineticList.kt` |
+| A5 | String-parity pass | `Various Artist`, `" by "`, `noItems/Empty`, `Ffwd`, `Mute` (canon §11) | scanner / `Common.kt` / empty states |
+| A6 | Font-import decision | Zegoe `assets/fonts` | canon / `DoradoTheme` |
+| B1 | Kinetic model re-derivation (dt-scaled, 33 ms floor, 62.5 Hz, clamp, rubber-band/axis hysteresis) | `xuidll@0x41841D58/49F18/48C70/48FC4` | `DoradoMotion.kt`, `KineticList.kt`, `ZuneFling.kt` |
+
+### M13 — Motion & HUD
+
+- **B2** HUD dimmer + notification ladder + power-off (7000/5000/3000/30000/12000 ms → tokens).
+- **B3** Status OSD (battery/wifi/clock/ambient during the transport overlay).
+- **B4** Dedicated Radio Now Playing + Picture Now Playing scenes.
+- **B5** Artist photo grid (real grid vs the single image at `DetailScreens.kt:275`).
+- **B6** Picture pinch-zoom / pan / double-tap viewer (`GemPictureTouchClientScene`, `GemZoomTouch`).
+
+### M14 — Playback & library depth
+
+- **C1** EQ presets (`AudioEffect` on the Media3 session; device `Software\Microsoft\Zune\Equalizer`, `Preset%02d`) + settings page.
+- **C4** Letter/grid thresholds + metadata sort keys (article-strip, `MMM yyyy`; device `zconfig_serv`).
+- **C5** Bind the existing real FFT (`analysis/FeatureMath.kt`) to the visualizer (device `FFTGRABBER`).
+
+### M15 — Social / content / commerce
+
+- **D1** Share / `ACTION_SEND` + Zune-Card artwork export (`GemLibrarySendComposeScene`).
+- **D2** Inbox + social user card (`GemInboxListContentScene`, `GemInboxDetailsScene`, `GemUserCardScene`).
+- **D3** Marketplace discovery: search / top / genres / game details over the frozen catalog + cloud catalog search (`GemMarketplaceSearchScene/MusicTop/Genres/GamesDetails`).
+- **D4** Audiobooks: parts/chapters/bookmarks/speed (`GemLibraryAudiobookPartScene`, `AAXSDKWin`).
+
+### Long-term backlog (documented, not scheduled)
+
+Recorded so nothing is unplanned; revisit after M15: **PIN/screen-lock**,
+**built-in playlists** (`BuiltIn-*`), **deep queue engine** (capacity/history/
+`MediaItemPositioned` events), **crossfade**, **marketplace backend +
+Passport/subscriptions**.
+
+### N-A register (documented, never built)
+
+DRM (`CeDRM_Mgr_*`/`XDRM*`), WMA/WMV + `ZWmtStreamer`, MTPZ/UPnP device identity,
+TV-out selector, usage/telemetry reporting, ACS firmware update
+(`GemAcsFWScene`), Wi-Fi config screen (Android-owned). Rationale in
+`zune-hd-parity-audit.md` §11.
+
+---
+
 ## 5. OSINT source map (inspiration, not code)
 
 | Source | What to borrow | License posture |
@@ -230,16 +289,11 @@ referencing `dorado/src/Dorado.Application`); re-run it after any desktop
 - New sizes/colors/durations go through `DoradoTokens` / `LocalDoradoColors`.
 - New pure-logic engines unit-tested (the games set this bar).
 
-## 8. Next sprint
+## 8. Next sprint (M12 — quick wins + kinetics)
 
-1. **M10 closeout** (S–M) — richer lock-screen Now Playing art/controls + optional sleep timer.
-2. **M5/M6 community wishlist** (M) — share-sheet + Zune-Card artwork export, EQ presets, crossfade, live-radio cache.
-3. **Corpus mining** (M) — the full 109-module corpus is built (66.6k functions, symbols applied); mine the decompilation/strings for behavioral ground truth to tighten the canon.
-4. **Parity-audit follow-ups** (see [`zune-hd-parity-audit.md`](zune-hd-parity-audit.md) + [`zune-hd-parity-gaps.json`](zune-hd-parity-gaps.json)) — queue surface, picture pinch-zoom, Now Playing scrubber, library-search UI, HUD dimmer/status OSD, built-in playlists, inbox/user-card, PIN/Wi-Fi settings, string-parity pass, font-import decision.
+1. **A1–A4** — Now Playing scrubber + elapsed/remaining; queue surface; library search UI; fling velocity cap + item snap.
+2. **A5–A6** — string-parity pass (canon §11); font-import decision (implement or drop the claim).
+3. **B1** — kinetic model re-derivation (dt-scaled, 62.5 Hz, clamp).
 
-The audit also re-derives the kinetic model: the device glide is dt-scaled
-(62.5 Hz, 30 fps floor) and the `0.95` retention is an empirical approximation
-(canon §6; `zune-hd-touch-settings.md` §6).
-
-Front-loads the remaining always-on surfaces, then the community wishlist and
-disassembly-driven fidelity work.
+Then **M13** (motion & HUD) → **M14** (playback & library depth) → **M15**
+(social/content/commerce). Corpus mining continues opportunistically.

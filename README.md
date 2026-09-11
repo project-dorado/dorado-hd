@@ -179,8 +179,8 @@ mini-app platform.
 - **MedTune** (MIT) — starting skeleton; see NOTICE.md.
 - **MusicIn2001** — Research-Only license: used strictly as a behavioral
   specification. **No code was copied.**
-- **Selawik** (SIL OFL 1.1) — Segoe-metric stand-in for Zegoe. Import your
-  own Zegoe if you have it.
+- **Selawik** (SIL OFL 1.1) — Segoe-metric stand-in for Zegoe. Font import is
+  not implemented in v1.
 - The official Zune HD `.zcp` packages (review/Zune HD Apps/) are the
   marketplace archive; their encrypted payloads are **never** bundled, and
   only the manifest metadata (title, GUID, description) is read.

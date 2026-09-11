@@ -13,16 +13,17 @@ import com.heretek.dorado_hd.design.DoradoMotion
 import kotlin.math.abs
 
 /**
- * The Zune HD kinetic fling: proportional (exponential) velocity decay whose
- * per-frame retention is the shell's `XuiTouchSettings[0x1C]`
- * (docs/zune-hd-touch-settings.md). Replaces the platform spline fling so
- * lists glide for the device's longer duration before coming to rest.
+ * The Zune HD kinetic fling: proportional velocity decay approximating the
+ * device glide (`xuidll.dll@0x41841D58`: `pos += (dt/1000)·v` at 62.5 Hz).
+ * The per-frame retention is an empirical approximation, not a device constant
+ * (docs/zune-hd-parity-audit.md §3); the initial velocity is capped to the
+ * device's reconstructed bound (`FUN_4184C310`).
  *
  * Vertical lists use the default [DoradoMotion.KINETIC_FRAME_RETENTION];
  * horizontal lanes pass [DoradoMotion.KINETIC_LANE_FRAME_RETENTION] for a
  * shorter glide (canon §10, post-device tuning).
  *
- * Deceleration only — no springs (canon §6, invariant 6).
+ * Deceleration only — no springs in navigation (canon §6, invariant 6).
  */
 @Composable
 fun rememberZuneFlingBehavior(
@@ -42,13 +43,15 @@ private class ZuneFlingBehavior(
     private val velocityThreshold: Float = 1f,
 ) : FlingBehavior {
     override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
-        if (abs(initialVelocity) <= velocityThreshold) return initialVelocity
+        // Device velocity cap (FUN_4184C310): clamp before the glide.
+        val cappedVelocity = DoradoMotion.clampFlingVelocity(initialVelocity)
+        if (abs(cappedVelocity) <= velocityThreshold) return cappedVelocity
         var lastValue = 0f
-        var lastVelocity = initialVelocity
+        var lastVelocity = cappedVelocity
         AnimationState(
             typeConverter = Float.VectorConverter,
             initialValue = 0f,
-            initialVelocity = initialVelocity,
+            initialVelocity = cappedVelocity,
         ).animateDecay(decay) {
             val delta = value - lastValue
             val consumed = scrollBy(delta)

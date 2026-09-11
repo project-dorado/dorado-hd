@@ -133,7 +133,7 @@ The official Zegoe UI TrueType fonts are stored uncompressed within the ROM file
 - **`ZegoeUI_SB.ttf`**: Semibold (46,252 bytes)
 - **`ZegoeUI_SL.ttf`**: Semilight (34,768 bytes)
 
-In Dorado-HD, **Selawik** (OFL) is shipped by default as the metric-compatible open-source substitute. Users may provide authentic Zegoe UI fonts locally.
+In Dorado-HD, **Selawik** (OFL) is shipped by default as the metric-compatible open-source substitute (authentic Zegoe import is not implemented in v1).
 
 ---
 

@@ -30,8 +30,17 @@ object DoradoMotion {
      */
     const val KINETIC_FRAME_RETENTION = 0.95f
 
-    /** Device tick is 62.5 Hz (`FUN_41848B98`, 16 ms); 60 Hz is the closest frame rate. */
-    const val KINETIC_FRAME_HZ = 60f
+    /** Device tick is 62.5 Hz (`FUN_41848B98`, 16 ms). */
+    const val KINETIC_FRAME_HZ = 62.5f
+
+    /**
+     * Fling velocity cap. The device clamps drag-derived velocity to `32.0` in
+     * its own units (`FUN_4184C310`, literal `@0x41804168`), applied each 16 ms
+     * tick. The Compose equivalent is a per-second cap; `32.0 * 62.5 ≈ 2000 px/s`
+     * is the reconstructed bound (approximation — see
+     * docs/zune-hd-parity-audit.md §3).
+     */
+    const val KINETIC_MAX_VELOCITY = 2000f
 
     /**
      * Kinetic retention for horizontal lanes (Quickplay, marketplace, artist
@@ -51,6 +60,10 @@ object DoradoMotion {
         frameRetention: Float = KINETIC_FRAME_RETENTION,
         frameHz: Float = KINETIC_FRAME_HZ,
     ): Float = ln(frameRetention.pow(frameHz)) / -4.2f
+
+    /** Clamp a fling's initial velocity to the device's reconstructed cap. */
+    fun clampFlingVelocity(velocity: Float): Float =
+        velocity.coerceIn(-KINETIC_MAX_VELOCITY, KINETIC_MAX_VELOCITY)
 
     fun <T> pivot() = tween<T>(PIVOT_SLIDE_MS, easing = Decelerate)
     fun <T> quickplay() = tween<T>(QUICKPLAY_MS, easing = Decelerate)

@@ -4,7 +4,7 @@
   "corpus": "zune-hd-disassembly (109 modules, 66598 functions, 4169 exports, 22479 strings)",
   "axes": {
     "device": "behaviour the Zune HD itself had",
-    "modern": "post-device extension (canon §10)",
+    "modern": "post-device extension (canon \u00a710)",
     "na": "device subsystem deliberately out of scope"
   },
   "gaps": [
@@ -14,9 +14,11 @@
       "axis": "device",
       "priority": 1,
       "effort": "S",
-      "status": "missing",
+      "status": "done",
       "device_evidence": "gemstone.exe GemQueueListScene / GemNowPlayingMusicListScene",
-      "hd_state": "PlaybackController.enqueue exists (media/PlaybackController.kt:153); no queue UI"
+      "hd_state": "PlaybackController.enqueue exists (media/PlaybackController.kt:153); no queue UI",
+      "milestone": "M12",
+      "resolution": "Showlist overlay + PlaybackController.removeAt (NowPlayingScreen QueueOverlay)."
     },
     {
       "id": "picture-zoom",
@@ -26,7 +28,8 @@
       "effort": "M",
       "status": "missing",
       "device_evidence": "gemstone.exe GemPictureTouchClientScene, GemZoomTouch",
-      "hd_state": "static ContentScale.Fit (ui/screens/MediaScreens.kt:657)"
+      "hd_state": "static ContentScale.Fit (ui/screens/MediaScreens.kt:657)",
+      "milestone": "M13"
     },
     {
       "id": "np-scrubber",
@@ -34,9 +37,11 @@
       "axis": "device",
       "priority": 3,
       "effort": "S",
-      "status": "missing",
+      "status": "done",
       "device_evidence": "zhud_serv.dll ProgressSlider, PlayPosition, ElapsedTime/TotalTime/RemainingText",
-      "hd_state": "time text only; seekTo exists but no UI (ui/screens/NowPlayingScreen.kt:237)"
+      "hd_state": "time text only; seekTo exists but no UI (ui/screens/NowPlayingScreen.kt:237)",
+      "milestone": "M12",
+      "resolution": "Hairline seek bar + elapsed/remaining in TransportOverlay (NowPlayingScreen)."
     },
     {
       "id": "kinetic-model",
@@ -46,7 +51,9 @@
       "effort": "M",
       "status": "partial",
       "device_evidence": "xuidll.dll FUN_41841D58 pos+=(dt/1000)*v, dt floor 33.333; v'=v*(1+c[+0xB0]) clamped +/-step*c[+0xB4]; tick 16ms FUN_41848B98; velocity cap 32 FUN_4184C310",
-      "hd_state": "exponentialDecay, KINETIC_FRAME_RETENTION=0.95 wrongly attributed to XuiTouchSettings[0x1C] (design/DoradoMotion.kt:29; docs/zune-hd-touch-settings.md)"
+      "hd_state": "exponentialDecay, KINETIC_FRAME_RETENTION=0.95 wrongly attributed to XuiTouchSettings[0x1C] (design/DoradoMotion.kt:29; docs/zune-hd-touch-settings.md)",
+      "milestone": "M12",
+      "resolution": "Tick set to device 62.5 Hz; 0.95 provenance corrected to empirical; dt-scaled glide still approximated (M13)."
     },
     {
       "id": "library-search-ui",
@@ -54,9 +61,11 @@
       "axis": "device",
       "priority": 5,
       "effort": "S",
-      "status": "missing",
+      "status": "done",
       "device_evidence": "zcontent_serv.dll content service; gemstone search",
-      "hd_state": "LibraryRepository/Daos search() defined with no caller (data/db/Daos.kt:68)"
+      "hd_state": "LibraryRepository/Daos search() defined with no caller (data/db/Daos.kt:68)",
+      "milestone": "M12",
+      "resolution": "Debounced search mode in MusicScreen wired to LibraryRepository.search."
     },
     {
       "id": "hud-dimmer-status",
@@ -66,7 +75,8 @@
       "effort": "M",
       "status": "missing",
       "device_evidence": "zhud_serv.dll HudDimmerScene/HudOffSwitchScene; batteryIcon/wifiIcon/Clock/Ambient; dwells 7000/5000/3000/30000/12000ms",
-      "hd_state": "none"
+      "hd_state": "none",
+      "milestone": "M13"
     },
     {
       "id": "eq-presets",
@@ -76,7 +86,8 @@
       "effort": "M",
       "status": "missing",
       "device_evidence": "zmedia_serv.dll Software\\Microsoft\\Zune\\Equalizer, Preset%02d",
-      "hd_state": "no AudioEffect/Equalizer"
+      "hd_state": "no AudioEffect/Equalizer",
+      "milestone": "M14"
     },
     {
       "id": "share-send",
@@ -86,7 +97,8 @@
       "effort": "M",
       "status": "missing",
       "device_evidence": "gemstone.exe GemLibrarySendComposeScene, GemLibrarySendFriendsListScene",
-      "hd_state": "none (roadmap M5)"
+      "hd_state": "none (roadmap M5)",
+      "milestone": "M15"
     },
     {
       "id": "audiobooks",
@@ -96,7 +108,8 @@
       "effort": "L",
       "status": "missing",
       "device_evidence": "gemstone.exe GemLibraryAudiobookPartScene; AAXSDKWin.dll/audible.dll",
-      "hd_state": "no audiobook model"
+      "hd_state": "no audiobook model",
+      "milestone": "M15"
     },
     {
       "id": "marketplace-discovery",
@@ -106,7 +119,8 @@
       "effort": "L",
       "status": "missing",
       "device_evidence": "gemstone.exe GemMarketplaceSearchScene/MusicTopScene/MusicGenresContentScene/GamesDetailsScene; znet_serv.dll catalog endpoints",
-      "hd_state": "frozen 62-entry OfficialCatalog (ui/screens/MarketplaceScreens.kt:322)"
+      "hd_state": "frozen 62-entry OfficialCatalog (ui/screens/MarketplaceScreens.kt:322)",
+      "milestone": "M15"
     },
     {
       "id": "builtin-playlists",
@@ -116,7 +130,8 @@
       "effort": "M",
       "status": "partial",
       "device_evidence": "zcontent_serv/zmedia_serv mtp:PlaylistRef_Favorite/Recent/TopArtists, BuiltIn-*",
-      "hd_state": "Quickplay history/pins + Top Played only"
+      "hd_state": "Quickplay history/pins + Top Played only",
+      "milestone": "long-term"
     },
     {
       "id": "inbox-usercard",
@@ -126,7 +141,8 @@
       "effort": "M",
       "status": "missing",
       "device_evidence": "gemstone.exe GemInboxListContentScene/GemInboxDetailsScene/GemUserCardScene",
-      "hd_state": "mock shells only (ui/apps/mocks/Mocks.kt:90)"
+      "hd_state": "mock shells only (ui/apps/mocks/Mocks.kt:90)",
+      "milestone": "M15"
     },
     {
       "id": "pinlock-wifi",
@@ -136,7 +152,8 @@
       "effort": "M",
       "status": "missing",
       "device_evidence": "gemstone.exe GemSettingPinLockScene/GemSettingScreenLockScene/GemSettingWifiInfoScene",
-      "hd_state": "wake shade only (design/components/LockShade.kt)"
+      "hd_state": "wake shade only (design/components/LockShade.kt)",
+      "milestone": "long-term"
     },
     {
       "id": "string-parity",
@@ -144,9 +161,11 @@
       "axis": "device",
       "priority": 14,
       "effort": "XS",
-      "status": "partial",
+      "status": "declined",
       "device_evidence": "gemstone.exe 'Various Artist'@0x119A4, ' by '@0x15A60, noItems/Empty@0x14160/0x12B7C, Ffwd/Mute@0x19D18/0x19D2C",
-      "hd_state": "'unknown artist' (MediaLibraryScanner.kt:64), em-dash separator (Common.kt:291), bespoke empty states"
+      "hd_state": "'unknown artist' (MediaLibraryScanner.kt:64), em-dash separator (Common.kt:291), bespoke empty states",
+      "milestone": "M12",
+      "resolution": "Device strings are resource keys, not confirmed display copy (canon \u00a711 decision)."
     },
     {
       "id": "font-import",
@@ -154,9 +173,11 @@
       "axis": "device",
       "priority": 15,
       "effort": "S",
-      "status": "missing",
+      "status": "declined",
       "device_evidence": "assets/fonts/ZegoeUI*.ttf; registered via registry Software\\Microsoft\\Zune\\Fonts",
-      "hd_state": "docs promise import (zune-hd-ui-canon.md:20) but no code path; Selawik lacks Black/Medium"
+      "hd_state": "docs promise import (zune-hd-ui-canon.md:20) but no code path; Selawik lacks Black/Medium",
+      "milestone": "M12",
+      "resolution": "Claim dropped; Zegoe import not implemented in v1 (canon \u00a72, README, DoradoTheme)."
     },
     {
       "id": "velocity-cap-snap",
@@ -164,18 +185,48 @@
       "axis": "device",
       "priority": 16,
       "effort": "S",
-      "status": "missing",
+      "status": "partial",
       "device_evidence": "xuidll.dll FUN_4184C310 cap 32.0; XuiTouchSnapToTarget@0x41833134; FUN_41848FC4 rubber-band",
-      "hd_state": "no cap/snap; relies on platform overscroll"
+      "hd_state": "no cap/snap; relies on platform overscroll",
+      "milestone": "M12",
+      "resolution": "Velocity cap implemented (DoradoMotion.KINETIC_MAX_VELOCITY + ZuneFling); item snap still pending (M13)."
     }
   ],
   "na": [
-    { "id": "na-marketplace-backend", "surface": "Marketplace backend + Passport + subscriptions", "device_evidence": "znet_serv.dll SEID_Catalog/SignInRequest/urn:passport:compact" },
-    { "id": "na-drm", "surface": "DRM license / PlayReady / WMDRM", "device_evidence": "CeDRM_Mgr_*, ZWmtStreamer XDRM*, wmdrm.dll" },
-    { "id": "na-wma", "surface": "WMA/WMV playback + HTTP streaming", "device_evidence": "ZWmtStreamer.dll 'Zune MarketPlace HTTP Streaming Source'" },
-    { "id": "na-mtpz", "surface": "MTPZ/UPnP identity + Wi-Fi config", "device_evidence": "znet_serv /Device.xml, urn:microsoft-com:device:mtpz:1; wzcsapi.dll" },
-    { "id": "na-tvout", "surface": "TV-out selector", "device_evidence": "gemstone.exe GemTvOutputSelectorScene" },
-    { "id": "na-telemetry", "surface": "Usage/telemetry reporting", "device_evidence": "znet_serv usageReport, SEID_Stats/UsageData" },
-    { "id": "na-acs", "surface": "ACS touch firmware update", "device_evidence": "gemstone.exe GemAcsFWScene, Acsapi_BeginFwUpdate" }
+    {
+      "id": "na-marketplace-backend",
+      "surface": "Marketplace backend + Passport + subscriptions",
+      "device_evidence": "znet_serv.dll SEID_Catalog/SignInRequest/urn:passport:compact"
+    },
+    {
+      "id": "na-drm",
+      "surface": "DRM license / PlayReady / WMDRM",
+      "device_evidence": "CeDRM_Mgr_*, ZWmtStreamer XDRM*, wmdrm.dll"
+    },
+    {
+      "id": "na-wma",
+      "surface": "WMA/WMV playback + HTTP streaming",
+      "device_evidence": "ZWmtStreamer.dll 'Zune MarketPlace HTTP Streaming Source'"
+    },
+    {
+      "id": "na-mtpz",
+      "surface": "MTPZ/UPnP identity + Wi-Fi config",
+      "device_evidence": "znet_serv /Device.xml, urn:microsoft-com:device:mtpz:1; wzcsapi.dll"
+    },
+    {
+      "id": "na-tvout",
+      "surface": "TV-out selector",
+      "device_evidence": "gemstone.exe GemTvOutputSelectorScene"
+    },
+    {
+      "id": "na-telemetry",
+      "surface": "Usage/telemetry reporting",
+      "device_evidence": "znet_serv usageReport, SEID_Stats/UsageData"
+    },
+    {
+      "id": "na-acs",
+      "surface": "ACS touch firmware update",
+      "device_evidence": "gemstone.exe GemAcsFWScene, Acsapi_BeginFwUpdate"
+    }
   ]
 }

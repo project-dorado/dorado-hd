@@ -11,25 +11,36 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.heretek.dorado_hd.design.LocalDoradoColors
+import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.design.DoradoMotion
 import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.design.components.AlbumArt
 import com.heretek.dorado_hd.design.components.CrossbarBar
 import com.heretek.dorado_hd.design.components.EdgeCropText
 import com.heretek.dorado_hd.data.model.PinKind
+import com.heretek.dorado_hd.data.model.Track
 import com.heretek.dorado_hd.design.components.KineticList
 import com.heretek.dorado_hd.design.components.firstLetterOf
 import com.heretek.dorado_hd.design.components.rememberZuneFlingBehavior
@@ -40,6 +51,7 @@ import com.heretek.dorado_hd.ui.components.MenuAction
 import com.heretek.dorado_hd.ui.components.TrackRow
 import com.heretek.dorado_hd.ui.components.trackMenuActions
 import com.heretek.dorado_hd.ui.nav.DoradoDestination
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Real Zune HD music crossbar order. */
@@ -47,28 +59,114 @@ private val PIVOTS = listOf("albums", "artists", "playlists", "songs", "genres")
 
 @Composable
 fun MusicScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
+    val graph = LocalDoradoGraph.current
+    val colors = LocalDoradoColors.current
     val scope = rememberCoroutineScope()
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { PIVOTS.size })
     val selected = pagerState.currentPage
 
+    var searching by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+    var results by remember { mutableStateOf<List<Track>>(emptyList()) }
+
+    // Debounced indexed search (device zcontent_serv content service).
+    LaunchedEffect(query) {
+        if (query.isBlank()) {
+            results = emptyList()
+        } else {
+            delay(200)
+            results = graph.library.search(query)
+        }
+    }
+
     DetailScaffold(title = "music") {
         Column(Modifier.fillMaxSize()) {
-            CrossbarBar(
-                labels = PIVOTS,
-                selected = selected,
-                onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index) } },
-            )
-            HorizontalPager(
-                state = pagerState,
-                beyondViewportPageCount = 1,
-                modifier = Modifier.fillMaxSize(),
-            ) { page ->
-                when (page) {
-                    0 -> AlbumsTab()
-                    1 -> ArtistsTab()
-                    2 -> PlaylistsTab()
-                    3 -> SongsTab()
-                    else -> GenresTab()
+            if (searching) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(DoradoTokens.HEADER_HEIGHT.dp)
+                        .padding(horizontal = DoradoTokens.EDGE.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    BasicTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        singleLine = true,
+                        textStyle = TextStyle(
+                            fontFamily = Selawik,
+                            fontSize = DoradoTokens.TYPE_LIST.sp,
+                            color = colors.textPrimary,
+                        ),
+                        modifier = Modifier.weight(1f),
+                    )
+                    EdgeCropText(
+                        text = "done",
+                        fontSize = DoradoTokens.TYPE_LIST.dp,
+                        color = colors.accent,
+                        modifier = Modifier.clickable {
+                            searching = false
+                            query = ""
+                            results = emptyList()
+                        },
+                    )
+                }
+                when {
+                    query.isBlank() -> EdgeCropText(
+                        text = "type to search",
+                        fontSize = DoradoTokens.TYPE_LIST.dp,
+                        alpha = 0.4f,
+                        modifier = Modifier.padding(horizontal = DoradoTokens.EDGE.dp),
+                    )
+                    results.isEmpty() -> EdgeCropText(
+                        text = "no results",
+                        fontSize = DoradoTokens.TYPE_LIST.dp,
+                        alpha = 0.4f,
+                        modifier = Modifier.padding(horizontal = DoradoTokens.EDGE.dp),
+                    )
+                    else -> LazyColumn(Modifier.fillMaxSize()) {
+                        itemsIndexed(results, key = { index, t -> "$index:${t.mediaId}" }) { index, track ->
+                            TrackRow(
+                                track = track,
+                                onClick = { graph.controller.play(results, index) },
+                                onLongClick = {},
+                            )
+                        }
+                    }
+                }
+            } else {
+                CrossbarBar(
+                    labels = PIVOTS,
+                    selected = selected,
+                    onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index) } },
+                )
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(24.dp)
+                        .padding(horizontal = DoradoTokens.EDGE.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    EdgeCropText(
+                        text = "search",
+                        fontSize = DoradoTokens.TYPE_LIST_SECONDARY.dp,
+                        color = colors.accent,
+                        modifier = Modifier.clickable { searching = true },
+                    )
+                }
+                HorizontalPager(
+                    state = pagerState,
+                    beyondViewportPageCount = 1,
+                    modifier = Modifier.fillMaxSize(),
+                ) { page ->
+                    when (page) {
+                        0 -> AlbumsTab()
+                        1 -> ArtistsTab()
+                        2 -> PlaylistsTab()
+                        3 -> SongsTab()
+                        else -> GenresTab()
+                    }
                 }
             }
         }
