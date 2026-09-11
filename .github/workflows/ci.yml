@@ -32,8 +32,17 @@ jobs:
       - name: Assemble debug
         run: ./gradlew assembleDebug --stacktrace
 
-      - name: Unit tests + design-invariant audit
+      - name: Unit tests + UI parity suites + design-invariant audit
         run: ./gradlew test --stacktrace
+
+      - name: Android lint
+        run: ./gradlew lintDebug --stacktrace
+
+      - name: UI parity source guards
+        run: python3 tools/ui_lint.py
+
+      - name: Corpus tooling syntax check
+        run: python3 -m py_compile tools/*.py
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
