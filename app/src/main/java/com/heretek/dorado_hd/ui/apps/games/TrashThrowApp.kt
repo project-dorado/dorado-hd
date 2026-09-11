@@ -351,7 +351,7 @@ private fun TrashScoresScreen(
 @Composable
 private fun TrashAbout(onBack: () -> Unit) {
     val colors = LocalDoradoColors.current
-    DetailScaffold(title = "trash throw · about") {
+    DetailScaffold(title = "trash throw · about", onBack = onBack) {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             BasicText(
                 text = "Flick a crumpled ball into the bin. Wind drifts the throw; " +

@@ -458,7 +458,7 @@ private fun BowlingStats(
     onBack: () -> Unit,
 ) {
     val colors = LocalDoradoColors.current
-    DetailScaffold(title = "lucky lanes · records") {
+    DetailScaffold(title = "lucky lanes · records", onBack = onBack) {
         Column(
             Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp),
             verticalArrangement = Arrangement.spacedBy(3.dp),

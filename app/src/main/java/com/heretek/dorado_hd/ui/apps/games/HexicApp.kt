@@ -330,7 +330,7 @@ private fun HexicDifficultyScreen(
     onBack: () -> Unit,
 ) {
     val colors = LocalDoradoColors.current
-    DetailScaffold(title = "hexic · ${mode.name.lowercase()}") {
+    DetailScaffold(title = "hexic · ${mode.name.lowercase()}", onBack = onBack) {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
             BasicText(
                 text = "starting level",

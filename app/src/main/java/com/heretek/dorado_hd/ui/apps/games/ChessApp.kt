@@ -483,7 +483,7 @@ private fun ChessRecords(
     onBack: () -> Unit,
 ) {
     val colors = LocalDoradoColors.current
-    DetailScaffold(title = "chess · trophies") {
+    DetailScaffold(title = "chess · trophies", onBack = onBack) {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
             val grouped = records.groupBy { it.meta ?: "unknown" }
             grouped.forEach { (meta, games) ->
@@ -509,7 +509,7 @@ private fun ChessRecords(
 @Composable
 private fun ChessLearn(onBack: () -> Unit) {
     val colors = LocalDoradoColors.current
-    DetailScaffold(title = "chess · learn") {
+    DetailScaffold(title = "chess · learn", onBack = onBack) {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
             listOf(
                 "tap a piece then a target square",

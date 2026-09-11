@@ -490,7 +490,7 @@ private fun CheckersRecords(
     onBack: () -> Unit,
 ) {
     val colors = LocalDoradoColors.current
-    DetailScaffold(title = "checkers · records") {
+    DetailScaffold(title = "checkers · records", onBack = onBack) {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
             BasicText(
                 text = "per difficulty and mode",
@@ -521,7 +521,7 @@ private fun CheckersRecords(
 @Composable
 private fun CheckersLearn(onBack: () -> Unit) {
     val colors = LocalDoradoColors.current
-    DetailScaffold(title = "checkers · learn") {
+    DetailScaffold(title = "checkers · learn", onBack = onBack) {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
             val lines = listOf(
                 "men move one square diagonally forward",
