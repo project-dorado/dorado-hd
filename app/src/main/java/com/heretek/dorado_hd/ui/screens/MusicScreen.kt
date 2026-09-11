@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -53,6 +54,7 @@ import com.heretek.dorado_hd.ui.components.TrackRow
 import com.heretek.dorado_hd.ui.components.trackMenuActions
 import com.heretek.dorado_hd.ui.nav.DoradoDestination
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** Real Zune HD music crossbar order. */
@@ -68,6 +70,7 @@ fun MusicScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
     val selected = pagerState.currentPage
 
     var searching by remember { mutableStateOf(false) }
+    var djBusy by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<Track>>(emptyList()) }
 
@@ -158,9 +161,58 @@ fun MusicScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                         .fillMaxWidth()
                         .height(24.dp)
                         .padding(horizontal = DoradoTokens.EDGE.dp),
-                    horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    // Smart DJ (M5): tap-to-build a mix from the current track,
+                    // the hearted favorites, or the most played tracks.
+                    EdgeCropText(
+                        text = if (djBusy) "building mix…" else "smart dj",
+                        fontSize = DoradoTokens.TYPE_LIST_SECONDARY.dp,
+                        color = colors.accent,
+                        modifier = Modifier.clickable(enabled = !djBusy) {
+                            val actions = buildList {
+                                graph.controller.nowPlaying.value?.let { track ->
+                                    add(
+                                        MenuAction("similar to ${track.title}") {
+                                            buildSmartDj(
+                                                graph, scope,
+                                                com.heretek.dorado_hd.analysis.DynamicMix(
+                                                    name = "smart dj · ${track.title}",
+                                                    kind = com.heretek.dorado_hd.analysis.DynamicMixKind.SIMILAR_TO_TRACK,
+                                                    seedId = track.mediaId,
+                                                    seedText = track.artist,
+                                                ),
+                                            ) { djBusy = it }
+                                        },
+                                    )
+                                }
+                                add(
+                                    MenuAction("favorites mix") {
+                                        buildSmartDj(
+                                            graph, scope,
+                                            com.heretek.dorado_hd.analysis.DynamicMix(
+                                                name = "smart dj · favorites",
+                                                kind = com.heretek.dorado_hd.analysis.DynamicMixKind.SIMILAR_TO_FAVORITES,
+                                            ),
+                                        ) { djBusy = it }
+                                    },
+                                )
+                                add(
+                                    MenuAction("top played") {
+                                        buildSmartDj(
+                                            graph, scope,
+                                            com.heretek.dorado_hd.analysis.DynamicMix(
+                                                name = "smart dj · top played",
+                                                kind = com.heretek.dorado_hd.analysis.DynamicMixKind.TOP_PLAYED,
+                                            ),
+                                        ) { djBusy = it }
+                                    },
+                                )
+                            }
+                            menus.show("smart dj", actions)
+                        },
+                    )
+                    Spacer(Modifier.weight(1f))
                     EdgeCropText(
                         text = "search",
                         fontSize = DoradoTokens.TYPE_LIST_SECONDARY.dp,
@@ -516,4 +568,35 @@ private fun EmptyLibraryNote(text: String) {
         alpha = 0.5f,
         modifier = Modifier.padding(horizontal = DoradoTokens.EDGE.dp, vertical = 12.dp),
     )
+}
+
+/**
+ * Materialize a Smart DJ mix (M5) and start playback. Mix building touches the
+ * library, ratings and play counts, so it runs off the click handler.
+ */
+private fun buildSmartDj(
+    graph: com.heretek.dorado_hd.DoradoGraph,
+    scope: kotlinx.coroutines.CoroutineScope,
+    mix: com.heretek.dorado_hd.analysis.DynamicMix,
+    setBusy: (Boolean) -> Unit,
+) {
+    setBusy(true)
+    scope.launch {
+        try {
+            val library = graph.library.tracks().first()
+            val ratings = graph.quickplay.ratings()
+            val favorites = library.filter {
+                ratings[it.mediaId] == com.heretek.dorado_hd.data.model.Rating.HEART.value
+            }
+            val tracks = graph.mixes.materialize(
+                mix,
+                library = library,
+                favorites = favorites,
+                playCounts = graph.playCounts.counts(),
+            )
+            if (tracks.isNotEmpty()) graph.controller.play(tracks, 0)
+        } finally {
+            setBusy(false)
+        }
+    }
 }
