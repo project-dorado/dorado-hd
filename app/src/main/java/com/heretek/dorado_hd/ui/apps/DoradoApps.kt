@@ -1,7 +1,6 @@
 package com.heretek.dorado_hd.ui.apps
 
 import androidx.compose.runtime.Composable
-import com.heretek.dorado_hd.ui.LocalDoradoGraph
 
 /**
  * A single mini-app: id, label, category, and a composable renderer that
@@ -57,11 +56,3 @@ fun buildAppRegistry(): List<DoradoMiniApp> = listOf(
     DoradoMiniApp("zunereader", "zune reader", "reading", { com.heretek.dorado_hd.ui.apps.mocks.ZuneReaderMock() }),
     DoradoMiniApp("zunesocial", "social", "social", { com.heretek.dorado_hd.ui.apps.mocks.SocialMock() }),
 )
-
-/** Mini-app scaffold: cropped-header back, fullscreen content. */
-@Composable
-fun MiniAppScaffold(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
-    com.heretek.dorado_hd.ui.components.DetailScaffold(title = title) {
-        content()
-    }
-}

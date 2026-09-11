@@ -15,11 +15,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -97,15 +95,15 @@ fun DoradoRoot() {
         androidx.compose.runtime.CompositionLocalProvider(
             com.heretek.dorado_hd.ui.components.LocalContextMenu provides menus,
         ) {
-            DeviceCanvas(deviceMode = settings.deviceMode) { canvasWidth, canvasHeight ->
-                // safeDrawingPadding reserves status-bar + navigation-bar + cutout
-                // space, so the top row of every screen is reachable and the
-                // MiniPlayer sits above the gesture bar.
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .safeDrawingPadding(),
-                ) {
+            // safeDrawingPadding reserves status-bar + navigation-bar + cutout
+            // space. It is applied to the canvas itself (not inside it) so the
+            // 480x272 design canvas is never shrunk or offset by real insets,
+            // and adaptive density scaling doesn't multiply them.
+            DeviceCanvas(
+                deviceMode = settings.deviceMode,
+                modifier = Modifier.safeDrawingPadding(),
+            ) { canvasWidth, canvasHeight ->
+                Box(Modifier.fillMaxSize()) {
                     NavHost(canvasWidth, canvasHeight)
                     Box(
                         Modifier
@@ -196,7 +194,16 @@ private fun MiniPlayer(canvasWidth: Dp) {
     val isPlaying by controller.isPlaying.collectAsState()
     val colors = LocalDoradoColors.current
 
-    if (nav.current == DoradoDestination.NowPlaying || nowPlaying == null) return
+    // Canon §8: mini-apps and fullscreen viewers open without the MiniPlayer.
+    val fullscreenRoute = when (nav.current) {
+        DoradoDestination.NowPlaying,
+        is DoradoDestination.MiniApp,
+        is DoradoDestination.Video,
+        is DoradoDestination.PictureDetail,
+        -> true
+        else -> false
+    }
+    if (fullscreenRoute || nowPlaying == null) return
 
     Box(
         Modifier
@@ -231,14 +238,19 @@ private fun MiniPlayer(canvasWidth: Dp) {
                     .padding(start = 8.dp, end = 8.dp),
                 color = colors.textSecondary,
             )
-            IconButton(
-                onClick = { controller.toggle() },
-                modifier = Modifier.width(32.dp),
+            // A bare 32dp target: Material's IconButton enforces a 48dp minimum
+            // touch target that would overhang the 32dp bar and steal taps.
+            Box(
+                Modifier
+                    .size(DoradoTokens.MINI_PLAYER_HEIGHT.dp)
+                    .clickable { controller.toggle() },
+                contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     painter = painterResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play),
                     contentDescription = if (isPlaying) "pause" else "play",
                     tint = colors.textPrimary,
+                    modifier = Modifier.size(18.dp),
                 )
             }
         }

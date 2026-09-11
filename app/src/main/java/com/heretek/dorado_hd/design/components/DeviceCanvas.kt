@@ -54,9 +54,11 @@ fun DeviceCanvas(
                 content(maxWidth, maxHeight)
             }
         } else {
-            val isPortrait = maxWidth < maxHeight
-            val targetWidth = if (isPortrait) DoradoTokens.CANVAS_HEIGHT.dp else DoradoTokens.CANVAS_WIDTH.dp
-            val targetHeight = if (isPortrait) DoradoTokens.CANVAS_WIDTH.dp else DoradoTokens.CANVAS_HEIGHT.dp
+            // The 480x272 canvas is landscape-authored; never swap its axes.
+            // In portrait it letterboxes (small but fully correct); rotate the
+            // phone for the full device feel.
+            val targetWidth = DoradoTokens.CANVAS_WIDTH.dp
+            val targetHeight = DoradoTokens.CANVAS_HEIGHT.dp
             val scale = min(
                 maxWidth.value / targetWidth.value,
                 maxHeight.value / targetHeight.value,

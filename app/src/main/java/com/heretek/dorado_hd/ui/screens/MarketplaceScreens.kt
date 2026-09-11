@@ -46,7 +46,6 @@ import com.heretek.dorado_hd.design.components.KineticList
 import com.heretek.dorado_hd.design.components.firstLetterOf
 import com.heretek.dorado_hd.design.components.rememberZuneFlingBehavior
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
-import com.heretek.dorado_hd.ui.apps.MiniAppScaffold
 import com.heretek.dorado_hd.ui.apps.DoradoApps
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import com.heretek.dorado_hd.ui.nav.DoradoDestination
@@ -589,7 +588,7 @@ fun MiniAppScreen(appId: String, canvasWidth: androidx.compose.ui.unit.Dp) {
         }
         return
     }
-    MiniAppScaffold(title = app.title, onBack = { graph.nav.pop() }) {
-        app.render()
-    }
+    // Mini-apps provide their own DetailScaffold (cropped header + back), so
+    // wrapping them here would stack a second 48dp header on the canvas.
+    app.render()
 }

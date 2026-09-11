@@ -39,7 +39,9 @@ import androidx.glance.unit.ColorProvider
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.heretek.dorado_hd.media.DoradoPlaybackService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.withContext
 
 /** Preference keys backing the widget's Glance state. */
 object NowPlayingWidgetKeys {
@@ -131,12 +133,16 @@ sealed class TransportAction : ActionCallback {
     protected abstract fun apply(controller: MediaController)
 
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        val token = SessionToken(context, ComponentName(context, DoradoPlaybackService::class.java))
-        val controller = MediaController.Builder(context, token).buildAsync().await()
-        try {
-            apply(controller)
-        } finally {
-            controller.release()
+        // MediaController must be built and used on the main looper; Glance
+        // dispatches ActionCallbacks on a background dispatcher.
+        withContext(Dispatchers.Main.immediate) {
+            val token = SessionToken(context, ComponentName(context, DoradoPlaybackService::class.java))
+            val controller = MediaController.Builder(context, token).buildAsync().await()
+            try {
+                apply(controller)
+            } finally {
+                controller.release()
+            }
         }
     }
 }
