@@ -145,9 +145,15 @@ The repo provides an end-to-end extraction and decompilation script:
 # Extract assets and reconstruct valid ARM32 PE binaries (< 10 seconds):
 python3 scripts/disassemble_zune_hd.py --extract-only
 
-# Run deep Ghidra headless analysis on gemstone.exe and xuidll.dll:
+# Run deep Ghidra headless analysis + decompilation export on gemstone.exe and xuidll.dll:
 python3 scripts/disassemble_zune_hd.py --ghidra
 ```
+
+The `--ghidra` step imports/analyses each shell binary and runs the
+`scripts/ghidra/ExportDecompiled.java` post-script, which writes per-function
+decompiled C files and a `<module>.functions.json` index (name, entry, size,
+thunk flag, decompiled line count) so the corpus can be grepped without
+re-running Ghidra.
 
 ### Output Directory Structure (`zune-hd-disassembly/`)
 
@@ -170,5 +176,9 @@ zune-hd-disassembly/
 │   ├── project/
 │   │   └── ZuneHD_Project.gpr / ZuneHD_Project.rep
 │   └── decompiled/
+│       ├── gemstone.exe/          (per-function .c)
+│       ├── gemstone.exe.functions.json
+│       ├── xuidll.dll/
+│       └── xuidll.dll.functions.json
 └── README.md
 ```

@@ -308,6 +308,11 @@ def run_ghidra_analysis(module_names=None):
     project_name = "ZuneHD_Project"
     os.makedirs(project_dir, exist_ok=True)
 
+    # The post-script exports per-function decompiled C plus a JSON function index
+    # (name/entry/size) so the corpus is greppable without re-running Ghidra.
+    script_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ghidra")
+    post_script = os.path.join(script_dir, "ExportDecompiled.java")
+
     log(f"Running headless Ghidra analysis on {module_names}...")
     for mod in module_names:
         mod_path = os.path.join(MODULES_DIR, mod)
@@ -321,7 +326,10 @@ def run_ghidra_analysis(module_names=None):
             project_name,
             "-import", mod_path,
             "-overwrite",
+            "-scriptPath", script_dir,
         ]
+        if os.path.exists(post_script):
+            cmd += ["-postScript", "ExportDecompiled.java", DECOMPILED_DIR]
         log(f"Invoking Ghidra for {mod}...")
         res = run_cmd(cmd)
         if res.returncode == 0:
