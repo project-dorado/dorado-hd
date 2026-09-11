@@ -58,6 +58,8 @@ CATEGORIES: dict[str, list[str]] = {
         "zune-hd-official-apps-decompiled",
         "zune-hd-official-apps",
         "zune-hd-homebrew-gen-4",
+        "zune-homebrew-pack-v1",
+        "hexic-for-zune-hd",
         "open-zdk",
         "xna-game-studio",
         "visual-studio-zune-suite",
@@ -93,6 +95,7 @@ CATEGORIES: dict[str, list[str]] = {
         "microsoft-fix-it-tool",
         "resource-editor",
         "vnc-viewer-v6.21.406",
+        "zune-Stuff",
     ],
     "Tools": [
         "zune-explorer",
@@ -119,10 +122,12 @@ CATEGORIES: dict[str, list[str]] = {
         "zune-80-120-draco-firmware",
         "zune-flash-scorpius-firmware",
         "zune-hd-pavo-firmware",
+        "zune-firmware-x-86",
     ],
     "Zune Software": [
         "microsoft-zune-dorado",
         "zune-software",
+        "zune-4.8-beta-2098",
         "xune-software",
         "restore-zune-software-functionality",
     ],
@@ -143,6 +148,14 @@ STAGES: dict[str, list[str]] = {
     "tools": [],
     "media": [],
     "firmware": [],
+    # Archive.org items discovered after the initial 70-item mirror (2026-09).
+    "intake": [
+        "zune-homebrew-pack-v1",
+        "zune-Stuff",
+        "zune-4.8-beta-2098",
+        "hexic-for-zune-hd",
+        "zune-firmware-x-86",
+    ],
 }
 for _cat, _ids in CATEGORIES.items():
     if _cat == "Documentation":
@@ -158,7 +171,7 @@ for _cat, _ids in CATEGORIES.items():
     elif _cat in ("Zune Firmware", "Zune Software"):
         STAGES["firmware"].extend(_ids)
 
-STAGE_ORDER = ["apps", "docs", "tools", "media", "firmware"]
+STAGE_ORDER = ["apps", "docs", "tools", "media", "firmware", "intake"]
 DEFAULT_ROOT = Path(__file__).resolve().parents[2] / "Zune Archive"
 RESERVE_BYTES = 10 * 1024**3  # keep 10 GiB headroom on the target volume
 
@@ -450,8 +463,20 @@ def main(argv: list[str]) -> int:
     for identifier, name in failed:
         log(f"  FAILED {identifier}: {name}")
     report = args.root / "_mirror-report.json"
-    report.write_text(json.dumps({"results": results, "failed": failed}, indent=2) + "\n")
-    log(f"report: {report}")
+    merged: dict = {"results": [], "failed": []}
+    if report.exists():
+        try:
+            prior = json.loads(report.read_text())
+            if isinstance(prior, dict):
+                merged["results"] = [r for r in prior.get("results", []) if isinstance(r, dict)]
+                merged["failed"] = [f for f in prior.get("failed", []) if isinstance(f, list)]
+        except json.JSONDecodeError:
+            pass
+    updated = {r["identifier"] for r in results}
+    merged["results"] = [r for r in merged["results"] if r.get("identifier") not in updated] + results
+    merged["failed"] = [f for f in merged["failed"] if f and f[0] not in updated] + failed
+    report.write_text(json.dumps(merged, indent=2) + "\n")
+    log(f"report: {report} ({len(merged['results'])} items)")
     return 1 if failed else 0
 
 
