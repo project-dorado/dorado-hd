@@ -1,6 +1,5 @@
 package com.heretek.dorado_hd.ui.apps.games
 
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,7 +20,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,6 +29,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -217,16 +217,20 @@ private fun HeartsTable(
         HeartsPass.ACROSS -> "passing across"
         HeartsPass.NONE -> "no pass this round"
     }
+    val totalsLine = "totals $totals   ·   round ${state.scores.values.sum()} pts · $passLabel · ${level.name.lowercase()}"
+    val opponentsLine = HeartsEngine.heartsSeats.filter { it != seat }.joinToString("   ") {
+        "${it.name.lowercase()} ${state.hands[it]?.size ?: 0}"
+    } + if (state.heartsBroken) "   · hearts broken" else ""
     Column(Modifier.fillMaxSize()) {
         BasicText(
-            text = "totals $totals   ·   round ${state.scores.values.sum()} pts · $passLabel · ${level.name.lowercase()}",
+            text = totalsLine,
             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.accent),
+            modifier = Modifier.appDescription(totalsLine),
         )
         BasicText(
-            text = HeartsEngine.heartsSeats.filter { it != seat }.joinToString("   ") {
-                "${it.name.lowercase()} ${state.hands[it]?.size ?: 0}"
-            } + if (state.heartsBroken) "   · hearts broken" else "",
+            text = opponentsLine,
             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
+            modifier = Modifier.appDescription(opponentsLine),
         )
         Spacer(Modifier.height(4.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -310,7 +314,7 @@ private fun HeartsAction(label: String, color: Color, onClick: () -> Unit) {
         text = label,
         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = color),
         modifier = Modifier
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) }
+            .appTap(label = label) { onClick() }
             .padding(vertical = 3.dp, horizontal = 2.dp),
     )
 }
@@ -325,7 +329,7 @@ private fun HeartsToggle(label: String, options: List<String>, selected: String,
             BasicText(
                 text = option,
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = if (active) colors.accent else colors.textSecondary),
-                modifier = Modifier.pointerInput(option) { detectTapGestures(onTap = { if (!active) onPick(option) }) }.padding(2.dp),
+                modifier = Modifier.appTap(label = option) { if (!active) onPick(option) }.padding(2.dp),
             )
         }
     }

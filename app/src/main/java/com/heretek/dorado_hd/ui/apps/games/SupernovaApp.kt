@@ -42,6 +42,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlin.math.min
 import kotlinx.coroutines.delay
@@ -219,7 +221,13 @@ fun SupernovaApp() {
     val current = game ?: return
     DetailScaffold(title = "supernova") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            val headerDescription = "score ${current.score}, ${modeLabel(current.mode)}, level ${current.level}, " +
+                "${current.dotsExploded} of ${current.neededDots} needed" +
+                if (current.mode == NovaMode.ENDLESS) "" else ", ${(current.timeLeftMs + 999) / 1000} seconds left"
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().appDescription(headerDescription),
+            ) {
                 BasicText(
                     text = "score ${current.score}",
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -326,7 +334,7 @@ private fun NovaButton(
             .height(30.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) },
+            .appTap(label = label) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(
@@ -341,7 +349,7 @@ private fun NovaText(label: String, onClick: () -> Unit) {
     val colors = LocalDoradoColors.current
     Box(
         modifier = Modifier
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) }
+            .appTap(label = label) { onClick() }
             .defaultMinSize(minWidth = 24.dp, minHeight = 24.dp)
             .padding(horizontal = 4.dp),
         contentAlignment = Alignment.Center,
@@ -361,21 +369,26 @@ private fun NovaField(
 ) {
     val colors = LocalDoradoColors.current
     Canvas(
-        modifier = modifier.pointerInput(state) {
-            detectTapGestures { offset ->
-                val scale = min(
-                    size.width / SupernovaEngine.FIELD_WIDTH,
-                    size.height / SupernovaEngine.FIELD_HEIGHT,
-                )
-                val ox = (size.width - SupernovaEngine.FIELD_WIDTH * scale) / 2f
-                val oy = (size.height - SupernovaEngine.FIELD_HEIGHT * scale) / 2f
-                val x = (offset.x - ox) / scale
-                val y = (offset.y - oy) / scale
-                if (x in 0f..SupernovaEngine.FIELD_WIDTH && y in 0f..SupernovaEngine.MAX_Y) {
-                    onTap(x, y)
+        modifier = modifier
+            .appDescription(
+                "supernova field, score ${state.score}, ${state.dotsExploded} of ${state.neededDots} needed, " +
+                    if (state.mode == NovaMode.ENDLESS) "endless mode" else "${(state.timeLeftMs + 999) / 1000} seconds left",
+            )
+            .pointerInput(state) {
+                detectTapGestures { offset ->
+                    val scale = min(
+                        size.width / SupernovaEngine.FIELD_WIDTH,
+                        size.height / SupernovaEngine.FIELD_HEIGHT,
+                    )
+                    val ox = (size.width - SupernovaEngine.FIELD_WIDTH * scale) / 2f
+                    val oy = (size.height - SupernovaEngine.FIELD_HEIGHT * scale) / 2f
+                    val x = (offset.x - ox) / scale
+                    val y = (offset.y - oy) / scale
+                    if (x in 0f..SupernovaEngine.FIELD_WIDTH && y in 0f..SupernovaEngine.MAX_Y) {
+                        onTap(x, y)
+                    }
                 }
-            }
-        },
+            },
     ) {
         val scale = min(
             size.width / SupernovaEngine.FIELD_WIDTH,

@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.design.LocalDoradoColors
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.components.DetailScaffold
@@ -70,7 +71,7 @@ internal fun EdgeText(text: String, color: Color, onClick: () -> Unit) {
         maxLines = 1,
         softWrap = false,
         modifier = Modifier
-            .pointerInput(Unit) { detectTapGestures(onTap = { onClick() }) }
+            .appTap(label = text) { onClick() }
             .padding(vertical = 4.dp, horizontal = 2.dp),
     )
 }
@@ -87,7 +88,7 @@ fun SolCardView(card: SolCard, width: Dp = DoradoTokens.CARD_W.dp, height: Dp = 
             .size(width = width, height = height)
             .background(bg)
             .padding(1.dp)
-            .pointerInput(Unit) { detectTapGestures(onTap = { onClick() }) },
+            .appTap(label = if (card.faceUp) "${rankLabel(card.rank)} of ${card.suit.name.lowercase()}" else "face down card") { onClick() },
     ) {
         if (card.faceUp) {
             BasicText(

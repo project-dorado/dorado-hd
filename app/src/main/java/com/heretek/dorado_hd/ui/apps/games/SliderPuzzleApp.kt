@@ -52,6 +52,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
@@ -184,7 +186,13 @@ fun SliderPuzzleApp() {
     DetailScaffold(title = "slider puzzle · ${current.size.label}", onBack = { paused = true; running = false }) {
         Box(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                val headerDescription = "moves ${current.moves}, time %d:%02d, %s by %s board".format(
+                    elapsed / 60000, (elapsed / 1000) % 60, current.size.rows, current.size.cols,
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().appDescription(headerDescription),
+                ) {
                     BasicText(
                         text = "moves ${current.moves}",
                         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -209,6 +217,9 @@ fun SliderPuzzleApp() {
                     Canvas(
                         modifier = Modifier
                             .fillMaxSize()
+                            .appDescription(
+                                "slider puzzle board, ${current.size.rows} by ${current.size.cols}, ${current.moves} moves",
+                            )
                             .pointerInput(current, solved) {
                                 detectTapGestures { offset ->
                                     if (solved) {
@@ -230,7 +241,7 @@ fun SliderPuzzleApp() {
                         Box(
                             Modifier
                                 .fillMaxSize()
-                                .pointerInput(Unit) { detectTapGestures { showResults = true } },
+                                .appTap(label = "show results") { showResults = true },
                         ) {
                             Column(
                                 Modifier
@@ -300,7 +311,7 @@ private fun sliderButton(label: String, modifier: Modifier = Modifier, active: B
             .height(30.dp)
             .background(if (active) colors.tilePressed else colors.tile)
             .border(0.5.dp, if (active) colors.accent else colors.border)
-            .pointerInput(label) { detectTapGestures { onClick() } },
+            .appTap(label = label) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(

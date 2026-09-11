@@ -50,6 +50,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlin.math.PI
 import kotlin.math.min
@@ -197,7 +199,14 @@ fun TikiTotemsApp() {
     val pack = TikiPacks.pack(packIndex)
     DetailScaffold(title = "tiki totems", onBack = { paused = true }) {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .appDescription(
+                        "${pack.label} level ${levelIndex + 1} of ${TikiPacks.LEVELS_PER_PACK}, blocks ${current.toDestroyRemaining}, stars ${progress.totalStars}",
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 BasicText(
                     text = "${pack.label} ${levelIndex + 1}/${TikiPacks.LEVELS_PER_PACK}",
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -235,7 +244,10 @@ fun TikiTotemsApp() {
                                     else -> Unit
                                 }
                             }
-                        },
+                        }
+                        .appDescription(
+                            "tiki board, ${pack.label} level ${levelIndex + 1}, blocks ${current.toDestroyRemaining}",
+                        ),
                 ) {
                     drawTikiWorld(current, packIndex, colors)
                 }
@@ -497,9 +509,7 @@ private fun TikiButton(
             .height(30.dp)
             .background(if (enabled) colors.tile else colors.elevated)
             .border(0.5.dp, colors.border)
-            .pointerInput(label, enabled) {
-                if (enabled) detectTapGestures(onTap = { onClick() })
-            },
+            .appTap(label = label, enabled = enabled) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(

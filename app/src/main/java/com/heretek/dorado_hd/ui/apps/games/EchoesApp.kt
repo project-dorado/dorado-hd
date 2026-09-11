@@ -4,7 +4,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,6 +50,8 @@ import com.heretek.dorado_hd.design.components.EdgeCropText
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlin.math.ceil
 import kotlin.math.min
@@ -283,7 +284,10 @@ fun EchoesApp() {
                                         )
                                     },
                                 )
-                            },
+                            }
+                            .appDescription(
+                                "echoes arena, ${current.arena.name}, crystals ${current.collectedCrystals} of ${current.totalCrystals}",
+                            ),
                     ) {
                         drawEchoesArena(current, colors, colors.background, stickOrigin, stickVector)
                     }
@@ -365,7 +369,14 @@ private fun formatTime(ms: Double): String {
 @Composable
 private fun EchoesHud(game: EchoesGame) {
     val colors = LocalDoradoColors.current
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .appDescription(
+                "${game.arena.name}, crystals ${game.collectedCrystals} of ${game.totalCrystals}, lives ${game.lives}, score ${game.score}",
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         BasicText(
             text = "${game.arena.name} ${game.collectedCrystals}/${game.totalCrystals}",
             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -510,9 +521,7 @@ private fun EchoesLevelSelect(
                                     0.5.dp,
                                     if (index < unlocked) colors.accent else colors.border,
                                 )
-                                .pointerInput(index, open) {
-                                    if (open) detectTapGestures(onTap = { onPick(index) })
-                                },
+                                .appTap(label = arena.name, enabled = open) { onPick(index) },
                             contentAlignment = Alignment.Center,
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -555,7 +564,7 @@ private fun EchoesButton(
             .height(30.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) },
+            .appTap(label = label) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         EdgeCropText(text = label, fontSize = DoradoTokens.TYPE_LIST.dp, color = colors.textPrimary)

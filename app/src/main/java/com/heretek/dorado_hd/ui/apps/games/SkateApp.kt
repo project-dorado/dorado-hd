@@ -2,7 +2,6 @@ package com.heretek.dorado_hd.ui.apps.games
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +40,8 @@ import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
 import com.heretek.dorado_hd.ui.apps.TiltState
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.apps.engine3d.Camera3d
 import com.heretek.dorado_hd.ui.apps.engine3d.Color4
 import com.heretek.dorado_hd.ui.apps.engine3d.Material3d
@@ -315,7 +316,14 @@ fun SkateApp() {
                     // enabled flag so a pause can still deliver the release (A-26).
                     val gesturesEnabled = rememberUpdatedState(!paused && !current.finished)
                     Box(Modifier.fillMaxSize().background(colors.background)) {
-                        Scene3dView(scene = scene, modifier = Modifier.fillMaxSize())
+                        Scene3dView(
+                            scene = scene,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .appDescription(
+                                    "skate pool scene, score ${current.score}, multiplier ${current.multiplier}, ${current.phase.name.lowercase()}",
+                                ),
+                        )
                         Box(
                             Modifier
                                 .fillMaxSize()
@@ -544,7 +552,12 @@ private fun SkateHud(state: SkateState) {
     val colors = LocalDoradoColors.current
     val def = SkateContent.event(state.event)
     Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .appDescription("score ${state.score}, multiplier ${state.multiplier}, ${state.phase.name.lowercase()}"),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             BasicText(
                 text = "score ${state.score}",
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_TITLE.sp, color = colors.textPrimary),
@@ -696,13 +709,12 @@ private fun SkateCareerMenu(career: SkateCareer, onPick: (SkateEventId) -> Unit)
     Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
         SkateContent.EVENTS.forEach { def ->
             val unlocked = career.isEventUnlocked(def.id)
-            val action: (() -> Unit)? = if (unlocked) { { onPick(def.id) } } else null
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     Modifier
                         .weight(1f)
                         .border(0.5.dp, if (unlocked) colors.border else colors.elevated)
-                        .tapAction(action)
+                        .appTap(label = def.title, enabled = unlocked) { onPick(def.id) }
                         .padding(horizontal = 8.dp, vertical = 5.dp),
                 ) {
                     Column {
@@ -913,7 +925,7 @@ private fun SkateButton(label: String, onClick: () -> Unit) {
             .height(28.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .tapAction(onClick)
+            .appTap(label = label) { onClick() }
             .padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -930,7 +942,7 @@ private fun SkateChip(label: String, selected: Boolean, enabled: Boolean, onClic
     Box(
         Modifier
             .background(if (selected) colors.accent else colors.tile)
-            .tapAction(if (enabled) onClick else null)
+            .appTap(label = label, enabled = enabled) { onClick() }
             .padding(horizontal = 6.dp, vertical = 6.dp),
     ) {
         BasicText(
@@ -947,6 +959,3 @@ private fun SkateChip(label: String, selected: Boolean, enabled: Boolean, onClic
         )
     }
 }
-
-private fun Modifier.tapAction(onClick: (() -> Unit)?): Modifier =
-    if (onClick == null) this else pointerInput(onClick) { detectTapGestures(onTap = { onClick() }) }

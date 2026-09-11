@@ -1,7 +1,6 @@
 package com.heretek.dorado_hd.ui.apps.games
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,7 +23,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,6 +33,9 @@ import com.heretek.dorado_hd.design.components.EdgeCropText
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appHold
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.apps.engine3d.Color4
 import com.heretek.dorado_hd.ui.apps.engine3d.Material3d
 import com.heretek.dorado_hd.ui.apps.engine3d.MeshData
@@ -252,7 +253,11 @@ fun PicturePuzzleApp() {
                     if (current != null) {
                         Scene3dView(
                             scene = scene,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .appDescription(
+                                    "3d picture puzzle board, ${current.config.key}, moves ${current.moves}, ${PicturePuzzleEngine.formatTime(current.elapsedMs)}",
+                                ),
                             onPick = { tag ->
                                 if (screen != PuzzleScreen.PLAY) return@Scene3dView
                                 val parsed = parseTag(tag) ?: return@Scene3dView
@@ -280,7 +285,11 @@ fun PicturePuzzleApp() {
                         )
                         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
                             Row(
-                                Modifier.fillMaxWidth(),
+                                Modifier
+                                    .fillMaxWidth()
+                                    .appDescription(
+                                        "time ${PicturePuzzleEngine.formatTime(current.elapsedMs)}, moves ${current.moves}, ${current.config.key}",
+                                    ),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
@@ -338,21 +347,6 @@ fun PicturePuzzleApp() {
     }
 }
 
-private fun Modifier.tapAction(
-    onPress: (() -> Unit)? = null,
-    onRelease: (() -> Unit)? = null,
-    onClick: (() -> Unit)? = null,
-): Modifier = pointerInput(onClick) {
-    detectTapGestures(
-        onPress = {
-            onPress?.invoke()
-            tryAwaitRelease()
-            onRelease?.invoke()
-        },
-        onTap = { onClick?.invoke() },
-    )
-}
-
 @Composable
 private fun HudButton(
     label: String,
@@ -361,10 +355,19 @@ private fun HudButton(
     onClick: (() -> Unit)? = null,
 ) {
     val colors = LocalDoradoColors.current
+    val action = if (onPress != null || onRelease != null) {
+        Modifier.appHold(
+            label = label,
+            onPress = { onPress?.invoke() },
+            onRelease = { onRelease?.invoke() },
+        )
+    } else {
+        Modifier.appTap(label = label) { onClick?.invoke() }
+    }
     Box(
         Modifier
             .background(colors.tile)
-            .tapAction(onPress, onRelease, onClick)
+            .then(action)
             .padding(horizontal = 8.dp, vertical = 6.dp),
     ) {
         EdgeCropText(text = label, fontSize = DoradoTokens.TYPE_CAPTION.dp)
@@ -378,7 +381,7 @@ private fun PuzzleOverlay(title: String, body: String, onClick: () -> Unit) {
         Modifier
             .fillMaxSize()
             .background(colors.background.copy(alpha = 0.86f))
-            .tapAction(onClick = onClick),
+            .appTap(label = title) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -442,7 +445,7 @@ private fun MenuChip(label: String, selected: Boolean, onClick: () -> Unit) {
     Box(
         Modifier
             .background(if (selected) colors.accent else colors.tile)
-            .tapAction(onClick = onClick)
+            .appTap(label = label) { onClick() }
             .padding(horizontal = 8.dp, vertical = 6.dp),
     ) {
         EdgeCropText(

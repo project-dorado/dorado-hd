@@ -49,6 +49,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
@@ -170,7 +172,8 @@ fun VineClimbApp() {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
+                    .horizontalScroll(rememberScrollState())
+                    .appDescription("score ${current.score}, best ${maxOf(highScore, current.score)}"),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 BasicText(
@@ -214,7 +217,8 @@ fun VineClimbApp() {
                                     }
                                 }
                             }
-                        },
+                        }
+                        .appDescription("vine climb scene, score ${current.score}"),
                 ) {
                     drawVineClimbScene(current, colors)
                 }
@@ -471,7 +475,7 @@ private fun VineClimbButton(
             .height(28.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) }
+            .appTap(label = label) { onClick() }
             .padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center,
     ) {

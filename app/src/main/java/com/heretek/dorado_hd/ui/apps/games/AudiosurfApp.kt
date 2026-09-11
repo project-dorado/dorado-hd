@@ -46,6 +46,8 @@ import com.heretek.dorado_hd.design.components.EdgeCropText
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.apps.engine3d.Color4
 import com.heretek.dorado_hd.ui.apps.engine3d.Material3d
 import com.heretek.dorado_hd.ui.apps.engine3d.Mat4
@@ -381,7 +383,14 @@ fun AudiosurfApp() {
                 )
             } else {
                 Box(Modifier.fillMaxSize()) {
-                    Scene3dView(scene = scene, modifier = Modifier.fillMaxSize())
+                    Scene3dView(
+                        scene = scene,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .appDescription(
+                                "audio surf course, ${ride.mode.name.lowercase()}, score ${ride.score}, chain ${ride.chain}",
+                            ),
+                    )
                     Box(
                         Modifier
                             .fillMaxSize()
@@ -551,7 +560,7 @@ private fun RidePickRow(pick: RidePick, medal: AudiosurfMedal?, onStart: () -> U
             .height(46.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(pick) { detectTapGestures(onTap = { onStart() }) }
+            .appTap(label = pick.title) { onStart() }
             .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -593,7 +602,14 @@ private fun RideHud(ride: RideState, reward: String?, onPause: () -> Unit) {
     val colors = LocalDoradoColors.current
     val fraction = (ride.trackPositionMs.toFloat() / ride.course.durationMs.toFloat()).coerceIn(0f, 1f)
     Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .appDescription(
+                    "score ${ride.score}, chain ${ride.chain}, speed ${(ride.speedScale * 100f).roundToInt()}%, ${ride.mode.name.lowercase()}",
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             BasicText(
                 text = "score ${ride.score}",
                 style = TextStyle(
@@ -706,7 +722,7 @@ private fun RideButton(label: String, onClick: () -> Unit) {
             .height(26.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) }
+            .appTap(label = label) { onClick() }
             .padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -729,7 +745,7 @@ private fun RideChip(label: String, selected: Boolean = false, onClick: () -> Un
             .height(26.dp)
             .background(if (selected) colors.accent else colors.tile)
             .border(0.5.dp, if (selected) colors.accent else colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) }
+            .appTap(label = label) { onClick() }
             .padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center,
     ) {

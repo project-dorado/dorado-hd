@@ -3,6 +3,8 @@ package com.heretek.dorado_hd.ui.apps.games
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +38,7 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -168,7 +171,13 @@ fun ReversiApp() {
     DetailScaffold(title = "reversi") {
         Box(Modifier.fillMaxSize()) {
             if (screen == ReversiScreen.SETUP) {
-                Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(DoradoTokens.EDGE.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
                     BasicText(
                         text = "black moves first",
                         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
@@ -226,16 +235,20 @@ fun ReversiApp() {
                 val myTurn = game.over || humanColor == null || game.turn == humanColor
                 val (b, w) = ReversiEngine.score(game.board)
                 val legal = remember(game.board, game.turn) { ReversiEngine.legalMoves(game.board, game.turn) }
+                val statusText = when {
+                    game.over && game.winner == ReversiEngine.EMPTY -> "draw $b—$w"
+                    game.over -> "${if (game.winner == ReversiEngine.BLACK) "black" else "white"} wins $b—$w"
+                    side == ReversiSide.NONE -> "black $b — white $w · ${if (game.turn == ReversiEngine.BLACK) "black" else "white"} to move"
+                    myTurn -> "you $b — ai $w · your move"
+                    else -> "you $b — ai $w · ai…"
+                }
                 Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().appDescription(statusText),
+                    ) {
                         BasicText(
-                            text = when {
-                                game.over && game.winner == ReversiEngine.EMPTY -> "draw $b—$w"
-                                game.over -> "${if (game.winner == ReversiEngine.BLACK) "black" else "white"} wins $b—$w"
-                                side == ReversiSide.NONE -> "black $b — white $w · ${if (game.turn == ReversiEngine.BLACK) "black" else "white"} to move"
-                                myTurn -> "you $b — ai $w · your move"
-                                else -> "you $b — ai $w · ai…"
-                            },
+                            text = statusText,
                             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = if (game.over) colors.accent else colors.textPrimary),
                             modifier = Modifier.weight(1f),
                         )
@@ -248,6 +261,14 @@ fun ReversiApp() {
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f)
+                            .appDescription(
+                                "reversi board, 8 by 8, black $b, white $w, " +
+                                    if (game.over) {
+                                        "game over"
+                                    } else {
+                                        "${if (game.turn == ReversiEngine.BLACK) "black" else "white"} to move, ${legal.size} legal moves"
+                                    },
+                            )
                             .pointerInput(game, screen, side) {
                                 detectTapGestures(onTap = { offset ->
                                     val s = min(size.width, size.height)

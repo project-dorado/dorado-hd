@@ -38,6 +38,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -274,15 +276,20 @@ fun CheckersApp() {
 
     DetailScaffold(title = "checkers") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            val statusText = if (state.winner != null) {
+                if (state.winner == humanColor) "you win" else "ai wins"
+            } else if (state.turn == humanColor) {
+                "your move · ${mode.name.lowercase()}"
+            } else {
+                "ai thinking"
+            }
+            val clockText = "%d:%02d · %d:%02d".format(redMs / 60000, (redMs / 1000) % 60, blackMs / 60000, (blackMs / 1000) % 60)
+            Row(
+                Modifier.fillMaxWidth().appDescription("$statusText, red $clockText"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 BasicText(
-                    text = if (state.winner != null) {
-                        if (state.winner == humanColor) "you win" else "ai wins"
-                    } else if (state.turn == humanColor) {
-                        "your move · ${mode.name.lowercase()}"
-                    } else {
-                        "ai thinking"
-                    },
+                    text = statusText,
                     style = TextStyle(
                         fontFamily = Selawik,
                         fontSize = DoradoTokens.TYPE_NOW_META.sp,
@@ -291,7 +298,7 @@ fun CheckersApp() {
                 )
                 Spacer(Modifier.weight(1f))
                 BasicText(
-                    text = "%d:%02d · %d:%02d".format(redMs / 60000, (redMs / 1000) % 60, blackMs / 60000, (blackMs / 1000) % 60),
+                    text = clockText,
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
                 )
             }
@@ -305,6 +312,14 @@ fun CheckersApp() {
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
+                    .appDescription(
+                        "checkers board, 8 by 8, ${state.board.sumOf { row -> row.count { it != null } }} pieces, " +
+                            when {
+                                state.winner != null -> "game over"
+                                state.turn == humanColor -> "your move"
+                                else -> "ai thinking"
+                            },
+                    )
                     .pointerInput(state, selected) {
                         detectTapGestures(onTap = { offset ->
                             val boardSize = min(size.width, size.height)
@@ -558,9 +573,7 @@ private fun CheckersButton(
             .height(30.dp)
             .background(if (active) colors.tilePressed else colors.tile)
             .border(0.5.dp, if (active) colors.accent else colors.border)
-            .pointerInput(label, enabled) {
-                if (enabled) detectTapGestures(onTap = { onClick() })
-            },
+            .appTap(label = label, enabled = enabled) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(

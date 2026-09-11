@@ -46,6 +46,7 @@ import com.heretek.dorado_hd.design.LocalDoradoColors
 import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.design.components.EdgeCropText
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
+import com.heretek.dorado_hd.ui.apps.appDescription
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.delay
 
@@ -408,7 +409,7 @@ private fun ChartPanel(series: List<Double>) {
             .height(112.dp)
             .background(colors.tile),
     ) {
-        Canvas(Modifier.fillMaxSize().padding(4.dp)) {
+        Canvas(Modifier.fillMaxSize().padding(4.dp).appDescription(chartDescription(series))) {
             if (series.size < 2) return@Canvas
             var min = series.first()
             var max = series.first()
@@ -720,6 +721,13 @@ private fun InfoScreen(onBack: () -> Unit) {
     }
 }
 
+private fun chartDescription(series: List<Double>): String {
+    if (series.size < 2) return "price chart: no data"
+    val low = series.minOrNull() ?: 0.0
+    val high = series.maxOrNull() ?: 0.0
+    return "price chart: low ${formatPrice(low)}, high ${formatPrice(high)}, latest ${formatPrice(series.last())}"
+}
+
 @Composable
 private fun MoneyArrow(direction: PriceDirection, size: Dp) {
     val colors = LocalDoradoColors.current
@@ -728,7 +736,12 @@ private fun MoneyArrow(direction: PriceDirection, size: Dp) {
         PriceDirection.DOWN -> colors.textInactive
         PriceDirection.FLAT -> colors.textInactive
     }
-    Canvas(Modifier.size(size)) {
+    val description = when (direction) {
+        PriceDirection.UP -> "price trend: up"
+        PriceDirection.DOWN -> "price trend: down"
+        PriceDirection.FLAT -> "price trend: flat"
+    }
+    Canvas(Modifier.size(size).appDescription(description)) {
         val w = this.size.width
         val h = this.size.height
         when (direction) {

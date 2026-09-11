@@ -3,7 +3,6 @@ package com.heretek.dorado_hd.ui.apps.games
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -55,6 +54,9 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appHold
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -375,7 +377,16 @@ private fun FingerpaintGame(
     DetailScaffold(title = "fingerpaint") {
         Box(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
             Column(Modifier.fillMaxSize()) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .appDescription(
+                            "round ${session.round} of ${session.totalRounds}, " +
+                                session.players.joinToString(", ") { "${it.name} ${it.score}" } +
+                                (round?.let { ", time ${ceil(it.remainingMs / 1000.0).toInt()} seconds" } ?: ""),
+                        ),
+                ) {
                     FingerpaintText("round ${session.round}/${session.totalRounds}", colors.textSecondary)
                     Spacer(Modifier.width(8.dp))
                     FingerpaintText(
@@ -391,15 +402,11 @@ private fun FingerpaintGame(
                         Modifier
                             .border(0.5.dp, colors.border)
                             .background(if (peeking) colors.tilePressed else colors.tile)
-                            .pointerInput(round?.word) {
-                                detectTapGestures(
-                                    onPress = {
-                                        peeking = true
-                                        tryAwaitRelease()
-                                        peeking = false
-                                    },
-                                )
-                            }
+                            .appHold(
+                                label = "hold to peek",
+                                onPress = { peeking = true },
+                                onRelease = { peeking = false },
+                            )
                             .padding(horizontal = 8.dp, vertical = 4.dp),
                     ) {
                         FingerpaintText(
@@ -434,7 +441,16 @@ private fun FingerpaintGame(
                 )
                 Spacer(Modifier.height(4.dp))
                 if (session.phase == FingerpaintPhase.DRAW && round != null) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .appDescription(
+                            "round ${session.round} of ${session.totalRounds}, " +
+                                session.players.joinToString(", ") { "${it.name} ${it.score}" } +
+                                ", time ${ceil(round.remainingMs / 1000.0).toInt()} seconds",
+                        ),
+                ) {
                         val name = guesser?.let { session.players.getOrNull(it)?.name } ?: ""
                         FingerpaintText("$name:", colors.textSecondary)
                         Spacer(Modifier.width(6.dp))
@@ -681,7 +697,7 @@ private fun FingerpaintSwatch(color: Color, selected: Boolean, onClick: () -> Un
             .size(20.dp)
             .background(color)
             .border(if (selected) 2.dp else 0.5.dp, if (selected) colors.textPrimary else colors.border)
-            .pointerInput(color, selected) { detectTapGestures(onTap = { onClick() }) },
+            .appTap(label = "colour swatch") { onClick() },
     )
 }
 
@@ -693,7 +709,7 @@ private fun FingerpaintBrushChip(width: Float, selected: Boolean, onClick: () ->
             .size(22.dp)
             .background(if (selected) colors.tilePressed else colors.tile)
             .border(0.5.dp, if (selected) colors.accent else colors.border)
-            .pointerInput(width, selected) { detectTapGestures(onTap = { onClick() }) },
+            .appTap(label = "brush width $width") { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         Box(Modifier.size(width.dp.coerceAtMost(16.dp)).background(colors.textPrimary))
@@ -714,9 +730,7 @@ private fun FingerpaintButton(
             .height(26.dp)
             .background(if (active) colors.tilePressed else colors.tile)
             .border(0.5.dp, if (active) colors.accent else colors.border)
-            .pointerInput(label, enabled, active) {
-                if (enabled) detectTapGestures(onTap = { onClick() })
-            },
+            .appTap(label = label, enabled = enabled) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         FingerpaintText(
@@ -804,7 +818,8 @@ private fun FingerpaintCanvas(
                         }
                     }
                 }
-            },
+            }
+            .appDescription("drawing canvas, ${document.strokes.size} strokes"),
     ) {
         drawRect(colors.background)
         for (stroke in document.strokes) drawFingerpaintStroke(stroke, palette)

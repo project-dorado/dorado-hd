@@ -42,6 +42,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -186,7 +188,10 @@ fun HexicApp() {
                 current.mode == HexicMode.SURVIVAL -> "survival level ${current.survivalLevel}"
                 else -> "target ${current.combosLeft}"
             }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.fillMaxWidth().appDescription("score ${current.score}, level ${current.level}, $status"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 BasicText(
                     text = "score ${current.score}",
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -361,9 +366,7 @@ private fun HexicButton(
             .height(30.dp)
             .background(if (active) colors.tilePressed else colors.tile)
             .border(0.5.dp, if (active) colors.accent else colors.border)
-            .pointerInput(label, enabled) {
-                if (enabled) detectTapGestures(onTap = { onClick() })
-            },
+            .appTap(label = label, enabled = enabled) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(
@@ -387,25 +390,27 @@ private fun HexicBoardCanvas(
 ) {
     val cursorColor = colors.accent
     Canvas(
-        modifier = modifier.pointerInput(board, cursor) {
-            detectTapGestures { offset ->
-                val metrics = hexicMetrics(size.width.toFloat(), size.height.toFloat())
-                var best: HexPos? = null
-                var bestDistance = Float.MAX_VALUE
-                for (pos in HexicEngine.allPositions()) {
-                    val center = metrics.center(pos)
-                    val dx = offset.x - center.x
-                    val dy = offset.y - center.y
-                    val distance = dx * dx + dy * dy
-                    if (distance < bestDistance) {
-                        bestDistance = distance
-                        best = pos
+        modifier = modifier
+            .appDescription("hexic honeycomb board, ${HexicEngine.allPositions().count { board[it] != null }} pieces")
+            .pointerInput(board, cursor) {
+                detectTapGestures { offset ->
+                    val metrics = hexicMetrics(size.width.toFloat(), size.height.toFloat())
+                    var best: HexPos? = null
+                    var bestDistance = Float.MAX_VALUE
+                    for (pos in HexicEngine.allPositions()) {
+                        val center = metrics.center(pos)
+                        val dx = offset.x - center.x
+                        val dy = offset.y - center.y
+                        val distance = dx * dx + dy * dy
+                        if (distance < bestDistance) {
+                            bestDistance = distance
+                            best = pos
+                        }
                     }
+                    val threshold = metrics.radius * 1.15f
+                    if (best != null && bestDistance <= threshold * threshold) onTap(best)
                 }
-                val threshold = metrics.radius * 1.15f
-                if (best != null && bestDistance <= threshold * threshold) onTap(best)
-            }
-        },
+            },
     ) {
         val metrics = hexicMetrics(size.width, size.height)
         for (pos in HexicEngine.allPositions()) {

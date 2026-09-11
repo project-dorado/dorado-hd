@@ -347,6 +347,7 @@ private fun MetronomeDial(
         modifier = Modifier
             .fillMaxWidth()
             .height(170.dp)
+            .appDescription("metronome: $bpm bpm, ${if (running) "running" else "stopped"}")
             // Keyed on Unit so the gesture coroutine survives bpm changes;
             // keying on bpm cancelled the drag after a single step.
             .pointerInput(Unit) {

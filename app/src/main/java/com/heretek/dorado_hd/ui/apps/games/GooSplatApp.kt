@@ -3,7 +3,6 @@ package com.heretek.dorado_hd.ui.apps.games
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -44,6 +43,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlin.math.min
 import kotlin.math.sin
@@ -209,7 +210,12 @@ fun GooSplatApp() {
     val current = game ?: return
     DetailScaffold(title = "goo splat") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.fillMaxWidth().appDescription(
+                    "score ${current.score}, level ${current.level}, target ${current.scoreTarget}, best $bestScore",
+                ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 BasicText(
                     text = "score ${current.score}",
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -236,6 +242,7 @@ fun GooSplatApp() {
                     Canvas(
                         modifier = Modifier
                             .fillMaxSize()
+                            .appDescription("goo splat board, score ${current.score}, level ${current.level}, tap the jellies")
                             .pointerInput(current.over) {
                                 if (!current.over) {
                                     val vp = gooViewport(size.width.toFloat(), size.height.toFloat())
@@ -405,7 +412,7 @@ private fun GooSplatButton(label: String, modifier: Modifier = Modifier, onClick
             .height(30.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) },
+            .appTap(label = label) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(

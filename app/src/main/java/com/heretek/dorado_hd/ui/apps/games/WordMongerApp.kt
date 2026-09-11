@@ -52,6 +52,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.launch
 import kotlin.math.floor
@@ -200,7 +202,8 @@ fun WordMongerApp() {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
+                    .horizontalScroll(rememberScrollState())
+                    .appDescription("score ${current.score}, level ${current.level}, tiles ${current.liveTiles}"),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 BasicText(
@@ -293,7 +296,8 @@ fun WordMongerApp() {
                                     next.events.forEach { wordmongerSfx(it)?.let(bank::play) }
                                 }
                             }
-                        },
+                        }
+                        .appDescription("word board, score ${current.score}, level ${current.level}"),
                 ) {
                     drawWordMongerBoard(current, colors, textMeasurer, letterStyle, smallStyle)
                 }
@@ -667,7 +671,7 @@ private fun WordMongerButton(label: String, modifier: Modifier = Modifier, enabl
             .height(30.dp)
             .background(colors.tile)
             .border(0.5.dp, if (enabled) colors.border else colors.elevated)
-            .pointerInput(label, enabled) { if (enabled) detectTapGestures(onTap = { onClick() }) },
+            .appTap(label = label, enabled = enabled) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(

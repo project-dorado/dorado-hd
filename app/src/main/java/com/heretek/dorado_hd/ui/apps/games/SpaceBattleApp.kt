@@ -9,7 +9,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -21,7 +20,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -52,6 +53,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
@@ -384,7 +387,12 @@ private fun SpaceBattleMenu(
 ) {
     val colors = LocalDoradoColors.current
     DetailScaffold(title = "space battle 2") {
-        Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(DoradoTokens.EDGE.dp),
+        ) {
             if (resumeStage != null) {
                 SbButton("continue stage $resumeStage", Modifier.fillMaxWidth()) { onResume() }
                 Spacer(Modifier.height(4.dp))
@@ -471,9 +479,7 @@ private fun SpaceBattleStageSelect(
                             .width(44.dp)
                             .background(if (unlocked) colors.tile else colors.elevated)
                             .border(0.5.dp, if (unlocked) colors.border else colors.elevated)
-                            .pointerInput(id, unlocked) {
-                                if (unlocked) detectTapGestures(onTap = { onPick(id) })
-                            },
+                            .appTap(label = "stage $id", enabled = unlocked) { onPick(id) },
                         contentAlignment = Alignment.Center,
                     ) {
                         BasicText(
@@ -528,7 +534,7 @@ private fun SpaceBattleRaceSelect(
                             .width(44.dp)
                             .background(colors.tile)
                             .border(0.5.dp, colors.border)
-                            .pointerInput(track.id) { detectTapGestures(onTap = { onPick(track.id) }) },
+                            .appTap(label = track.name) { onPick(track.id) },
                         contentAlignment = Alignment.Center,
                     ) {
                         BasicText(
@@ -642,8 +648,8 @@ private fun SpaceBattleCustomize(
                             .height(24.dp)
                             .background(sbPaletteColor(palette))
                             .border(if (build.colors[category] == palette) 1.5.dp else 0.5.dp, colors.border)
-                            .pointerInput(palette) {
-                                detectTapGestures(onTap = { onProgress(progress.copy(build = build.withColor(category, palette))) })
+                            .appTap(label = "palette ${palette + 1}") {
+                                onProgress(progress.copy(build = build.withColor(category, palette)))
                             },
                     )
                 }
@@ -674,9 +680,7 @@ private fun SbButton(
             .height(28.dp)
             .background(if (active) colors.tilePressed else colors.tile)
             .border(0.5.dp, if (active) colors.accent else colors.border)
-            .pointerInput(label, enabled) {
-                if (enabled) detectTapGestures(onTap = { onClick() })
-            }
+            .appTap(label = label, enabled = enabled) { onClick() }
             .padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -733,7 +737,18 @@ private fun SpaceBattleGameScreen(
             }
             Spacer(Modifier.height(3.dp))
             if (state.mode == SpaceBattleEngine.GameMode.CAMPAIGN) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .appDescription(
+                        if (state.mode == SpaceBattleEngine.GameMode.RACE) {
+                            "score ${state.score}, race ${state.race}, lives ${state.lives}, ammo ${state.ammo}"
+                        } else {
+                            "score ${state.score}, stage ${state.stage} of 10, lives ${state.lives}, ammo ${state.ammo}"
+                        },
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                     BasicText(
                         text = "shields",
                         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
@@ -794,7 +809,14 @@ private fun SpaceBattleGameScreen(
                                 onDragEnd = { onInput(SpaceBattleEngine.SbInput()) },
                                 onDragCancel = { onInput(SpaceBattleEngine.SbInput()) },
                             )
-                        },
+                        }
+                        .appDescription(
+                            if (state.mode == SpaceBattleEngine.GameMode.RACE) {
+                                "space battle race scene, score ${state.score}, race ${state.race}"
+                            } else {
+                                "space battle scene, score ${state.score}, stage ${state.stage}"
+                            },
+                        ),
                 ) {
                     drawSpaceBattleScene(state, colors, canvasW, canvasH)
                 }

@@ -59,6 +59,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.delay
 import kotlin.math.min
@@ -182,21 +184,27 @@ fun ShellGameApp() {
     DetailScaffold(title = "shell game of the future", onBack = { paused = true }) {
         Box(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                val phaseLabel = when (shell.phase) {
+                    ShellPhase.SITTING -> "shake or tap to charge"
+                    ShellPhase.LAUNCH -> "get ready"
+                    ShellPhase.FLYING -> "watch the flight"
+                    ShellPhase.CHOOSE -> "pick a robot"
+                    ShellPhase.SUCCESS -> "trophy won"
+                    ShellPhase.FAILURE -> "empty"
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().appDescription(
+                        "trophies ${shell.unlocked.size} of ${ShellGameEngine.TROPHIES.size}, $phaseLabel",
+                    ),
+                ) {
                     BasicText(
                         text = "trophies ${shell.unlocked.size}/${ShellGameEngine.TROPHIES.size}",
                         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
                     )
                     Spacer(Modifier.width(8.dp))
                     BasicText(
-                        text = when (shell.phase) {
-                            ShellPhase.SITTING -> "shake or tap to charge"
-                            ShellPhase.LAUNCH -> "get ready"
-                            ShellPhase.FLYING -> "watch the flight"
-                            ShellPhase.CHOOSE -> "pick a robot"
-                            ShellPhase.SUCCESS -> "trophy won"
-                            ShellPhase.FAILURE -> "empty"
-                        },
+                        text = phaseLabel,
                         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -214,6 +222,7 @@ fun ShellGameApp() {
                     Canvas(
                         modifier = Modifier
                             .fillMaxSize()
+                            .appDescription("shell game, $phaseLabel, charge ${shell.charge.toInt()}")
                             .pointerInput(shell.phase) {
                                 detectTapGestures { offset ->
                                     val x = view.invX(offset.x)
@@ -297,7 +306,7 @@ private fun ShellOverlay(title: String, detail: String, hint: String, onClick: (
         Modifier
             .fillMaxSize()
             .background(colors.background.copy(alpha = 0.88f))
-            .pointerInput(Unit) { detectTapGestures { onClick() } },
+            .appTap(label = hint) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {

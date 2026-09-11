@@ -1,6 +1,5 @@
 package com.heretek.dorado_hd.ui.apps.games
 
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,7 +22,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,6 +31,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -209,16 +209,20 @@ private fun TablePanel(
     onNextRound: () -> Unit,
 ) {
     val colors = LocalDoradoColors.current
+    val scoreLine = "S-N ${state.score.first} · W-E ${state.score.second}   bags ${state.teamBags.first}/${state.teamBags.second} · to ${state.target} · ${level.name.lowercase()}"
+    val bidLine = SpadesSeat.entries.joinToString("   ") {
+        "${it.name.take(1).lowercase()}:${state.bids[it] ?: 0}${if (state.nilBid[it] == true) "n" else ""} (${state.tricksTaken[it]?.size ?: 0})"
+    }
     Column(Modifier.fillMaxSize()) {
         BasicText(
-            text = "S-N ${state.score.first} · W-E ${state.score.second}   bags ${state.teamBags.first}/${state.teamBags.second} · to ${state.target} · ${level.name.lowercase()}",
+            text = scoreLine,
             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.accent),
+            modifier = Modifier.appDescription(scoreLine),
         )
         BasicText(
-            text = SpadesSeat.entries.joinToString("   ") {
-                "${it.name.take(1).lowercase()}:${state.bids[it] ?: 0}${if (state.nilBid[it] == true) "n" else ""} (${state.tricksTaken[it]?.size ?: 0})"
-            },
+            text = bidLine,
             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
+            modifier = Modifier.appDescription(bidLine),
         )
         Spacer(Modifier.height(2.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -322,7 +326,7 @@ private fun SpadesAction(label: String, color: Color, onClick: () -> Unit) {
         text = label,
         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = color),
         modifier = Modifier
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) }
+            .appTap(label = label) { onClick() }
             .padding(vertical = 3.dp, horizontal = 2.dp),
     )
 }
@@ -337,7 +341,7 @@ private fun SpadesToggle(label: String, options: List<String>, selected: String,
             BasicText(
                 text = option,
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = if (active) colors.accent else colors.textSecondary),
-                modifier = Modifier.pointerInput(option) { detectTapGestures(onTap = { if (!active) onPick(option) }) }.padding(2.dp),
+                modifier = Modifier.appTap(label = option) { if (!active) onPick(option) }.padding(2.dp),
             )
         }
     }

@@ -48,6 +48,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -262,7 +264,8 @@ fun BeesApp() {
                                         play("select")
                                     }
                                 }
-                            },
+                            }
+                            .appDescription("flower board, score ${current.score}, bees ${current.bees.size}"),
                     ) {
                         drawBeesBoard(current, view, colors, selectedBee)
                     }
@@ -304,7 +307,10 @@ private fun BeesHud(current: BeesState, progress: BeesEngine.BeesProgress) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
+            .horizontalScroll(rememberScrollState())
+            .appDescription(
+                "score ${current.score}, streak ${current.streak}, bees ${current.bees.size}, ${remaining / 1000} seconds left",
+            ),
     ) {
         BasicText(
             text = "score ${current.score}",
@@ -358,7 +364,7 @@ private fun BeesBeeBar(current: BeesState, selected: Int?, onSelect: (Int) -> Un
                     .height(24.dp)
                     .background(if (bee.id == selected) colors.tilePressed else colors.tile)
                     .border(0.5.dp, if (bee.id == selected) colors.accent else colors.border)
-                    .pointerInput(bee.id) { detectTapGestures { onSelect(bee.id) } },
+                    .appTap(label = bee.kind.label) { onSelect(bee.id) },
                 contentAlignment = Alignment.Center,
             ) {
                 BasicText(
@@ -555,7 +561,7 @@ private fun BeesButton(
             .height(28.dp)
             .background(if (active) colors.tilePressed else colors.tile)
             .border(0.5.dp, if (active) colors.accent else colors.border)
-            .pointerInput(label, enabled) { if (enabled) detectTapGestures { onClick() } },
+            .appTap(label = label, enabled = enabled) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(

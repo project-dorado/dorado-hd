@@ -42,6 +42,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -165,7 +167,12 @@ fun ColorSpillApp() {
     val current = game ?: return
     DetailScaffold(title = "color spill") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().appDescription(
+                    "level ${current.level}, moves ${current.moves} of ${current.maxMoves}, par ${current.par}, ${clockLabel(current.elapsedMs)}",
+                ),
+            ) {
                 BasicText(
                     text = "level ${current.level}",
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -193,7 +200,7 @@ fun ColorSpillApp() {
                             .height(30.dp)
                             .background(palette[i])
                             .border(0.5.dp, if (i == current.originColor()) colors.accent else colors.border)
-                            .pointerInput(i, current) { detectTapGestures { pick(i) } },
+                            .appTap(label = "color ${i + 1}") { pick(i) },
                     )
                 }
             }
@@ -243,7 +250,7 @@ private fun SpillButton(
             .height(30.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) },
+            .appTap(label = label) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(
@@ -267,16 +274,22 @@ private fun SpillBoard(
     ) {
         val side = minOf(maxWidth, maxHeight)
         Canvas(
-            Modifier.size(side).pointerInput(state) {
-                detectTapGestures { offset ->
-                    val cellW = size.width.toFloat() / state.width
-                    val cellH = size.height.toFloat() / state.height
-                    val col = (offset.x / cellW).toInt().coerceIn(0, state.width - 1)
-                    val row = (offset.y / cellH).toInt().coerceIn(0, state.height - 1)
-                    val value = state.cell(col, row)
-                    if (value >= 0) onPick(value)
-                }
-            },
+            Modifier
+                .size(side)
+                .appDescription(
+                    "color spill board, ${state.width} by ${state.height}, level ${state.level}, " +
+                        "${state.moves} of ${state.maxMoves} moves",
+                )
+                .pointerInput(state) {
+                    detectTapGestures { offset ->
+                        val cellW = size.width.toFloat() / state.width
+                        val cellH = size.height.toFloat() / state.height
+                        val col = (offset.x / cellW).toInt().coerceIn(0, state.width - 1)
+                        val row = (offset.y / cellH).toInt().coerceIn(0, state.height - 1)
+                        val value = state.cell(col, row)
+                        if (value >= 0) onPick(value)
+                    }
+                },
         ) {
             val cellW = size.width / state.width
             val cellH = size.height / state.height

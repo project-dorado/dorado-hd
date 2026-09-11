@@ -87,7 +87,7 @@ fun CroppedHeader(
             .height(visibleHeight)
             .clipToBounds()
             .background(Color.Transparent)
-            .clickable(onClick = onBack),
+            .clickable(onClickLabel = "back", onClick = onBack),
     ) {
         BasicText(
             text = text,

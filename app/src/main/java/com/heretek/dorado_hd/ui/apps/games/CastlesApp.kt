@@ -47,6 +47,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -201,7 +203,10 @@ fun CastlesApp() {
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
+                        .horizontalScroll(rememberScrollState())
+                        .appDescription(
+                            "level ${current.level}, gold ${current.gold}, you ${current.humanHp.toInt()}, enemy ${current.enemyHp.toInt()}",
+                        ),
                 ) {
                     BasicText(
                         text = "level ${current.level}",
@@ -279,7 +284,10 @@ fun CastlesApp() {
                                     )
                                     applyBattle { CastlesEngine.collectCoins(it, worldX, 150f) }
                                 }
-                            },
+                            }
+                            .appDescription(
+                                "castle battle, level ${current.level}, you ${current.humanHp.toInt()}, enemy ${current.enemyHp.toInt()}",
+                            ),
                     ) {
                         drawCastlesBattle(current, view, colors)
                         if (dragging) {
@@ -457,7 +465,7 @@ private fun CastlesButton(
             .height(28.dp)
             .background(if (enabled) colors.tile else colors.background)
             .border(0.5.dp, colors.border)
-            .pointerInput(label, enabled) { if (enabled) detectTapGestures { onClick() } },
+            .appTap(label = label, enabled = enabled) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(

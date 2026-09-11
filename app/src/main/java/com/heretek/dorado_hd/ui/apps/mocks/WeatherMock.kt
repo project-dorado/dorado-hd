@@ -49,6 +49,7 @@ import com.heretek.dorado_hd.design.LocalDoradoColors
 import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.design.components.EdgeCropText
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
+import com.heretek.dorado_hd.ui.apps.appDescription
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.delay
 
@@ -491,7 +492,18 @@ private fun WxBody(text: String) {
 @Composable
 private fun SkyGlyph(sky: Sky?, size: Dp, modifier: Modifier = Modifier) {
     val colors = LocalDoradoColors.current
-    Canvas(modifier.size(size).clipToBounds()) {
+    val description = when (sky) {
+        null -> "weather: no reading"
+        Sky.SUN -> "weather: sunny"
+        Sky.PARTLY -> "weather: partly cloudy"
+        Sky.CLOUD -> "weather: cloudy"
+        Sky.RAIN -> "weather: rain"
+        Sky.STORM -> "weather: storm"
+        Sky.SNOW -> "weather: snow"
+        Sky.FOG -> "weather: fog"
+        Sky.WIND -> "weather: wind"
+    }
+    Canvas(modifier.size(size).clipToBounds().appDescription(description)) {
         val w = this.size.width
         val h = this.size.height
         val ink = colors.textPrimary

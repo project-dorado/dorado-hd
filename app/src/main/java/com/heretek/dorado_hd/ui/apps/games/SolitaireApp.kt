@@ -2,7 +2,6 @@ package com.heretek.dorado_hd.ui.apps.games
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,7 +25,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -37,6 +35,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -277,7 +277,15 @@ fun SolitaireApp() {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     // Score/time live in a weighted column so the action labels
                     // keep their intrinsic width and never break mid-word.
-                    Column(Modifier.weight(1f)) {
+                    Column(
+                        Modifier.weight(1f).appDescription(
+                            "score ${state.score}, time %d:%02d, %s deal, %s scoring".format(
+                                elapsed / 60, elapsed % 60,
+                                if (state.deal == SolDealType.ONE) "1-card" else "3-card",
+                                state.scoring.name.lowercase(),
+                            ),
+                        ),
+                    ) {
                         BasicText(
                             text = "score ${state.score}",
                             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -335,7 +343,7 @@ fun SolitaireApp() {
                                 Modifier
                                     .size(width = 26.dp, height = 36.dp)
                                     .background(if (hinted) colors.tilePressed else colors.elevated)
-                                    .pointerInput(i) { detectTapGestures(onTap = { tapFoundation(i) }) },
+                                    .appTap(label = "foundation ${i + 1}") { tapFoundation(i) },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 BasicText(
@@ -347,7 +355,13 @@ fun SolitaireApp() {
                     }
                 }
 
-                Row(modifier = Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .appDescription("solitaire tableau, 7 piles, ${state.tableau.sumOf { it.size }} cards"),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
                     for (c in 0 until 7) {
                         val col = state.tableau[c]
                         val hintedTo = hint?.to?.kind == SolPileKind.TABLEAU && hint?.to?.index == c

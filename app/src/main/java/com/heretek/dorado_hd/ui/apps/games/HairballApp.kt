@@ -3,7 +3,6 @@ package com.heretek.dorado_hd.ui.apps.games
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,7 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,6 +37,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.apps.rememberTilt
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlin.math.cos
@@ -167,7 +167,12 @@ fun HairballApp() {
     val current = game ?: return
     DetailScaffold(title = "hairball") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.fillMaxWidth().appDescription(
+                    "score ${current.score}, speed %.1f, best $best".format(current.speed),
+                ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 BasicText(
                     text = "score %06d".format(current.score),
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -192,9 +197,11 @@ fun HairballApp() {
                     Canvas(
                         modifier = Modifier
                             .fillMaxSize()
-                            .pointerInput(current.lost) {
-                                if (!current.lost) detectTapGestures { paused = !paused }
-                            },
+                            .appDescription(
+                                "hairball board, score ${current.score}, " +
+                                    if (current.lost) "game over" else "tilt to steer",
+                            )
+                            .appTap(label = "pause", enabled = !current.lost) { paused = !paused },
                     ) {
                         val vp = hairballViewport(size.width, size.height)
                         drawRect(colors.background)
@@ -313,7 +320,7 @@ private fun HairballButton(label: String, modifier: Modifier = Modifier, onClick
             .height(30.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) },
+            .appTap(label = label) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(

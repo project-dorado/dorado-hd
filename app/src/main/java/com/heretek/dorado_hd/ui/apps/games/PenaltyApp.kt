@@ -4,7 +4,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,6 +45,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -635,7 +636,7 @@ private fun PenaltyCountrySelect(onPick: (Int) -> Unit, onBack: () -> Unit) {
                         .fillMaxWidth()
                         .background(colors.tile)
                         .border(0.5.dp, colors.border)
-                        .pointerInput(team.id) { detectTapGestures(onTap = { onPick(team.id) }) }
+                        .appTap(label = team.name) { onPick(team.id) }
                         .padding(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -924,7 +925,12 @@ private fun PenaltyGoalStreak(
     val colors = LocalDoradoColors.current
     DetailScaffold(title = "penalty · goal streak") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .appDescription("streak ${state.streak}, best ${state.best}, kicks ${state.attempts}"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 BasicText(
                     text = "streak ${state.streak}",
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -973,7 +979,12 @@ private fun PenaltyHud(
     opponentTeam: PenaltyTeam,
     colors: DoradoColors,
 ) {
-    Column {
+    Column(
+        Modifier.appDescription(
+            "${playerTeam.name} ${match.playerGoals}, ${opponentTeam.name} ${match.opponentGoals}" +
+                if (match.suddenDeath) ", sudden death" else "",
+        ),
+    ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             BasicText(
                 text = playerTeam.name,
@@ -1089,7 +1100,8 @@ private fun PenaltyCanvas(
                         },
                     )
                 }
-            },
+            }
+            .appDescription("penalty pitch, stage ${stage.label}"),
     ) {
         drawPenaltyScene(colors, stage, trajectory, animFrame, zone, reaction)
     }
@@ -1210,7 +1222,7 @@ private fun PenaltyZoneButton(label: String, active: Boolean, colors: DoradoColo
             .height(26.dp)
             .background(if (active) colors.tilePressed else colors.tile)
             .border(0.5.dp, if (active) colors.accent else colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) }
+            .appTap(label = label) { onClick() }
             .padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -1267,7 +1279,7 @@ private fun PenaltyButton(label: String, onClick: () -> Unit) {
             .height(30.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) }
+            .appTap(label = label) { onClick() }
             .padding(horizontal = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -1319,7 +1331,11 @@ private fun PenaltyScores(scores: List<Triple<Int, String, Long>>, onBack: () ->
                 )
             }
             scores.forEachIndexed { index, (score, meta, _) ->
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                     BasicText(
                         text = "${index + 1}",
                         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textSecondary),

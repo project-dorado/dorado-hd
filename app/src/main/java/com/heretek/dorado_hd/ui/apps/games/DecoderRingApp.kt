@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -45,6 +46,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
@@ -164,7 +167,14 @@ fun DecoderRingApp() {
     val latestState = rememberUpdatedState(current)
     DetailScaffold(title = "decoder ring", onBack = { screen = "menu"; paused = false }) {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .appDescription(
+                        "puzzle ${current.puzzleIndex + 1}, ${current.difficulty.label}, check ${if (current.checkEnabled) "on" else "off"}",
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 BasicText(
                     text = "puzzle ${current.puzzleIndex + 1} · ${current.difficulty.label}",
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -213,7 +223,10 @@ fun DecoderRingApp() {
                                     },
                                 )
                             }
-                        },
+                        }
+                        .appDescription(
+                            "decoder board, puzzle ${current.puzzleIndex + 1}, ${current.difficulty.label}",
+                        ),
                 ) {
                     drawDecoderBoard(puzzle, current, colors, zoom, pan)
                 }
@@ -314,7 +327,12 @@ private fun DecoderMenu(
 ) {
     val colors = LocalDoradoColors.current
     DetailScaffold(title = "decoder ring") {
-        Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(DoradoTokens.EDGE.dp),
+        ) {
             if (saved != null) {
                 DecoderButton("continue puzzle ${saved.puzzleIndex + 1} (${saved.difficulty.label})", Modifier.fillMaxWidth()) { onResume() }
                 Spacer(Modifier.height(4.dp))
@@ -342,9 +360,7 @@ private fun DecoderMenu(
                                     .height(34.dp)
                                     .background(if (unlocked) colors.tile else colors.elevated)
                                     .border(0.5.dp, if (unlocked) colors.border else colors.elevated)
-                                    .pointerInput(index, unlocked) {
-                                        if (unlocked) detectTapGestures(onTap = { onPick(index) })
-                                    },
+                                    .appTap(label = "level ${index + 1}", enabled = unlocked) { onPick(index) },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -421,7 +437,8 @@ private fun DecoderRack(
                         }
                     }
                 }
-            },
+            }
+            .appDescription("letter rack, ${DecoderRingEngine.NUM_LETTERS} letters"),
     ) {
         val cellW = size.width / columns
         val cellH = size.height / rows
@@ -575,9 +592,7 @@ private fun DecoderButton(
             .height(28.dp)
             .background(if (active) colors.tilePressed else colors.tile)
             .border(0.5.dp, if (active) colors.accent else colors.border)
-            .pointerInput(label, enabled) {
-                if (enabled) detectTapGestures(onTap = { onClick() })
-            },
+            .appTap(label = label, enabled = enabled) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(

@@ -3,7 +3,6 @@ package com.heretek.dorado_hd.ui.apps.games
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -32,7 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -45,6 +43,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlin.math.min
 import kotlinx.coroutines.launch
@@ -185,7 +185,12 @@ fun AnimalgramsApp() {
             }
             Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
             val percent = AnimalgramsEngine.animalPercent(progress, current.animal)
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .appDescription("${current.animal.lowercase()}, words ${current.found.size} of ${current.available}, save $percent%"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 BasicText(
                     text = current.animal.lowercase(),
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -207,7 +212,8 @@ fun AnimalgramsApp() {
                     .fillMaxWidth()
                     .height(36.dp)
                     .background(colors.elevated)
-                    .border(0.5.dp, if (AnimalgramsEngine.isValidCandidate(current)) colors.accent else colors.border),
+                    .border(0.5.dp, if (AnimalgramsEngine.isValidCandidate(current)) colors.accent else colors.border)
+                    .appDescription("typed word ${current.typedWord.ifEmpty { "empty" }}"),
                 contentAlignment = Alignment.CenterStart,
             ) {
                 BasicText(
@@ -322,9 +328,7 @@ private fun AnimalgramsTiles(tiles: List<AnimalgramsEngine.Tile>, onTap: (Int) -
                             .size(42.dp)
                             .background(if (tile.used) colors.tilePressed else colors.tile)
                             .border(0.5.dp, if (tile.used) colors.accent else colors.border)
-                            .pointerInput(index, tile.used) {
-                                if (!tile.used) detectTapGestures(onTap = { onTap(index) })
-                            },
+                            .appTap(label = tile.ch.uppercaseChar().toString(), enabled = !tile.used) { onTap(index) },
                         contentAlignment = Alignment.Center,
                     ) {
                         BasicText(
@@ -388,7 +392,7 @@ private fun AnimalgramsHabitats(progress: AnimalgramsEngine.AnagramProgress, onP
                         .padding(vertical = 3.dp)
                         .background(colors.tile)
                         .border(0.5.dp, if (star) colors.accent else colors.border)
-                        .pointerInput(habitat.key) { detectTapGestures(onTap = { onPick(habitat) }) }
+                        .appTap(label = habitat.label) { onPick(habitat) }
                         .padding(10.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -426,7 +430,7 @@ private fun AnimalgramsAnimals(
                         .padding(vertical = 3.dp)
                         .background(colors.tile)
                         .border(0.5.dp, if (percent >= 100) colors.accent else colors.border)
-                        .pointerInput(animal) { detectTapGestures(onTap = { onPick(animal) }) }
+                        .appTap(label = animal.lowercase()) { onPick(animal) }
                         .padding(10.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -533,7 +537,7 @@ private fun AnimalgramsButton(label: String, modifier: Modifier = Modifier, enab
             .height(30.dp)
             .background(colors.tile)
             .border(0.5.dp, if (enabled) colors.border else colors.elevated)
-            .pointerInput(label, enabled) { if (enabled) detectTapGestures(onTap = { onClick() }) },
+            .appTap(label = label, enabled = enabled) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(

@@ -47,6 +47,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -205,7 +207,14 @@ fun DrOpticsApp() {
     val level = DrOpticsEngine.level(current.levelIndex)
     DetailScaffold(title = "dr optics", onBack = { paused = true }) {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .appDescription(
+                        "level ${current.levelIndex + 1}, ${level.name}, moves ${current.moves}, beams ${current.beams.size}, ${(current.completion * 100f).roundToInt()}% complete",
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 BasicText(
                     text = "level ${current.levelIndex + 1} · ${level.name}",
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -274,7 +283,10 @@ fun DrOpticsApp() {
                                     }
                                 },
                             )
-                        },
+                        }
+                        .appDescription(
+                            "optics board, level ${current.levelIndex + 1}, ${level.name}, ${(current.completion * 100f).roundToInt()}% complete",
+                        ),
                 ) {
                     drawOpticsScene(current, colors, selected)
                 }
@@ -568,9 +580,7 @@ private fun DrOpticsButton(
             .height(28.dp)
             .background(if (active) colors.tilePressed else colors.tile)
             .border(0.5.dp, if (active) colors.accent else colors.border)
-            .pointerInput(label, enabled) {
-                if (enabled) detectTapGestures(onTap = { onClick() })
-            }
+            .appTap(label = label, enabled = enabled) { onClick() }
             .padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center,
     ) {

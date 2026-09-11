@@ -3,7 +3,6 @@ package com.heretek.dorado_hd.ui.apps.games
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,7 +33,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,6 +43,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlin.math.cos
 import kotlin.math.min
@@ -187,7 +187,12 @@ fun RunAndJumpApp() {
     val current = game ?: return
     DetailScaffold(title = "run and jump") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            val headerDescription = "level ${currentLevel.id}, coins ${current.collected.size} of ${current.totalCoins}, " +
+                if (progress.fast) "fast speed" else "normal speed"
+            Row(
+                Modifier.fillMaxWidth().appDescription(headerDescription),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 BasicText(
                     text = "level ${currentLevel.id}",
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -210,8 +215,15 @@ fun RunAndJumpApp() {
                 Canvas(
                     Modifier
                         .fillMaxSize()
-                        .pointerInput(active) {
-                            detectTapGestures { if (active) game = RnJEngine.tap(game ?: return@detectTapGestures, level ?: return@detectTapGestures) }
+                        .appDescription(
+                            "run and jump board, level ${currentLevel.id}, coins ${current.collected.size} of ${current.totalCoins}",
+                        )
+                        .appTap(label = "tap to jump", enabled = active) {
+                            val currentGame = game
+                            val currentLevelState = level
+                            if (currentGame != null && currentLevelState != null) {
+                                game = RnJEngine.tap(currentGame, currentLevelState)
+                            }
                         },
                 ) {
                     drawRnJScene(currentLevel, current, colors)
@@ -452,7 +464,7 @@ private fun RnJButton(label: String, onClick: () -> Unit) {
             .height(28.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) }
+            .appTap(label = label) { onClick() }
             .padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -570,9 +582,7 @@ private fun RnJLevelSelect(
                             .size(34.dp)
                             .background(if (stat?.completed == true) colors.tilePressed else colors.tile)
                             .border(0.5.dp, if (unlocked) colors.border else colors.elevated)
-                            .pointerInput(level.id, unlocked) {
-                                if (unlocked) detectTapGestures(onTap = { onPick(level) })
-                            },
+                            .appTap(label = "level ${level.id}", enabled = unlocked) { onPick(level) },
                         contentAlignment = Alignment.Center,
                     ) {
                         BasicText(

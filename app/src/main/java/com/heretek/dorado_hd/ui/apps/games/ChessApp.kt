@@ -39,6 +39,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -272,14 +274,19 @@ fun ChessApp() {
 
     DetailScaffold(title = "chess") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            val statusText = when {
+                state.status.isNotEmpty() -> state.status
+                twoPlayer -> "${state.turn.name.lowercase()} to move"
+                state.turn == humanColor -> "your move"
+                else -> "thinking…"
+            }
+            val clockText = "%d:%02d".format(elapsedMs / 60000, (elapsedMs / 1000) % 60)
+            Row(
+                Modifier.fillMaxWidth().appDescription("$statusText, $clockText elapsed"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 BasicText(
-                    text = when {
-                        state.status.isNotEmpty() -> state.status
-                        twoPlayer -> "${state.turn.name.lowercase()} to move"
-                        state.turn == humanColor -> "your move"
-                        else -> "thinking…"
-                    },
+                    text = statusText,
                     style = TextStyle(
                         fontFamily = Selawik,
                         fontSize = DoradoTokens.TYPE_NOW_META.sp,
@@ -288,7 +295,7 @@ fun ChessApp() {
                 )
                 Spacer(Modifier.weight(1f))
                 BasicText(
-                    text = "%d:%02d".format(elapsedMs / 60000, (elapsedMs / 1000) % 60),
+                    text = clockText,
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
                 )
             }
@@ -306,6 +313,10 @@ fun ChessApp() {
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
+                    .appDescription(
+                        "chess board, 8 by 8, ${state.board.sumOf { row -> row.count { it != null } }} pieces, " +
+                            if (state.status.isNotEmpty()) state.status else "${state.turn.name.lowercase()} to move",
+                    )
                     .pointerInput(state, selected, confirmUndo) {
                         detectTapGestures(onTap = { offset ->
                             if (!engine && !twoPlayer) return@detectTapGestures
@@ -582,9 +593,7 @@ private fun ChessButton(
             .height(30.dp)
             .background(if (active) colors.tilePressed else colors.tile)
             .border(0.5.dp, if (active) colors.accent else colors.border)
-            .pointerInput(label, enabled) {
-                if (enabled) detectTapGestures(onTap = { onClick() })
-            },
+            .appTap(label = label, enabled = enabled) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(

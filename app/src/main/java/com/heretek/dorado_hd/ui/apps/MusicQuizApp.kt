@@ -1,7 +1,6 @@
 package com.heretek.dorado_hd.ui.apps
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,8 +26,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.PointerInputScope
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
@@ -306,11 +303,11 @@ private fun QuizMenu(
         Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        EdgeCropText(text = "mega mix", fontSize = DoradoTokens.TYPE_MENU_ITEM.dp, color = colors.accent, modifier = Modifier.pointerInput(Unit) { tap { onStart() } })
-        EdgeCropText(text = "custom mix — $mixName", fontSize = DoradoTokens.TYPE_LIST.dp, color = colors.textSecondary, modifier = Modifier.pointerInput(Unit) { tap { onChooseMix() } })
-        EdgeCropText(text = "answers: ${difficulty.name.lowercase()} (${difficulty.optionCount})", fontSize = DoradoTokens.TYPE_LIST.dp, modifier = Modifier.pointerInput(Unit) { tap { onToggleDifficulty() } })
-        EdgeCropText(text = "bonus round: ${if (bonusEnabled) "on" else "off"}", fontSize = DoradoTokens.TYPE_LIST.dp, modifier = Modifier.pointerInput(Unit) { tap { onToggleBonus() } })
-        EdgeCropText(text = "sound: ${soundLabels[soundLevel]}", fontSize = DoradoTokens.TYPE_LIST.dp, modifier = Modifier.pointerInput(Unit) { tap { onCycleSound() } })
+        EdgeCropText(text = "mega mix", fontSize = DoradoTokens.TYPE_MENU_ITEM.dp, color = colors.accent, modifier = Modifier.appTap(label = "start") { onStart() })
+        EdgeCropText(text = "custom mix — $mixName", fontSize = DoradoTokens.TYPE_LIST.dp, color = colors.textSecondary, modifier = Modifier.appTap(label = "custom mix") { onChooseMix() })
+        EdgeCropText(text = "answers: ${difficulty.name.lowercase()} (${difficulty.optionCount})", fontSize = DoradoTokens.TYPE_LIST.dp, modifier = Modifier.appTap(label = "toggle difficulty") { onToggleDifficulty() })
+        EdgeCropText(text = "bonus round: ${if (bonusEnabled) "on" else "off"}", fontSize = DoradoTokens.TYPE_LIST.dp, modifier = Modifier.appTap(label = "toggle bonus round") { onToggleBonus() })
+        EdgeCropText(text = "sound: ${soundLabels[soundLevel]}", fontSize = DoradoTokens.TYPE_LIST.dp, modifier = Modifier.appTap(label = "cycle sound") { onCycleSound() })
         if (tracks.count { QuizEngine.isContentValid(it) } < difficulty.optionCount) {
             EdgeCropText(text = "need more content for this mode", fontSize = DoradoTokens.TYPE_NOW_META.dp, color = colors.textInactive)
         }
@@ -359,10 +356,10 @@ private fun QuizMixPicker(
                 text = if (mix == current) "$mix —" else mix,
                 fontSize = DoradoTokens.TYPE_LIST.dp,
                 color = if (mix == current) colors.accent else colors.textPrimary,
-                modifier = Modifier.fillMaxWidth().pointerInput(mix) { tap { onPick(mix) } }.padding(vertical = 4.dp),
+                modifier = Modifier.fillMaxWidth().appTap(label = mix) { onPick(mix) }.padding(vertical = 4.dp),
             )
         }
-        EdgeCropText(text = "back", fontSize = DoradoTokens.TYPE_LIST.dp, color = colors.textSecondary, modifier = Modifier.pointerInput(Unit) { tap { onBack() } })
+        EdgeCropText(text = "back", fontSize = DoradoTokens.TYPE_LIST.dp, color = colors.textSecondary, modifier = Modifier.appTap(label = "back") { onBack() })
     }
 }
 
@@ -403,10 +400,16 @@ private fun QuizRound(
                     text = if (paused) "resume" else "pause",
                     fontSize = DoradoTokens.TYPE_NOW_META.dp,
                     color = colors.textSecondary,
-                    modifier = Modifier.pointerInput(Unit) { tap { onPause() } },
+                    modifier = Modifier.appTap(label = if (paused) "resume" else "pause") { onPause() },
                 )
             }
-            Box(Modifier.fillMaxWidth().height(4.dp).background(colors.tile)) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(4.dp)
+                    .background(colors.tile)
+                    .appDescription("time left ${seconds.toInt().coerceAtLeast(0)} of ${totalSeconds.toInt()} seconds"),
+            ) {
                 Box(
                     Modifier.fillMaxWidth((seconds / totalSeconds).coerceIn(0f, 1f)).fillMaxHeight().background(colors.accent),
                 )
@@ -423,7 +426,7 @@ private fun QuizRound(
                         text = "play clip",
                         fontSize = DoradoTokens.TYPE_LIST.dp,
                         color = colors.accent,
-                        modifier = Modifier.pointerInput(Unit) { tap { onPlayClip() } },
+                        modifier = Modifier.appTap(label = "play clip") { onPlayClip() },
                     )
                 }
                 if (!bonus) {
@@ -431,7 +434,7 @@ private fun QuizRound(
                         text = "hint (${state.hintsLeft})",
                         fontSize = DoradoTokens.TYPE_LIST.dp,
                         color = if (state.hintsLeft > 0) colors.accent else colors.textInactive,
-                        modifier = Modifier.pointerInput(Unit) { tap { onHint() } },
+                        modifier = Modifier.appTap(label = "hint") { onHint() },
                     )
                 }
             }
@@ -461,9 +464,7 @@ private fun QuizRound(
                         color = color,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .pointerInput(index, bonus, state.phase) {
-                                tap { if (bonus) onBonusAnswer(index) else onAnswer(index) }
-                            }
+                            .appTap(label = option) { if (bonus) onBonusAnswer(index) else onAnswer(index) }
                             .padding(vertical = 4.dp),
                     )
                 }
@@ -487,8 +488,8 @@ private fun QuizRound(
                 ) {
                     Spacer(Modifier.height(40.dp))
                     EdgeCropText(text = "paused", fontSize = DoradoTokens.TYPE_MENU_ITEM.dp)
-                    EdgeCropText(text = "resume", fontSize = DoradoTokens.TYPE_LIST.dp, color = colors.accent, modifier = Modifier.pointerInput(Unit) { tap { onPause() } })
-                    EdgeCropText(text = "main menu", fontSize = DoradoTokens.TYPE_LIST.dp, color = colors.accent, modifier = Modifier.pointerInput(Unit) { tap { onQuit() } })
+                    EdgeCropText(text = "resume", fontSize = DoradoTokens.TYPE_LIST.dp, color = colors.accent, modifier = Modifier.appTap(label = "resume") { onPause() })
+                    EdgeCropText(text = "main menu", fontSize = DoradoTokens.TYPE_LIST.dp, color = colors.accent, modifier = Modifier.appTap(label = "main menu") { onQuit() })
                 }
             }
         }
@@ -519,11 +520,7 @@ private fun QuizResults(
             color = colors.textSecondary,
         )
         Spacer(Modifier.height(8.dp))
-        EdgeCropText(text = "play again", fontSize = DoradoTokens.TYPE_LIST.dp, color = colors.accent, modifier = Modifier.pointerInput(Unit) { tap { onAgain() } })
-        EdgeCropText(text = "main menu", fontSize = DoradoTokens.TYPE_LIST.dp, color = colors.textSecondary, modifier = Modifier.pointerInput(Unit) { tap { onMenu() } })
+        EdgeCropText(text = "play again", fontSize = DoradoTokens.TYPE_LIST.dp, color = colors.accent, modifier = Modifier.appTap(label = "play again") { onAgain() })
+        EdgeCropText(text = "main menu", fontSize = DoradoTokens.TYPE_LIST.dp, color = colors.textSecondary, modifier = Modifier.appTap(label = "main menu") { onMenu() })
     }
-}
-
-private suspend fun PointerInputScope.tap(action: () -> Unit) {
-    detectTapGestures { action() }
 }

@@ -47,6 +47,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -219,7 +221,10 @@ fun BbqBattleApp() {
                                     val tower = snapshot.towers.firstOrNull { it.x == cellX && it.y == cellY }
                                     popup = BbqPopup(BbqPoint(cellX, cellY), tower)
                                 }
-                            },
+                            }
+                            .appDescription(
+                                "bbq grid, $BBQ_GRID_W columns by $BBQ_GRID_H rows, food ${current.foodHp}, wave ${current.completedWaves + 1}",
+                            ),
                     ) {
                         val view = bbqView(size.width, size.height)
                         drawBbqBoard(current, view, colors)
@@ -285,7 +290,10 @@ private fun BbqHud(current: BbqBattleState, speed: Float, best: Int, onPause: ()
     Row(
         Modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
+            .horizontalScroll(rememberScrollState())
+            .appDescription(
+                "food ${current.foodHp}, credits ${current.credits}, wave ${current.completedWaves + 1} of ${BbqBattleEngine.WIN_WAVES}, speed $speed",
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         BasicText(
@@ -472,7 +480,7 @@ private fun BbqPanelButton(
             .height(26.dp)
             .background(if (enabled) colors.tile else colors.background)
             .border(0.5.dp, colors.border)
-            .pointerInput(label, enabled) { if (enabled) detectTapGestures { onClick() } },
+            .appTap(label = label, enabled = enabled) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(
@@ -537,7 +545,8 @@ private fun BbqSpeedSlider(speed: Float, onSpeed: (Float) -> Unit, modifier: Mod
                     val fraction = (1f - offset.y / size.height).coerceIn(0f, 1f)
                     onSpeed(1f + fraction * 2f)
                 }
-            },
+            }
+            .appDescription("speed slider, $speed times"),
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.fillMaxSize()) {

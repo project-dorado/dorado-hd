@@ -1,6 +1,7 @@
 package com.heretek.dorado_hd.ui.apps.games
 
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,7 +20,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,6 +30,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -210,7 +212,10 @@ private fun MenuPanel(
     onCash: () -> Unit,
     onEvent: (PokerTournamentEvent) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(
+        Modifier.verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
         BasicText(
             text = "bankroll ${tournament.bankroll}",
             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -222,7 +227,7 @@ private fun MenuPanel(
                 BasicText(
                     text = d.name.lowercase(),
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = if (active) colors.accent else colors.textSecondary),
-                    modifier = Modifier.pointerInput(d) { detectTapGestures(onTap = { if (!active) onDifficulty(d) }) },
+                    modifier = Modifier.appTap(label = d.name.lowercase()) { if (!active) onDifficulty(d) },
                 )
             }
         }
@@ -252,10 +257,12 @@ private fun TablePanel(
 ) {
     val colors = LocalDoradoColors.current
     val terminal = table.phase == PokerTablePhase.SHOWDOWN || table.phase == PokerTablePhase.DONE
+    val potLine = "pot ${table.pot} · ${table.phase.name.lowercase()} · blinds ${table.smallBlind}/${table.bigBlind} · hand ${table.handNumber}"
     Column(Modifier.fillMaxSize()) {
         BasicText(
-            text = "pot ${table.pot} · ${table.phase.name.lowercase()} · blinds ${table.smallBlind}/${table.bigBlind} · hand ${table.handNumber}",
+            text = potLine,
             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.accent),
+            modifier = Modifier.appDescription(potLine),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             table.board.forEach { SolCardView(it, width = 26.dp, height = 34.dp) {} }
@@ -311,8 +318,8 @@ private fun TablePanel(
                             BasicText(
                                 text = "${kind.name.lowercase()} $raiseTo",
                                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.accent),
-                                modifier = Modifier.pointerInput(kind, raiseTo) {
-                                    detectTapGestures(onTap = { onAction(TableAction(kind, raiseTo)) })
+                                modifier = Modifier.appTap(label = "${kind.name.lowercase()} $raiseTo") {
+                                    onAction(TableAction(kind, raiseTo))
                                 },
                             )
                             HoldemAction("+", colors.textSecondary) { onRaiseTo((raiseTo + table.minChip).coerceAtMost(max)) }
@@ -345,7 +352,7 @@ private fun HoldemAction(label: String, color: Color, onClick: () -> Unit) {
         text = label,
         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = color),
         modifier = Modifier
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) }
+            .appTap(label = label) { onClick() }
             .padding(vertical = 2.dp, horizontal = 1.dp),
     )
 }

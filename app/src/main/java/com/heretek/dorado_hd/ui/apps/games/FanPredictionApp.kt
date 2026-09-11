@@ -3,7 +3,6 @@ package com.heretek.dorado_hd.ui.apps.games
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,7 +28,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,6 +37,7 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -285,7 +284,7 @@ private fun FanSportsScreen(
                         .fillMaxWidth()
                         .background(colors.tile)
                         .border(0.5.dp, colors.border)
-                        .pointerInput(entry) { detectTapGestures(onTap = { onSport(entry) }) }
+                        .appTap(label = entry.label) { onSport(entry) }
                         .padding(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -390,7 +389,9 @@ private fun FanGamesScreen(
                         .fillMaxWidth()
                         .background(if (prediction != null) colors.tilePressed else colors.tile)
                         .border(0.5.dp, if (prediction != null) colors.accent else colors.border)
-                        .pointerInput(fixture.id, locked) { detectTapGestures(onTap = { onFixture(fixture) }) }
+                        .appTap(
+                            label = "${FanTeams.byId(fixture.homeId)?.name ?: "?"} versus ${FanTeams.byId(fixture.awayId)?.name ?: "?"}",
+                        ) { onFixture(fixture) }
                         .padding(8.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -534,7 +535,7 @@ private fun FanScoreField(label: String, value: String, active: Boolean, onClick
                 .size(width = 48.dp, height = 30.dp)
                 .background(if (active) colors.tilePressed else colors.tile)
                 .border(0.5.dp, if (active) colors.accent else colors.border)
-                .pointerInput(label, active) { detectTapGestures(onTap = { onClick() }) },
+                .appTap(label = label) { onClick() },
             contentAlignment = Alignment.Center,
         ) {
             BasicText(
@@ -571,7 +572,7 @@ private fun FanKey(label: String, colors: com.heretek.dorado_hd.design.DoradoCol
             .size(width = 34.dp, height = 28.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) },
+            .appTap(label = label) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(
@@ -683,7 +684,7 @@ private fun FanFavoritesScreen(
                         .fillMaxWidth()
                         .background(if (selected) colors.tilePressed else colors.tile)
                         .border(0.5.dp, if (selected) colors.accent else colors.border)
-                        .pointerInput(team.id) { detectTapGestures(onTap = { onTeam(team.id) }) }
+                        .appTap(label = team.name) { onTeam(team.id) }
                         .padding(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -820,7 +821,7 @@ private fun FanButton(label: String, onClick: () -> Unit) {
             .height(26.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) }
+            .appTap(label = label) { onClick() }
             .padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -839,7 +840,7 @@ private fun FanPickButton(label: String, active: Boolean, onClick: () -> Unit) {
             .height(24.dp)
             .background(if (active) colors.tilePressed else colors.tile)
             .border(0.5.dp, if (active) colors.accent else colors.border)
-            .pointerInput(label, active) { detectTapGestures(onTap = { onClick() }) }
+            .appTap(label = label) { onClick() }
             .padding(horizontal = 6.dp),
         contentAlignment = Alignment.Center,
     ) {

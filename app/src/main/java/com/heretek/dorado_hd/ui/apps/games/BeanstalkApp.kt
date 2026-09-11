@@ -48,6 +48,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.apps.rememberTilt
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlin.math.min
@@ -170,7 +172,10 @@ fun BeanstalkApp() {
                                 val worldY = offset.y / size.height * BeanstalkEngine.VIEW_H
                                 tap = worldX to worldY
                             }
-                        },
+                        }
+                        .appDescription(
+                            "beanstalk world, score ${current.score}, height ${current.maxHeight}, boss ${current.bossesSpawned}",
+                        ),
                 ) {
                     drawBeanstalkWorld(current, colors)
                 }
@@ -229,7 +234,12 @@ private fun beanstalkSfx(event: BeanstalkEngine.Event): String? = when (event) {
 @Composable
 private fun BeanstalkHud(current: BeanstalkEngine.State, banner: BeanstalkEngine.Banner?) {
     val colors = LocalDoradoColors.current
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .appDescription("score ${current.score}, height ${current.maxHeight}, bonus ${current.bonus}, boss ${current.bossesSpawned}"),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         BasicText(
             text = "score ${current.score}",
             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -504,7 +514,7 @@ private fun BeanstalkButton(label: String, modifier: Modifier = Modifier, onClic
             .height(30.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) },
+            .appTap(label = label) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(

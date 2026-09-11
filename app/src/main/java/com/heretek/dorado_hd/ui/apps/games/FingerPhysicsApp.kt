@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -49,6 +51,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlin.math.PI
 import kotlin.math.min
@@ -190,7 +194,17 @@ fun FingerPhysicsApp() {
                 FpButton(if (paused) "play" else "pause") { paused = !paused }
             }
             Spacer(Modifier.height(2.dp))
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .appDescription(
+                        "shapes ${current.spawnRemaining}, " + when (current.mode.medalKind) {
+                            FpMedalKind.HEIGHT -> "stack ${current.maxHeight.roundToInt()} of ${current.level.heightToWin.roundToInt()}"
+                            FpMedalKind.TIME -> "time ${current.timeLeftMs() / 1000L} seconds"
+                        } + ", stars ${progress.points}",
+                    ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 BasicText(
                     text = "shapes ${current.spawnRemaining}",
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textPrimary),
@@ -254,7 +268,10 @@ fun FingerPhysicsApp() {
                                     FingerPhysicsEngine.dragTo(current, point.x, point.y)
                                 },
                             )
-                        },
+                        }
+                        .appDescription(
+                            "physics board, ${current.mode.label} ${current.slot} of 9, shapes ${current.spawnRemaining}",
+                        ),
                 ) {
                     drawFingerWorld(current, colors)
                 }
@@ -312,7 +329,12 @@ private fun FingerPhysicsMenu(
 ) {
     val colors = LocalDoradoColors.current
     DetailScaffold(title = "finger physics") {
-        Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(DoradoTokens.EDGE.dp),
+        ) {
             val last = progress.lastMode
             if (last != null) {
                 FpButton("continue ${last.label} ${progress.lastSlot}/9", Modifier.fillMaxWidth()) { onContinue() }
@@ -501,9 +523,7 @@ private fun FpButton(
             .height(30.dp)
             .background(if (enabled) colors.tile else colors.elevated)
             .border(0.5.dp, colors.border)
-            .pointerInput(label, enabled) {
-                if (enabled) detectTapGestures(onTap = { onClick() })
-            },
+            .appTap(label = label, enabled = enabled) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(

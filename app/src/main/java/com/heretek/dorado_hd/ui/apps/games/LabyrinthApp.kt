@@ -3,7 +3,6 @@ package com.heretek.dorado_hd.ui.apps.games
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +44,8 @@ import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
 import com.heretek.dorado_hd.ui.apps.TiltState
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.apps.engine3d.Color4
 import com.heretek.dorado_hd.ui.apps.engine3d.Mat4
 import com.heretek.dorado_hd.ui.apps.engine3d.Material3d
@@ -239,9 +240,23 @@ fun LabyrinthApp() {
     val current = game ?: return
     DetailScaffold(title = "labyrinth", onBack = { paused = true }) {
         Box(Modifier.fillMaxSize().background(colors.background)) {
-            Scene3dView(scene = scene, modifier = Modifier.fillMaxSize())
+            Scene3dView(
+                scene = scene,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .appDescription(
+                        "labyrinth, ${current.maze.name}, pickups ${current.collected.size} of ${current.maze.pickups.size}, deaths ${current.deaths}",
+                    ),
+            )
             Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .appDescription(
+                            "${current.maze.name}, ${formatTime(current.elapsedMs)}, pickups ${current.collected.size} of ${current.maze.pickups.size}, deaths ${current.deaths}",
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     BasicText(
                         text = "${current.maze.name} · ${formatTime(current.elapsedMs)}",
                         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -631,9 +646,7 @@ private fun LabLevelSelect(
                                     .aspectRatio(1.5f)
                                     .background(if (open) colors.tile else colors.elevated)
                                     .border(0.5.dp, if (id in progress.completed) colors.accent else colors.border)
-                                    .pointerInput(id, open) {
-                                        if (open) detectTapGestures(onTap = { onPick(id) })
-                                    },
+                                    .appTap(label = "level ${id - pack.firstLevel + 1}", enabled = open) { onPick(id) },
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -693,7 +706,7 @@ private fun LabOptions(
                             .height(30.dp)
                             .background(if (active) colors.accent else colors.tile)
                             .border(0.5.dp, colors.border)
-                            .pointerInput(step) { detectTapGestures(onTap = { onTilt(value) }) },
+                            .appTap(label = "tilt ${(value * 100).toInt()}") { onTilt(value) },
                         contentAlignment = Alignment.Center,
                     ) {
                         BasicText(
@@ -720,7 +733,7 @@ private fun LabOptions(
                         Modifier
                             .background(if (active) colors.accent else colors.tile)
                             .border(0.5.dp, colors.border)
-                            .pointerInput(option) { detectTapGestures(onTap = { onControl(option) }) }
+                            .appTap(label = option.name.lowercase()) { onControl(option) }
                             .padding(horizontal = 10.dp, vertical = 6.dp),
                     ) {
                         BasicText(
@@ -786,7 +799,8 @@ private fun LabTouchPad(onTilt: (Offset) -> Unit) {
                         onTilt(change.position - Offset(size.width / 2f, size.height / 2f))
                     },
                 )
-            },
+            }
+            .appDescription("touch steering pad, drag to tilt"),
         contentAlignment = Alignment.Center,
     ) {
         BasicText(
@@ -808,7 +822,7 @@ private fun LabButton(
             .height(30.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) },
+            .appTap(label = label) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         EdgeCropText(text = label, fontSize = DoradoTokens.TYPE_LIST.dp, color = colors.textPrimary)

@@ -4,7 +4,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,6 +43,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.apps.rememberTilt
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlin.math.PI
@@ -265,22 +266,19 @@ fun SnowballApp() {
     val current = game ?: return
     DetailScaffold(title = "snowball") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            val levelLine = if (current.mode == SnowMode.CAMPAIGN) "level ${SnowballEngine.levelCode(current.level)}" else "survival"
+            val coinsLine = if (current.mode == SnowMode.CAMPAIGN) "coins ${current.coins.size}" else SnowballEngine.scoreLabel(current.score)
+            Row(
+                Modifier.fillMaxWidth().appDescription("snowball, $levelLine, $coinsLine"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 BasicText(
-                    text = if (current.mode == SnowMode.CAMPAIGN) {
-                        "level ${SnowballEngine.levelCode(current.level)}"
-                    } else {
-                        "survival"
-                    },
+                    text = levelLine,
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
                 )
                 Spacer(Modifier.weight(1f))
                 BasicText(
-                    text = if (current.mode == SnowMode.CAMPAIGN) {
-                        "coins ${current.coins.size}"
-                    } else {
-                        SnowballEngine.scoreLabel(current.score)
-                    },
+                    text = coinsLine,
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textPrimary),
                 )
                 Spacer(Modifier.width(10.dp))
@@ -291,9 +289,8 @@ fun SnowballApp() {
                 Canvas(
                     Modifier
                         .fillMaxSize()
-                        .pointerInput(Unit) {
-                            detectTapGestures { togglePause() }
-                        }
+                        .appDescription("snowball board, $levelLine, $coinsLine")
+                        .appTap(label = "pause") { togglePause() }
                         .pointerInput(sensorAvailable) {
                             if (!sensorAvailable) {
                                 detectDragGestures { change, amount ->
@@ -490,7 +487,7 @@ private fun SnowButton(label: String, onClick: () -> Unit) {
             .height(28.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) }
+            .appTap(label = label) { onClick() }
             .padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -574,9 +571,7 @@ private fun SnowLevelSelect(completed: Set<Int>, onPick: (Int) -> Unit, onBack: 
                                     },
                                 )
                                 .border(0.5.dp, if (isCompleted) colors.accent else colors.border)
-                                .pointerInput(level, isUnlocked) {
-                                    if (isUnlocked) detectTapGestures(onTap = { onPick(level) })
-                                },
+                                .appTap(label = "level $level", enabled = isUnlocked) { onPick(level) },
                             contentAlignment = Alignment.Center,
                         ) {
                             BasicText(

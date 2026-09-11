@@ -4,7 +4,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,6 +41,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.apps.engine3d.Camera3d
 import com.heretek.dorado_hd.ui.apps.engine3d.Color4
 import com.heretek.dorado_hd.ui.apps.engine3d.Material3d
@@ -518,7 +519,14 @@ private fun BowlingGameScreen(
             Column(Modifier.fillMaxSize().padding(horizontal = DoradoTokens.EDGE.dp)) {
                 BowlingScoreStrip(match.card)
                 Box(Modifier.fillMaxWidth().weight(1f)) {
-                    Scene3dView(scene = scene, modifier = Modifier.fillMaxSize())
+                    Scene3dView(
+                        scene = scene,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .appDescription(
+                                "bowling lane, ${match.mode.label}, frame ${min(match.card.frameIndex + 1, match.card.frames.size)} of ${match.card.frames.size}, total ${BowlingEngine.totalScore(match.card)}",
+                            ),
+                    )
                     if (match.phase == BowlingPhase.READY && !paused) {
                         Box(
                             Modifier
@@ -541,7 +549,14 @@ private fun BowlingGameScreen(
                         )
                     }
                     Column(Modifier.fillMaxSize().padding(4.dp)) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .appDescription(
+                                    "rolls ${BowlingEngine.displayRolls(match.card, match.card.frameIndex).joinToString(" ")}, ${shotText(match)}",
+                                ),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
                             BasicText(
                                 text = BowlingEngine.displayRolls(match.card, match.card.frameIndex)
                                     .joinToString(" "),
@@ -622,7 +637,12 @@ private fun BowlingGameScreen(
 private fun BowlingScoreStrip(card: BowlingCard) {
     val colors = LocalDoradoColors.current
     val scores = remember(card) { BowlingEngine.scores(card) }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .appDescription("bowling scorecard, total ${BowlingEngine.totalScore(card)}"),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
         card.frames.forEachIndexed { index, frame ->
             val current = index == card.frameIndex && !card.finished
             Column(
@@ -730,7 +750,7 @@ private fun BowlingChip(label: String, selected: Boolean, onClick: () -> Unit) {
     Box(
         Modifier
             .background(if (selected) colors.accent else colors.tile)
-            .pointerInput(label, selected) { detectTapGestures(onTap = { onClick() }) }
+            .appTap(label = label) { onClick() }
             .padding(horizontal = 6.dp, vertical = 6.dp),
     ) {
         BasicText(
@@ -753,7 +773,7 @@ private fun BowlingButton(label: String, modifier: Modifier = Modifier, onClick:
             .height(28.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) },
+            .appTap(label = label) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(

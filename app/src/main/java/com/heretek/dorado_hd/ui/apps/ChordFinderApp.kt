@@ -239,7 +239,8 @@ private fun Fretboard(voicing: ChordData.Voicing) {
     Canvas(
         Modifier
             .fillMaxWidth()
-            .height(160.dp),
+            .height(160.dp)
+            .appDescription("chord diagram: frets ${voicing.frets.joinToString(",")}, base fret ${voicing.baseFret}"),
     ) {
         val w = size.width
         val h = size.height

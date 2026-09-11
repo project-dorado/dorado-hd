@@ -338,16 +338,16 @@ fun PianoApp() {
                         text = "notation: ${if (piano.notation) "on" else "off"}",
                         fontSize = DoradoTokens.TYPE_LIST.dp,
                         color = if (piano.notation) colors.accent else colors.textSecondary,
-                        modifier = Modifier.pointerInput(Unit) {
-                            detectTapGestures { piano = piano.copy(notation = !piano.notation) }
+                        modifier = Modifier.appTap(label = "notation") {
+                            piano = piano.copy(notation = !piano.notation)
                         },
                     )
                     EdgeCropText(
                         text = "volume: ${listOf("low", "medium", "high")[piano.volume]}",
                         fontSize = DoradoTokens.TYPE_LIST.dp,
                         color = colors.textSecondary,
-                        modifier = Modifier.pointerInput(Unit) {
-                            detectTapGestures { piano = piano.copy(volume = PianoEngine.cycleVolume(piano.volume)) }
+                        modifier = Modifier.appTap(label = "volume") {
+                            piano = piano.copy(volume = PianoEngine.cycleVolume(piano.volume))
                         },
                     )
                 } else {
@@ -355,21 +355,19 @@ fun PianoApp() {
                         text = "dampen: ${if (piano.dampen) "on" else "off"}",
                         fontSize = DoradoTokens.TYPE_LIST.dp,
                         color = if (piano.dampen) colors.accent else colors.textSecondary,
-                        modifier = Modifier.pointerInput(Unit) {
-                            detectTapGestures { piano = piano.copy(dampen = !piano.dampen) }
+                        modifier = Modifier.appTap(label = "dampen") {
+                            piano = piano.copy(dampen = !piano.dampen)
                         },
                     )
                     EdgeCropText(
                         text = "sustain: ${if (piano.sustain) "on" else "off"}",
                         fontSize = DoradoTokens.TYPE_LIST.dp,
                         color = if (piano.sustain) colors.accent else colors.textSecondary,
-                        modifier = Modifier.pointerInput(Unit) {
-                            detectTapGestures {
-                                piano = if (piano.sustain) {
-                                    PianoEngine.unsustain(piano.copy(sustain = false), System.currentTimeMillis())
-                                } else {
-                                    piano.copy(sustain = true)
-                                }
+                        modifier = Modifier.appTap(label = "sustain") {
+                            piano = if (piano.sustain) {
+                                PianoEngine.unsustain(piano.copy(sustain = false), System.currentTimeMillis())
+                            } else {
+                                piano.copy(sustain = true)
                             }
                         },
                     )
@@ -378,7 +376,7 @@ fun PianoApp() {
                     text = "⇄ controls",
                     fontSize = DoradoTokens.TYPE_LIST.dp,
                     color = colors.textInactive,
-                    modifier = Modifier.pointerInput(Unit) { detectTapGestures { controlPage = 1 - controlPage } },
+                    modifier = Modifier.appTap(label = "controls") { controlPage = 1 - controlPage },
                 )
             }
             Row(Modifier.fillMaxWidth().weight(1f)) {
@@ -923,8 +921,8 @@ fun DrumMachineApp() {
                         text = if (delta > 0) "+$delta" else "$delta",
                         fontSize = DoradoTokens.TYPE_LIST.dp,
                         color = colors.accent,
-                        modifier = Modifier.pointerInput(delta) {
-                            detectTapGestures { machine = DrumMachineEngine.setBpm(machine, machine.bpm + delta) }
+                        modifier = Modifier.appTap(label = "bpm ${if (delta > 0) "+$delta" else "$delta"}") {
+                            machine = DrumMachineEngine.setBpm(machine, machine.bpm + delta)
                         },
                     )
                 }
@@ -934,25 +932,21 @@ fun DrumMachineApp() {
                     text = if (machine.mode == DrumMachineEngine.Mode.ARRANGE) "arrange ▸" else "arrange",
                     fontSize = DoradoTokens.TYPE_CAPTION.dp,
                     color = if (machine.mode == DrumMachineEngine.Mode.ARRANGE) colors.accent else colors.textSecondary,
-                    modifier = Modifier.pointerInput(machine.mode) {
-                        detectTapGestures {
-                            machine = machine.copy(
-                                mode = if (machine.mode == DrumMachineEngine.Mode.ARRANGE) DrumMachineEngine.Mode.PLAY else DrumMachineEngine.Mode.ARRANGE,
-                            )
-                        }
+                    modifier = Modifier.appTap(label = "arrange") {
+                        machine = machine.copy(
+                            mode = if (machine.mode == DrumMachineEngine.Mode.ARRANGE) DrumMachineEngine.Mode.PLAY else DrumMachineEngine.Mode.ARRANGE,
+                        )
                     },
                 )
                 EdgeCropText(
                     text = if (machine.mode == DrumMachineEngine.Mode.RECORD) "stop rec" else "record",
                     fontSize = DoradoTokens.TYPE_CAPTION.dp,
                     color = if (machine.mode == DrumMachineEngine.Mode.RECORD) colors.accent else colors.textSecondary,
-                    modifier = Modifier.pointerInput(machine.mode) {
-                        detectTapGestures {
-                            machine = if (machine.mode == DrumMachineEngine.Mode.RECORD) {
-                                machine.copy(mode = DrumMachineEngine.Mode.PLAY)
-                            } else {
-                                DrumMachineEngine.beginRecording(machine, System.currentTimeMillis())
-                            }
+                    modifier = Modifier.appTap(label = if (machine.mode == DrumMachineEngine.Mode.RECORD) "stop recording" else "record") {
+                        machine = if (machine.mode == DrumMachineEngine.Mode.RECORD) {
+                            machine.copy(mode = DrumMachineEngine.Mode.PLAY)
+                        } else {
+                            DrumMachineEngine.beginRecording(machine, System.currentTimeMillis())
                         }
                     },
                 )
@@ -960,13 +954,11 @@ fun DrumMachineApp() {
                     text = "play",
                     fontSize = DoradoTokens.TYPE_CAPTION.dp,
                     color = if (machine.mode == DrumMachineEngine.Mode.PLAYBACK) colors.accent else colors.textSecondary,
-                    modifier = Modifier.pointerInput(machine.mode, machine.recorded.size) {
-                        detectTapGestures {
-                            machine = if (machine.mode == DrumMachineEngine.Mode.PLAYBACK) {
-                                DrumMachineEngine.stopPlayback(machine)
-                            } else {
-                                DrumMachineEngine.beginPlayback(machine)
-                            }
+                    modifier = Modifier.appTap(label = "play pattern") {
+                        machine = if (machine.mode == DrumMachineEngine.Mode.PLAYBACK) {
+                            DrumMachineEngine.stopPlayback(machine)
+                        } else {
+                            DrumMachineEngine.beginPlayback(machine)
                         }
                     },
                 )
@@ -974,8 +966,8 @@ fun DrumMachineApp() {
                     text = "metro",
                     fontSize = DoradoTokens.TYPE_CAPTION.dp,
                     color = if (machine.metronome) colors.accent else colors.textSecondary,
-                    modifier = Modifier.pointerInput(machine.metronome) {
-                        detectTapGestures { machine = machine.copy(metronome = !machine.metronome) }
+                    modifier = Modifier.appTap(label = "metronome") {
+                        machine = machine.copy(metronome = !machine.metronome)
                     },
                 )
                 listOf(1, 2, 3).forEach { preset ->
@@ -983,8 +975,8 @@ fun DrumMachineApp() {
                         text = "kit $preset",
                         fontSize = DoradoTokens.TYPE_CAPTION.dp,
                         color = colors.textSecondary,
-                        modifier = Modifier.pointerInput(preset) {
-                            detectTapGestures { machine = machine.copy(pads = DrumMachineEngine.preset(preset)) }
+                        modifier = Modifier.appTap(label = "kit $preset") {
+                            machine = machine.copy(pads = DrumMachineEngine.preset(preset))
                         },
                     )
                 }

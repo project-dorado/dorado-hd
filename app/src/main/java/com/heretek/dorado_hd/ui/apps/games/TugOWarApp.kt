@@ -45,6 +45,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.apps.rememberTilt
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlin.math.ceil
@@ -254,14 +256,24 @@ fun TugOWarApp() {
 
     DetailScaffold(title = "tug-o-war") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            val scoreLine = if (hotseat) {
+                "p1 ${current.playerScore} · p2 ${current.opponentScore}"
+            } else {
+                "you ${current.playerScore} · ai ${current.opponentScore}"
+            }
+            Row(
+                Modifier.fillMaxWidth().appDescription(
+                    "tug of war, $inputLabel input, ${current.status.name.lowercase()}, $scoreLine",
+                ),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 BasicText(
                     text = "round ${min(current.round, TugOWarEngine.ROUND_COUNT)}/${TugOWarEngine.ROUND_COUNT}",
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
                 )
                 Spacer(Modifier.weight(1f))
                 BasicText(
-                    text = if (hotseat) "p1 ${current.playerScore} · p2 ${current.opponentScore}" else "you ${current.playerScore} · ai ${current.opponentScore}",
+                    text = scoreLine,
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textPrimary),
                 )
                 Spacer(Modifier.weight(1f))
@@ -280,6 +292,7 @@ fun TugOWarApp() {
                 Canvas(
                     Modifier
                         .fillMaxSize()
+                        .appDescription("tug of war board, $inputLabel input, $scoreLine")
                         .pointerInput(mode, hotseat, sensorFallback) {
                             when (mode) {
                                 TugInputMode.TAP -> detectTapGestures { offset ->
@@ -477,7 +490,7 @@ private fun TugButton(label: String, onClick: () -> Unit) {
             .height(28.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) }
+            .appTap(label = label) { onClick() }
             .padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center,
     ) {

@@ -44,6 +44,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlin.math.min
 import kotlinx.coroutines.NonCancellable
@@ -213,7 +215,10 @@ fun SplatterBugApp() {
     val current = game ?: return
     DetailScaffold(title = "splatter bug") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier.fillMaxWidth().appDescription("score ${current.score}, ${current.lives} lives, best $best"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 BasicText(
                     text = "score ${current.score}",
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -247,6 +252,9 @@ fun SplatterBugApp() {
                     Canvas(
                         modifier = Modifier
                             .fillMaxSize()
+                            .appDescription(
+                                "splatter bug board, score ${current.score}, ${current.lives} lives, tap the pests",
+                            )
                             .pointerInput(current.over) {
                                 if (!current.over) {
                                     detectTapGestures { offset ->
@@ -362,7 +370,7 @@ private fun SplatterButton(label: String, modifier: Modifier = Modifier, onClick
             .height(30.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) },
+            .appTap(label = label) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(

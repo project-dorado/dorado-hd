@@ -4,7 +4,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,7 +14,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -41,6 +42,9 @@ import com.heretek.dorado_hd.design.components.EdgeCropText
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appHold
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.apps.engine3d.Camera3d
 import com.heretek.dorado_hd.ui.apps.engine3d.Color4
 import com.heretek.dorado_hd.ui.apps.engine3d.Material3d
@@ -374,7 +378,14 @@ fun PgrApp() {
     val player = current.racers.firstOrNull { it.isPlayer } ?: current.racers.first()
     DetailScaffold(title = "pgr: ferrari edition", onBack = { paused = true }) {
         Box(Modifier.fillMaxSize().background(colors.background)) {
-            Scene3dView(scene = scene, modifier = Modifier.fillMaxSize())
+            Scene3dView(
+                scene = scene,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .appDescription(
+                        "race scene, ${PgrEngine.ordinal(player.position)} of ${current.racers.size}, lap ${min(player.lapsCompleted + 1, current.laps)} of ${current.laps}, kudos ${player.kudos.total}",
+                    ),
+            )
 
             // Swipe up/down on the scene pulls the handbrake (spec §4).
             var swipe by remember { mutableStateOf(0f) }
@@ -457,6 +468,7 @@ private fun PgrMenu(
         Column(
             Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(DoradoTokens.EDGE.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
@@ -765,7 +777,14 @@ private fun PgrHud(
     val colors = LocalDoradoColors.current
     val def = PgrEngine.PgrCars.byId(player.carId)
     Column(modifier.padding(DoradoTokens.EDGE.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .appDescription(
+                    "${PgrEngine.ordinal(player.position)} of ${race.racers.size}, lap ${min(player.lapsCompleted + 1, race.laps)} of ${race.laps}, kudos ${player.kudos.total}",
+                ),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             BasicText(
                 text = "${PgrEngine.ordinal(player.position)}/${race.racers.size}",
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -898,7 +917,7 @@ private fun PgrRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .pointerInput(label, enabled) { detectTapGestures { if (enabled) onClick() } }
+            .appTap(label = label, enabled = enabled) { onClick() }
             .padding(vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -965,15 +984,7 @@ private fun PgrHold(label: String, onDown: () -> Unit, onUp: () -> Unit) {
         Modifier
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) {
-                detectTapGestures(
-                    onPress = {
-                        onDown()
-                        tryAwaitRelease()
-                        onUp()
-                    },
-                )
-            }
+            .appHold(label = label, onPress = onDown, onRelease = onUp)
             .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
     ) {

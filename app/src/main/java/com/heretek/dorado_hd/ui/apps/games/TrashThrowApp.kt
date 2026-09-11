@@ -5,7 +5,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -48,6 +47,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -177,7 +178,11 @@ fun TrashThrowApp() {
     DetailScaffold(title = "trash throw · ${current.scene.label}", onBack = { paused = true }) {
         Box(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                val headerDescription = "score ${current.streak}, best ${scores.best(current.scene)}, ${windLabel(current)}"
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().appDescription(headerDescription),
+                ) {
                     BasicText(
                         text = "score ${current.streak}",
                         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -204,6 +209,9 @@ fun TrashThrowApp() {
                     Canvas(
                         modifier = Modifier
                             .fillMaxSize()
+                            .appDescription(
+                                "trash throw, swipe to throw, score ${current.streak}, ${windLabel(current)}",
+                            )
                             .pointerInput(current.phase, paused) {
                                 detectDragGestures(
                                     onDragStart = {
@@ -373,7 +381,7 @@ private fun trashButton(label: String, modifier: Modifier = Modifier, onClick: (
             .height(30.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) { detectTapGestures { onClick() } },
+            .appTap(label = label) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(

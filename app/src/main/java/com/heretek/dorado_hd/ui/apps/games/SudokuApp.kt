@@ -36,6 +36,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -180,7 +182,19 @@ fun SudokuApp() {
                 } else {
                     val n = current.board.rows.size
                     val conflicted = remember(current.cells, current.notes) { SudokuEngine.conflicts(current) }
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth().appDescription(
+                            if (current.solved) {
+                                "sudoku solved"
+                            } else {
+                                "time %d:%02d, %s, %s".format(
+                                    elapsed / 60, elapsed % 60,
+                                    current.type.name.lowercase(), current.level.name.lowercase(),
+                                )
+                            },
+                        ),
+                    ) {
                         BasicText(
                             text = if (current.solved) "solved" else "%d:%02d".format(elapsed / 60, elapsed % 60),
                             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = if (current.solved) colors.accent else colors.textPrimary),
@@ -211,7 +225,10 @@ fun SudokuApp() {
                     }
                     Spacer(Modifier.height(4.dp))
                     BoxWithConstraints(
-                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .appDescription("sudoku board, $n by $n, ${current.cells.count { it != 0 }} filled"),
                         contentAlignment = Alignment.Center,
                     ) {
                         val cell = (minOf(maxWidth, maxHeight) - (n + 1).dp) / n
@@ -281,16 +298,15 @@ fun SudokuApp() {
                                     .weight(1f)
                                     .height(26.dp)
                                     .background(if (noteMode) colors.tile else colors.elevated)
-                                    .pointerInput(v, noteMode, selected, current) {
-                                        detectTapGestures(onTap = {
-                                            if (selected < 0) return@detectTapGestures
+                                    .appTap(label = if (noteMode) "note $v" else "place $v") {
+                                        if (selected >= 0) {
                                             game = if (noteMode) {
                                                 SudokuEngine.toggleNote(current, selected, v)
                                             } else {
                                                 SudokuEngine.place(current, selected, v)
                                             }
                                             bank.play("click")
-                                        })
+                                        }
                                     },
                                 contentAlignment = Alignment.Center,
                             ) {
@@ -302,13 +318,11 @@ fun SudokuApp() {
                                 .weight(1f)
                                 .height(26.dp)
                                 .background(colors.elevated)
-                                .pointerInput(noteMode, selected, current) {
-                                    detectTapGestures(onTap = {
-                                        if (selected >= 0) {
-                                            game = SudokuEngine.erase(current, selected)
-                                            bank.play("click")
-                                        }
-                                    })
+                                .appTap(label = "erase") {
+                                    if (selected >= 0) {
+                                        game = SudokuEngine.erase(current, selected)
+                                        bank.play("click")
+                                    }
                                 },
                             contentAlignment = Alignment.Center,
                         ) {

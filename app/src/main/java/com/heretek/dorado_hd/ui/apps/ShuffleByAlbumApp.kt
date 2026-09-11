@@ -9,7 +9,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -476,36 +475,34 @@ fun ShuffleByAlbumApp() {
                         text = "◀◀",
                         fontSize = DoradoTokens.TYPE_LIST.dp,
                         color = colors.textPrimary,
-                        modifier = Modifier.pointerInput(Unit) { detectTapGestures { touch(); skip(false) } },
+                        modifier = Modifier.appTap(label = "previous track") { touch(); skip(false) },
                     )
                     EdgeCropText(
                         text = if (isPlaying) "pause" else "play",
                         fontSize = DoradoTokens.TYPE_LIST.dp,
                         color = colors.accent,
-                        modifier = Modifier.pointerInput(Unit) {
-                            detectTapGestures {
-                                touch()
-                                if (isPlaying) graph.controller.toggle() else playQueue()
-                            }
+                        modifier = Modifier.appTap(label = if (isPlaying) "pause" else "play") {
+                            touch()
+                            if (isPlaying) graph.controller.toggle() else playQueue()
                         },
                     )
                     EdgeCropText(
                         text = "▶▶",
                         fontSize = DoradoTokens.TYPE_LIST.dp,
                         color = colors.textPrimary,
-                        modifier = Modifier.pointerInput(Unit) { detectTapGestures { touch(); skip(true) } },
+                        modifier = Modifier.appTap(label = "next track") { touch(); skip(true) },
                     )
                     EdgeCropText(
                         text = "queue",
                         fontSize = DoradoTokens.TYPE_LIST.dp,
                         color = colors.textSecondary,
-                        modifier = Modifier.pointerInput(Unit) { detectTapGestures { touch(); overlay = ShuffleOverlay.QUEUE } },
+                        modifier = Modifier.appTap(label = "queue") { touch(); overlay = ShuffleOverlay.QUEUE },
                     )
                     EdgeCropText(
                         text = "shuffle",
                         fontSize = DoradoTokens.TYPE_LIST.dp,
                         color = colors.textSecondary,
-                        modifier = Modifier.pointerInput(Unit) { detectTapGestures { touch(); overlay = ShuffleOverlay.SCOPE } },
+                        modifier = Modifier.appTap(label = "shuffle") { touch(); overlay = ShuffleOverlay.SCOPE },
                     )
                 }
                 val upcoming = ShuffleEngine.upcoming(current, 5)
@@ -635,7 +632,7 @@ private fun QueueSheet(
                     text = "close",
                     fontSize = DoradoTokens.TYPE_LIST.dp,
                     color = colors.textSecondary,
-                    modifier = Modifier.pointerInput(Unit) { detectTapGestures { onDismiss() } },
+                    modifier = Modifier.appTap(label = "close") { onDismiss() },
                 )
             }
             Spacer(Modifier.height(6.dp))
@@ -644,7 +641,7 @@ private fun QueueSheet(
                     Column(
                         Modifier
                             .fillMaxWidth()
-                            .pointerInput(index) { detectTapGestures { onPick(index) } }
+                            .appTap(label = track.title) { onPick(index) }
                             .padding(vertical = 4.dp),
                     ) {
                         EdgeCropText(
@@ -685,37 +682,37 @@ private fun ScopePicker(
                 text = if (prefs.scope == ShuffleEngine.Scope.ALL && prefs.scopeName == null) "all — " else "all",
                 fontSize = DoradoTokens.TYPE_LIST.dp,
                 color = colors.accent,
-                modifier = Modifier.pointerInput(Unit) { detectTapGestures { onPickAll() } },
+                modifier = Modifier.appTap(label = "all") { onPickAll() },
             )
             EdgeCropText(
                 text = if (prefs.scope == ShuffleEngine.Scope.ARTIST) "artist — ${prefs.scopeName ?: "pick"}" else "artist",
                 fontSize = DoradoTokens.TYPE_LIST.dp,
                 color = if (prefs.scope == ShuffleEngine.Scope.ARTIST) colors.accent else colors.textPrimary,
-                modifier = Modifier.pointerInput(Unit) { detectTapGestures { onPickArtists() } },
+                modifier = Modifier.appTap(label = "artist") { onPickArtists() },
             )
             EdgeCropText(
                 text = if (prefs.scope == ShuffleEngine.Scope.GENRE) "genre — ${prefs.scopeName ?: "pick"}" else "genre",
                 fontSize = DoradoTokens.TYPE_LIST.dp,
                 color = if (prefs.scope == ShuffleEngine.Scope.GENRE) colors.accent else colors.textPrimary,
-                modifier = Modifier.pointerInput(Unit) { detectTapGestures { onPickGenres() } },
+                modifier = Modifier.appTap(label = "genre") { onPickGenres() },
             )
             EdgeCropText(
                 text = if (prefs.scope == ShuffleEngine.Scope.PLAYLIST) "playlist — ${prefs.scopeName ?: "pick"}" else "playlist",
                 fontSize = DoradoTokens.TYPE_LIST.dp,
                 color = if (prefs.scope == ShuffleEngine.Scope.PLAYLIST) colors.accent else colors.textPrimary,
-                modifier = Modifier.pointerInput(Unit) { detectTapGestures { onPickPlaylists() } },
+                modifier = Modifier.appTap(label = "playlist") { onPickPlaylists() },
             )
             EdgeCropText(
                 text = "group by artist: ${if (prefs.groupByArtist) "on" else "off"}",
                 fontSize = DoradoTokens.TYPE_LIST.dp,
                 color = colors.textSecondary,
-                modifier = Modifier.pointerInput(Unit) { detectTapGestures { onToggleGroup() } },
+                modifier = Modifier.appTap(label = "group by artist") { onToggleGroup() },
             )
             EdgeCropText(
                 text = "close",
                 fontSize = DoradoTokens.TYPE_LIST.dp,
                 color = colors.textSecondary,
-                modifier = Modifier.pointerInput(Unit) { detectTapGestures { onDismiss() } },
+                modifier = Modifier.appTap(label = "close") { onDismiss() },
             )
         }
     }
@@ -737,7 +734,7 @@ private fun PickerList(
                     text = "close",
                     fontSize = DoradoTokens.TYPE_LIST.dp,
                     color = colors.textSecondary,
-                    modifier = Modifier.pointerInput(Unit) { detectTapGestures { onDismiss() } },
+                    modifier = Modifier.appTap(label = "close") { onDismiss() },
                 )
             }
             if (entries.isEmpty()) {
@@ -751,7 +748,7 @@ private fun PickerList(
                         fontSize = DoradoTokens.TYPE_LIST.dp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .pointerInput(entry) { detectTapGestures { onPick(entry) } }
+                            .appTap(label = entry) { onPick(entry) }
                             .padding(vertical = 5.dp),
                     )
                 }
@@ -780,7 +777,7 @@ private fun Screensaver(state: ShuffleEngine.ShuffleState?, onAnyTouch: () -> Un
             .fillMaxSize()
             .background(colors.background)
             .graphicsLayer { translationX = drift }
-            .pointerInput(Unit) { detectTapGestures { onAnyTouch() } },
+            .appTap(label = "dismiss screensaver") { onAnyTouch() },
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {

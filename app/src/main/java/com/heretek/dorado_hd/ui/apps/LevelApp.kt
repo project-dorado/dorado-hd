@@ -233,7 +233,7 @@ private fun LevelCanvas(
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalDoradoColors.current
-    Canvas(modifier = modifier) {
+    Canvas(modifier = modifier.appDescription(levelDescription(live, memory))) {
         val w = size.width
         val h = size.height
         val tube = 28.dp.toPx()
@@ -322,6 +322,20 @@ private fun LevelCanvas(
         val liveX = bcx + (live.bubbleX / LevelEngine.ROUND_TRAVEL).toFloat() * radius * 0.78f
         val liveY = bcy + (live.bubbleY / LevelEngine.ROUND_TRAVEL).toFloat() * radius * 0.78f
         drawCircle(colors.accent, bubble * 0.75f, Offset(liveX, liveY))
+    }
+}
+
+private fun levelDescription(live: LevelState, memory: LevelState?): String = buildString {
+    append("level: x ")
+    append(LevelEngine.formatDegrees(live.rollDeg))
+    append(", y ")
+    append(LevelEngine.formatDegrees(live.pitchDeg))
+    val ghost = memory
+    if (ghost != null && ghost.hasMemory) {
+        append(", saved x ")
+        append(LevelEngine.formatDegrees(ghost.savedRoll ?: 0.0))
+        append(", y ")
+        append(LevelEngine.formatDegrees(ghost.savedPitch ?: 0.0))
     }
 }
 

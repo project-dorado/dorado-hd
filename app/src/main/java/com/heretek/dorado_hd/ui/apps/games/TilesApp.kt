@@ -41,6 +41,8 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
+import com.heretek.dorado_hd.ui.apps.appDescription
+import com.heretek.dorado_hd.ui.apps.appTap
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -203,7 +205,15 @@ fun TilesApp() {
     DetailScaffold(title = "tiles") {
         Box(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                val headerDescription = if (current.mode == TilesMode.CLASSIC) {
+                    "moves ${current.swapCount}, best ${stats.leastMoves}"
+                } else {
+                    "time ${tilesTimeLabel(TilesEngine.seconds(current))}, best ${tilesTimeLabel(stats.leastTime)}"
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().appDescription(headerDescription),
+                ) {
                     BasicText(
                         text = if (current.mode == TilesMode.CLASSIC) "moves ${current.swapCount}" else tilesTimeLabel(TilesEngine.seconds(current)),
                         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -296,7 +306,7 @@ private fun TilesButton(
             .height(30.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) },
+            .appTap(label = label) { onClick() },
         contentAlignment = Alignment.Center,
     ) {
         BasicText(
@@ -311,7 +321,7 @@ private fun TilesText(label: String, onClick: () -> Unit) {
     val colors = LocalDoradoColors.current
     Box(
         modifier = Modifier
-            .pointerInput(label) { detectTapGestures(onTap = { onClick() }) }
+            .appTap(label = label) { onClick() }
             .defaultMinSize(minWidth = 24.dp, minHeight = 24.dp)
             .padding(horizontal = 4.dp),
         contentAlignment = Alignment.Center,
@@ -336,6 +346,7 @@ private fun TilesBoard(
         Box(
             Modifier
                 .size(side)
+                .appDescription("tiles board, 3 by 3, ${state.swapCount} moves")
                 .pointerInput(state) {
                     detectTapGestures { offset ->
                         val cell = size.width / 3f
