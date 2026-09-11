@@ -54,10 +54,21 @@ class DoradoGraph(
     val appState: com.heretek.dorado_hd.data.repo.AppStateRepository,
 )
 
-class DoradoApp : Application() {
+open class DoradoApp : Application() {
 
     lateinit var graph: DoradoGraph
         private set
+
+    companion object {
+        /**
+         * Media3's `MediaController` cannot bind a session service under
+         * Robolectric (the shadow passes a null ComponentName). UI tests run
+         * with a [Test] application that flips this before `onCreate`; the
+         * shipped app always connects.
+         */
+        @Volatile
+        var autoConnectPlayback: Boolean = true
+    }
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -129,8 +140,10 @@ class DoradoApp : Application() {
             cloudSignIn, cloudSignInCallback, cloudUpdates, playCountStore, appState,
         )
 
-        appScope.launch {
-            controller.connect()
+        if (autoConnectPlayback) {
+            appScope.launch {
+                controller.connect()
+            }
         }
 
         // Hydrate the M9.3 audio-feature cache from Room so similarity queries

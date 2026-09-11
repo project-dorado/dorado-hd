@@ -36,12 +36,30 @@ class MainActivity : ComponentActivity() {
         }
         requestMediaPermissionsIfNeeded()
         handleCloudRedirect(intent)
+        handleAppDeepLink(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         handleCloudRedirect(intent)
+        handleAppDeepLink(intent)
+    }
+
+    /**
+     * Debug-only `dorado://app/<slug>` route, used by the emulator crawl and
+     * UI parity automation to open a mini-app deterministically. Release builds
+     * ignore it; unknown slugs are ignored.
+     */
+    private fun handleAppDeepLink(intent: Intent?) {
+        if (!BuildConfig.DEBUG) return
+        val data = intent?.data ?: return
+        if (!data.scheme.equals("dorado", ignoreCase = true)) return
+        if (data.host != "app") return
+        val slug = data.lastPathSegment ?: return
+        if (com.heretek.dorado_hd.ui.apps.DoradoApps.byId(slug) == null) return
+        val graph = (application as DoradoApp).graph
+        graph.nav.push(com.heretek.dorado_hd.ui.nav.DoradoDestination.MiniApp(slug))
     }
 
     private fun requiredMediaPermissions(): Array<String> {

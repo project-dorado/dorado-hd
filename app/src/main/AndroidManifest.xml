@@ -47,6 +47,14 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="doradohd" android:host="oauth" />
             </intent-filter>
+            <!-- Debug automation: dorado://app/<slug> opens a mini-app directly
+                 (handled in code only for debug builds; see MainActivity). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="dorado" android:host="app" />
+            </intent-filter>
         </activity>
 
         <service
