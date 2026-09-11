@@ -48,14 +48,15 @@ fun SpectrumVisualizer(
         }
     }
 
-    val currentPhase = phase.value
-
     Canvas(
         modifier = modifier
             .fillMaxWidth()
             .height(48.dp),
     ) {
-        if (!isPlaying && currentPhase == 0f) return@Canvas
+        // Read the phase inside the draw scope so only draw invalidates
+        // (a composition read recomposed this component every frame).
+        val drawPhase = phase.value
+        if (!isPlaying && drawPhase == 0f) return@Canvas
 
         val totalWidth = size.width
         val maxHeight = size.height
@@ -63,14 +64,19 @@ fun SpectrumVisualizer(
         val totalSpacing = barSpacing * (barCount - 1)
         val barWidth = ((totalWidth - totalSpacing) / barCount).coerceAtLeast(1f)
 
+        // Integer harmonic multipliers of a full 2π per master cycle make the
+        // 60s loop seamless (no 1000→0 pop). 960/1760/3040 keep the original
+        // ~16/29/51 Hz rates.
+        val p = drawPhase / 1000f * (2f * kotlin.math.PI.toFloat())
+
         for (i in 0 until barCount) {
             val normalizedIdx = i.toFloat() / barCount.toFloat()
 
             // Harmonic waveform calculation for natural audio spectrum curve
             // Bass bands (low indices) have higher average amplitude and slower pulses
-            val harmonic1 = sin(currentPhase * 6f + i * 0.45f)
-            val harmonic2 = sin(currentPhase * 11f - i * 0.8f)
-            val harmonic3 = sin(currentPhase * 19f + i * 1.3f)
+            val harmonic1 = sin(p * 960f + i * 0.45f)
+            val harmonic2 = sin(p * 1760f - i * 0.8f)
+            val harmonic3 = sin(p * 3040f + i * 1.3f)
             val composite = (abs(harmonic1 * 0.5f + harmonic2 * 0.35f + harmonic3 * 0.15f)).coerceIn(0f, 1f)
 
             // EQ weighting: slightly tapered treble rolloff

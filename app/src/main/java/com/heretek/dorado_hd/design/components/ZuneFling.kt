@@ -35,16 +35,22 @@ fun rememberZuneFlingBehavior(
             absVelocityThreshold = 1f,
         )
     }
-    return remember(decay) { ZuneFlingBehavior(decay) }
+    // Compose velocities are in layout px/s. Adaptive mode raises LocalDensity
+    // above the display's base density, so without this factor the device cap
+    // would shrink as the layout scales (shorter glides on big layouts).
+    val baseDensity = androidx.compose.ui.platform.LocalContext.current.resources.displayMetrics.density
+    val velocityScale = androidx.compose.ui.platform.LocalDensity.current.density / baseDensity
+    return remember(decay, velocityScale) { ZuneFlingBehavior(decay, velocityScale) }
 }
 
 private class ZuneFlingBehavior(
     private val decay: DecayAnimationSpec<Float>,
+    private val velocityScale: Float,
     private val velocityThreshold: Float = 1f,
 ) : FlingBehavior {
     override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
         // Device velocity cap (FUN_4184C310): clamp before the glide.
-        val cappedVelocity = DoradoMotion.clampFlingVelocity(initialVelocity)
+        val cappedVelocity = DoradoMotion.clampFlingVelocity(initialVelocity, velocityScale)
         if (abs(cappedVelocity) <= velocityThreshold) return cappedVelocity
         var lastValue = 0f
         var lastVelocity = cappedVelocity

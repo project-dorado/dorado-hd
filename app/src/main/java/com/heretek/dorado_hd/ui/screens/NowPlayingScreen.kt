@@ -481,9 +481,10 @@ private fun ScreensaverLayer(
 ) {
     val colors = LocalDoradoColors.current
     val transition = rememberInfiniteTransition(label = "saver-drift")
-    val drift by transition.animateFloat(
-        initialValue = 30f,
-        targetValue = -110f,
+    // Drift in dp (the old raw-px values were density-dependent).
+    val driftDp by transition.animateFloat(
+        initialValue = 8f,
+        targetValue = -27f,
         animationSpec = infiniteRepeatable(tween(18_000), AnimRepeatMode.Reverse),
         label = "saver-y",
     )
@@ -493,7 +494,7 @@ private fun ScreensaverLayer(
             Modifier
                 .align(Alignment.CenterStart)
                 .fillMaxWidth()
-                .graphicsLayer { translationY = drift }
+                .graphicsLayer { translationY = driftDp.dp.toPx() }
                 .padding(start = DoradoTokens.EDGE.dp, end = 80.dp),
         ) {
             EdgeCropText(text = track.title, fontSize = DoradoTokens.TYPE_SAVER_TITLE.dp)

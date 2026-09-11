@@ -46,7 +46,9 @@ fun DeviceCanvas(
             // same visual weight it does on the device (~2x on a phone).
             val base = LocalDensity.current
             val scale = (min(maxWidth.value, maxHeight.value) / DoradoTokens.CANVAS_HEIGHT.toFloat() * 1.2f)
-                .coerceIn(1.4f, 2.1f)
+                // 2.6 headroom: tablets/foldables used to saturate at 2.1 and
+                // render the type proportionally smaller than on a phone.
+                .coerceIn(1.4f, 2.6f)
             val density = remember(base, scale) {
                 Density(density = base.density * scale, fontScale = base.fontScale)
             }

@@ -62,8 +62,10 @@ object DoradoMotion {
     ): Float = ln(frameRetention.pow(frameHz)) / -4.2f
 
     /** Clamp a fling's initial velocity to the device's reconstructed cap. */
-    fun clampFlingVelocity(velocity: Float): Float =
-        velocity.coerceIn(-KINETIC_MAX_VELOCITY, KINETIC_MAX_VELOCITY)
+    fun clampFlingVelocity(velocity: Float, velocityScale: Float = 1f): Float {
+        val cap = KINETIC_MAX_VELOCITY * velocityScale
+        return velocity.coerceIn(-cap, cap)
+    }
 
     fun <T> pivot() = tween<T>(PIVOT_SLIDE_MS, easing = Decelerate)
     fun <T> quickplay() = tween<T>(QUICKPLAY_MS, easing = Decelerate)
