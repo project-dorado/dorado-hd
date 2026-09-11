@@ -10,7 +10,7 @@ reimplemented clean-room in Kotlin/Compose. Decompiled sources are never
 committed; specs under `docs/apps/` are synthesized analysis with
 `Assembly!Type.Method` citations.
 
-**Coverage:** 62 packages — mock 7, native 33, todo 22.
+**Coverage:** 62 packages — mock 7, native 44, todo 11.
 
 | Wave | Apps | Focus |
 |---|---:|---|
@@ -62,17 +62,17 @@ and content count); `Complexity` is the authored engine-effort estimate.
 | W3 | Tiles | native | `Tiles.exe` | 1 | 2083 | 85 | M | TBD | [`tiles.md`](apps/tiles.md) |
 | W3 | Trash Throw | native | `TrashThrow.exe` | 2 | 4904 | 39 | M | TBD | [`trash-throw.md`](apps/trash-throw.md) |
 | W3 | Tug-O-War | native | `Tuginator.exe` | 2 | 1722 | 74 | M | TBD | [`tug-o-war.md`](apps/tug-o-war.md) |
-| W4 | A Beanstalk Tale | todo | `BeanstalkTale.exe` | 2 | 12062 | 93 | L | TBD | [`a-beanstalk-tale.md`](apps/a-beanstalk-tale.md) |
-| W4 | Animalgrams | todo | `Anagrams.exe` | 4 | 4320 | 137 | M | TBD | [`animalgrams.md`](apps/animalgrams.md) |
-| W4 | BBQ Battle | todo | `BBQBattle.exe` | 4 | 4042 | 77 | M | TBD | [`bbq-battle.md`](apps/bbq-battle.md) |
-| W4 | Bees!!! | todo | `Bees.exe` | 5 | 5677 | 141 | L | TBD | [`bees.md`](apps/bees.md) |
-| W4 | Castles and Cannons | todo | `CastlesAndCannons.exe` | 4 | 8509 | 147 | L | TBD | [`castles-and-cannons.md`](apps/castles-and-cannons.md) |
-| W4 | Decoder Ring | todo | `Decodering.exe` | 6 | 5826 | 100 | L | TBD | [`decoder-ring.md`](apps/decoder-ring.md) |
-| W4 | Fan Prediction | todo | `FanPrediction.exe` | 4 | 7673 | 43 | L | TBD | [`fan-prediction.md`](apps/fan-prediction.md) |
-| W4 | Penalty! Flick Soccer | todo | `Penalty.exe` | 2 | 19599 | 133 | XL | TBD | [`penalty-flick-soccer.md`](apps/penalty-flick-soccer.md) |
-| W4 | Space Battle 2 | todo | `Zauri.exe` | 3 | 18109 | 280 | XL | TBD | [`space-battle-2.md`](apps/space-battle-2.md) |
-| W4 | Vine Climb | todo | `VineClimb.exe` | 2 | 3742 | 42 | M | TBD | [`vine-climb.md`](apps/vine-climb.md) |
-| W4 | WordMonger | todo | `WordMonger.exe` | 2 | 30513 | 80 | XL | TBD | [`wordmonger.md`](apps/wordmonger.md) |
+| W4 | A Beanstalk Tale | native | `BeanstalkTale.exe` | 2 | 12062 | 93 | L | TBD | [`a-beanstalk-tale.md`](apps/a-beanstalk-tale.md) |
+| W4 | Animalgrams | native | `Anagrams.exe` | 4 | 4320 | 137 | M | TBD | [`animalgrams.md`](apps/animalgrams.md) |
+| W4 | BBQ Battle | native | `BBQBattle.exe` | 4 | 4042 | 77 | M | TBD | [`bbq-battle.md`](apps/bbq-battle.md) |
+| W4 | Bees!!! | native | `Bees.exe` | 5 | 5677 | 141 | L | TBD | [`bees.md`](apps/bees.md) |
+| W4 | Castles and Cannons | native | `CastlesAndCannons.exe` | 4 | 8509 | 147 | L | TBD | [`castles-and-cannons.md`](apps/castles-and-cannons.md) |
+| W4 | Decoder Ring | native | `Decodering.exe` | 6 | 5826 | 100 | L | TBD | [`decoder-ring.md`](apps/decoder-ring.md) |
+| W4 | Fan Prediction | native | `FanPrediction.exe` | 4 | 7673 | 43 | L | TBD | [`fan-prediction.md`](apps/fan-prediction.md) |
+| W4 | Penalty! Flick Soccer | native | `Penalty.exe` | 2 | 19599 | 133 | XL | TBD | [`penalty-flick-soccer.md`](apps/penalty-flick-soccer.md) |
+| W4 | Space Battle 2 | native | `Zauri.exe` | 3 | 18109 | 280 | XL | TBD | [`space-battle-2.md`](apps/space-battle-2.md) |
+| W4 | Vine Climb | native | `VineClimb.exe` | 2 | 3742 | 42 | M | TBD | [`vine-climb.md`](apps/vine-climb.md) |
+| W4 | WordMonger | native | `WordMonger.exe` | 2 | 30513 | 80 | XL | TBD | [`wordmonger.md`](apps/wordmonger.md) |
 | W5 | 3D Picture Puzzle | todo | `PicturePuzzle3D.exe` | 3 | 4908 | 148 | M | TBD | [`3d-picture-puzzle.md`](apps/3d-picture-puzzle.md) |
 | W5 | Dr Optics Light Lab | todo | `DrOptics.exe` | 4 | 8363 | 54 | L | TBD | [`dr-optics-light-lab.md`](apps/dr-optics-light-lab.md) |
 | W5 | Finger Physics | todo | `FingerPhysics.exe` | 1 | 19556 | 358 | XL | TBD | [`finger-physics.md`](apps/finger-physics.md) |
