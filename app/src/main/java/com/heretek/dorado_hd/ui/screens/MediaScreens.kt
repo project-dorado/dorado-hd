@@ -34,6 +34,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import com.heretek.dorado_hd.data.model.Rating
+import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -632,10 +634,40 @@ private val FROZEN_FEED = listOf(
     MockPost("mix master mika", "shuffled by album all morning — life-changing.", "november 2012"),
 )
 
+private data class ZuneCard(val tracks: Int, val hearts: Int, val plays: Int)
+
 @Composable
 fun SocialScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
+    val graph = LocalDoradoGraph.current
+    val colors = LocalDoradoColors.current
+    var card by remember { mutableStateOf<ZuneCard?>(null) }
+    LaunchedEffect(Unit) {
+        val tracks = graph.library.tracks().first()
+        val ratings = graph.quickplay.ratings()
+        val plays = graph.playCounts.counts()
+        card = ZuneCard(
+            tracks = tracks.size,
+            hearts = ratings.count { it.value == Rating.HEART.value },
+            plays = plays.values.sum(),
+        )
+    }
     DetailScaffold(title = "social") {
         Column(Modifier.fillMaxSize()) {
+            // Zune Card — the device's GemUserCardScene, as a local substitute
+            // for the dead Zune Social servers.
+            card?.let { c ->
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 8.dp),
+                ) {
+                    EdgeCropText(text = "zune card", fontSize = DoradoTokens.TYPE_NOW_META.dp, color = colors.accent)
+                    EdgeCropText(
+                        text = "${c.tracks} tracks · ${c.hearts} hearts · ${c.plays} plays",
+                        fontSize = DoradoTokens.TYPE_LIST.dp,
+                    )
+                }
+            }
             EdgeCropText(
                 text = "the social feed is frozen in time.",
                 fontSize = DoradoTokens.TYPE_NOW_META.dp,

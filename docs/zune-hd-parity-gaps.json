@@ -145,11 +145,11 @@
       "axis": "device",
       "priority": 12,
       "effort": "M",
-      "status": "missing",
+      "status": "partial",
       "device_evidence": "gemstone.exe GemInboxListContentScene/GemInboxDetailsScene/GemUserCardScene",
       "hd_state": "mock shells only (ui/apps/mocks/Mocks.kt:90)",
-      "milestone": "long-term",
-      "resolution": "Needs a social/inbox backend; mock shells only. Long-term."
+      "milestone": "M15",
+      "resolution": "Local Zune Card (tracks/hearts/plays) shipped (M15); inbox still needs a backend (mock shell only)."
     },
     {
       "id": "pinlock-wifi",

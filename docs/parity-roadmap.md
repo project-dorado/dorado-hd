@@ -243,7 +243,7 @@ explicitly documented (long-term / N-A) — no gap unplanned.
 
 - ✅ **D1** Share (`ACTION_SEND`) from Now Playing.
 - ✅ **D3** Marketplace discovery: catalog search + entry details over the frozen catalog.
-- ⏳ **D2** Inbox + social user card (needs a social/inbox backend; mock shells only today).
+- 🟡 **D2** Social user card: a local **Zune Card** (tracks/hearts/plays) on the Social screen; the inbox still needs a backend (mock shell only).
 - ⏳ **D4** Audiobooks (new media model — the largest remaining gap).
 
 ### Long-term backlog (documented, not scheduled)
