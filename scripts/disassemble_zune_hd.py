@@ -293,49 +293,18 @@ def extract_modules(raw, img_start, romhdr_off, nummods):
     return cur
 
 
-def run_ghidra_analysis(module_names=None):
-    ghidra_headless = "/home/john/.local/ghidra/support/analyzeHeadless"
-    if not os.path.exists(ghidra_headless):
-        log("Ghidra analyzeHeadless not found. Skipping decompilation.")
+def run_ghidra_analysis(module_names=None, tier="all"):
+    """Delegate to the corpus runner: recover symbols, decompile every function
+    for the selected modules, and write the manifest. Raw output stays external."""
+    runner = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ghidra_corpus.py")
+    if not os.path.exists(runner):
+        log("ghidra_corpus.py not found; skipping decompilation.")
         return
-
-    if module_names is None:
-        module_names = ["gemstone.exe", "xuidll.dll"]
-
-    os.makedirs(GHIDRA_DIR, exist_ok=True)
-    os.makedirs(DECOMPILED_DIR, exist_ok=True)
-    project_dir = os.path.join(GHIDRA_DIR, "project")
-    project_name = "ZuneHD_Project"
-    os.makedirs(project_dir, exist_ok=True)
-
-    # The post-script exports per-function decompiled C plus a JSON function index
-    # (name/entry/size) so the corpus is greppable without re-running Ghidra.
-    script_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ghidra")
-    post_script = os.path.join(script_dir, "ExportDecompiled.java")
-
-    log(f"Running headless Ghidra analysis on {module_names}...")
-    for mod in module_names:
-        mod_path = os.path.join(MODULES_DIR, mod)
-        if not os.path.exists(mod_path):
-            log(f"Module {mod_path} not found, skipping.")
-            continue
-
-        cmd = [
-            ghidra_headless,
-            project_dir,
-            project_name,
-            "-import", mod_path,
-            "-overwrite",
-            "-scriptPath", script_dir,
-        ]
-        if os.path.exists(post_script):
-            cmd += ["-postScript", "ExportDecompiled.java", DECOMPILED_DIR]
-        log(f"Invoking Ghidra for {mod}...")
-        res = run_cmd(cmd)
-        if res.returncode == 0:
-            log(f"Successfully analyzed {mod} in Ghidra project {project_name}.")
-        else:
-            log(f"Ghidra analysis finished with code {res.returncode}.")
+    cmd = [sys.executable, runner, "--tier", tier]
+    if module_names:
+        cmd = [sys.executable, runner, "--modules", ",".join(module_names)]
+    log(f"Running corpus builder: {' '.join(cmd)}")
+    subprocess.run(cmd)
 
 
 def write_readme():
@@ -363,11 +332,20 @@ never be committed, packaged, or shipped.
   - `zmedia_serv.dll`: Core playback engine.
   - `zd3d.dll` & `zrender.dll`: Tegra APX 2600 Direct3D-Mobile hardware renderer.
   - `zam_serv.dll`: Zune Application Manager.
-- `ghidra/`: Headless Ghidra project and decompiled function analysis.
+- `ghidra/`: Headless Ghidra corpus (symbols, decompiled functions, string indexes,
+  `corpus-manifest.json`) produced by `scripts/ghidra_corpus.py`.
 
 ## Regenerating
 
-Run `python3 scripts/disassemble_zune_hd.py` from the `dorado-hd` repository root.
+```bash
+python3 scripts/disassemble_zune_hd.py --extract-only   # assets + 109 ARM32 PE modules
+python3 scripts/ghidra_corpus.py --tier all --jobs 8    # symbols + full decompilation
+```
+
+Coverage: 109/109 modules, ~66.6k functions decompiled, 4,169 named exports,
+22,479 strings indexed. Synthesized metadata is documented in the dorado-hd
+repository (`docs/zune-hd-module-inventory.md`, `docs/zune-hd-api-reference.md`,
+`docs/zune-hd-assets.md`).
 """
     with open(readme_path, "w") as f:
         f.write(content)
@@ -399,7 +377,7 @@ def main():
     write_readme()
 
     if args.ghidra:
-        run_ghidra_analysis(["gemstone.exe", "xuidll.dll"])
+        run_ghidra_analysis(tier="all")
 
     log("Pipeline execution complete.")
 

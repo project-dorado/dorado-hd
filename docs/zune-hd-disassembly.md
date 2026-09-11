@@ -139,46 +139,58 @@ In Dorado-HD, **Selawik** (OFL) is shipped by default as the metric-compatible o
 
 ## 7. Automated Disassembly Pipeline
 
-The repo provides an end-to-end extraction and decompilation script:
+Two scripts make up the pipeline:
 
 ```bash
-# Extract assets and reconstruct valid ARM32 PE binaries (< 10 seconds):
+# 1. Extract assets and reconstruct the 109 ARM32 PE modules (< 10 seconds):
 python3 scripts/disassemble_zune_hd.py --extract-only
 
-# Run deep Ghidra headless analysis + decompilation export on gemstone.exe and xuidll.dll:
-python3 scripts/disassemble_zune_hd.py --ghidra
+# 2. Build the reverse-engineering corpus (all modules, symbols, full decompile):
+python3 scripts/ghidra_corpus.py --tier all --jobs 8
+#    or a subset:  --tier 1   |   --modules gemstone.exe,xuidll.dll
 ```
 
-The `--ghidra` step imports/analyses each shell binary and runs the
-`scripts/ghidra/ExportDecompiled.java` post-script, which writes per-function
-decompiled C files and a `<module>.functions.json` index (name, entry, size,
-thunk flag, decompiled line count) so the corpus can be grepped without
-re-running Ghidra.
+`ghidra_corpus.py` is the corpus builder. For each module it:
+
+1. **recovers named exports/imports** with `rizin` (`iEj`/`iij`) into
+   `ghidra/symbols/<module>.symbols.json`;
+2. **imports the module into its own headless-Ghidra project**, applies the
+   recovered symbol names (`scripts/ghidra/ExportDecompiled.java`), decompiles
+   **every** function, and exports per-function `.c` files plus
+   `<module>.functions.json` (name/entry/size/signature/isExport/lines) and
+   `<module>.strings.json` (string + owning function);
+3. records the result in `ghidra/corpus-manifest.json`.
+
+`disassemble_zune_hd.py --ghidra` delegates to this builder.
+
+### Coverage (2026-09-10)
+
+- **109 / 109** reconstructed modules analysed (ARM32 PE, Ghidra 12.1.2);
+- **66,598** functions decompiled (gemstone 2,737; xuidll 2,288; mshtml 13,036; …);
+- **4,169** named exports and **10,525** imports recovered;
+- **22,479** strings indexed with their owning function;
+- 1 resource-only module (`shdoclc.dll`) has no code.
+
+Raw decompiled C, symbol dumps and string dumps are Microsoft-derived and stay in
+the external corpus; the repository keeps only synthesized metadata
+([`zune-hd-module-inventory.md`](zune-hd-module-inventory.md),
+[`zune-hd-api-reference.md`](zune-hd-api-reference.md),
+[`zune-hd-assets.md`](zune-hd-assets.md)).
 
 ### Output Directory Structure (`zune-hd-disassembly/`)
 
 ```
 zune-hd-disassembly/
-├── firmware/
-│   ├── PavoBaseline.Cab
-│   ├── EXT.bin
-│   └── NK.bin
-├── assets/
-│   ├── fonts/
-│   │   ├── ZegoeUI.ttf, ZegoeUI_B.ttf, ZegoeUI_Blk.ttf...
-│   │   └── MeiryoForZune.ttf, MalgunForZune.ttf...
-│   ├── DefaultAd.png, Dismiss.png, Zune.png...
-│   └── runtimeZune.v3.1.zcp
-├── modules/
-│   ├── gemstone.exe, xuidll.dll, zhud_serv.dll...
-│   └── (109 reconstructed ARM32 PE binaries)
+├── firmware/            PavoBaseline.Cab, EXT.bin, NK.bin, Recovery.bin, ZBoot.bin
+├── assets/              60 ROM files (fonts/, Tegra .axf, runtimeZune.v3.1.zcp, …)
+├── modules/             109 reconstructed ARM32 PE binaries
 ├── ghidra/
-│   ├── project/
-│   │   └── ZuneHD_Project.gpr / ZuneHD_Project.rep
-│   └── decompiled/
-│       ├── gemstone.exe/          (per-function .c)
-│       ├── gemstone.exe.functions.json
-│       ├── xuidll.dll/
-│       └── xuidll.dll.functions.json
+│   ├── symbols/         <module>.symbols.json  (recovered exports/imports)
+│   ├── decompiled/      <module>/ (per-function .c), <module>.functions.json,
+│   │                    <module>.strings.json
+│   ├── logs/            per-module Ghidra logs
+│   ├── corpus-manifest.json   status/size/hash/counts per module
+│   ├── index.json             aggregate module index
+│   └── projects/        ephemeral per-module Ghidra projects (deleted after run)
 └── README.md
 ```

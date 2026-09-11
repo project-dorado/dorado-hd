@@ -234,7 +234,7 @@ referencing `dorado/src/Dorado.Application`); re-run it after any desktop
 
 1. **M10 closeout** (S–M) — richer lock-screen Now Playing art/controls + optional sleep timer.
 2. **M5/M6 community wishlist** (M) — share-sheet + Zune-Card artwork export, EQ presets, crossfade, live-radio cache.
-3. **Corpus mining** (M) — mine the exported Ghidra decompilation for behavioral ground truth to tighten the canon.
+3. **Corpus mining** (M) — the full 109-module corpus is built (66.6k functions, symbols applied); mine the decompilation/strings for behavioral ground truth to tighten the canon.
 
 Front-loads the remaining always-on surfaces, then the community wishlist and
 disassembly-driven fidelity work.

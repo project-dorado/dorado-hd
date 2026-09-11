@@ -142,6 +142,13 @@ packages with title / GUID / description. Regenerable from
 archive. Binaries are encrypted (AES-ECB, marketplace DRM) and
 **never** bundled; metadata only.
 
+The full firmware reverse-engineering corpus (109 reconstructed ARM32 PE modules,
+66,598 functions decompiled with recovered symbols, 22,479 strings) is built by
+`scripts/ghidra_corpus.py` into the out-of-tree `zune-hd-disassembly/`. Synthesized
+analysis lives in [`docs/zune-hd-module-inventory.md`](docs/zune-hd-module-inventory.md),
+[`docs/zune-hd-api-reference.md`](docs/zune-hd-api-reference.md) and
+[`docs/zune-hd-assets.md`](docs/zune-hd-assets.md).
+
 ### Tests
 
 157 Robolectric unit tests + a design-invariant source scanner that
