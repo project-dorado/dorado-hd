@@ -6,7 +6,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -254,7 +253,7 @@ fun SnowballApp() {
                 SnowButton(if (paused) "play" else "pause") { togglePause() }
             }
             Spacer(Modifier.height(4.dp))
-            BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
+            Box(Modifier.fillMaxWidth().weight(1f)) {
                 Canvas(
                     Modifier
                         .fillMaxSize()

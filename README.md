@@ -27,10 +27,12 @@ Zune 4.8 was the desktop, Dorado-HD is the phone and Dorado is the desktop.
 ## ✨ What's implemented
 
 The current port faithfully reproduces the device across **home + quickplay
-+ 5 media pivots + 29 installed mini-apps**, plus the canon-defined
-companion apps and dead-service mock shells — design-language-correct,
-tokenized, and audited by Robolectric unit tests and a source-level
-design-invariant scanner.
++ 5 media pivots + all 62 official Zune HD apps** — 12 utilities/music,
+9 card/board titles with AI, 23 casual/puzzle games, 5 touch/toy/physics
+titles, 6 big engines (3D racing, skating, marble, bowling, music-surf and
+arena), and 7 dead-service local UIs (plus the social shell). Everything is
+design-language-correct, tokenized, and audited by 1,086 Robolectric/unit
+tests and a source-level design-invariant scanner.
 
 ### Shell — home & quickplay (canon §3.1–§3.2)
 
@@ -107,7 +109,7 @@ spec'd 380 ms deceleration via `DoradoMotion.PIVOT_SLIDE_MS`.
 - **Now Playing widget** — a Glance home-screen widget with transport over the shared Media3 session.
 - **Cloud update-check** — verifies a signed (RS256) release manifest.
 
-### Mini-app platform (canon §8 — 29 apps, behavioral re-implementation)
+### Mini-app platform (canon §8 — 62 apps, behavioral re-implementation)
 
 The `DoradoApps.all` registry is a `by lazy` build so it's populated before
 the first UI lookup (including Robolectric tests).
@@ -120,19 +122,32 @@ shuffle by album. PCM-synth piano/drum/metronome; accelerometer level;
 Room-backed notes/calendar/alarms; AlarmManager with full-track or
 radio wake.
 
-#### Games (9)
+#### Card, board & AI (9)
 
-solitaire · sudoku · hexic · reversi · **hearts · spades · checkers ·
-chess · texas hold 'em**. All seven non-trivial engines are pure-Kotlin
-and unit-tested (dealer logic, hand-rank hierarchy, check/stalemate
-detection, AI sanity). Chess is alpha-beta depth 3; poker bot is a
-tight-passive-bluff heuristic.
+solitaire · sudoku · hexic · reversi · hearts · spades · checkers ·
+chess · texas hold 'em. Pure-Kotlin engines with unit tests (dealer logic,
+hand-rank hierarchy, check/stalemate detection, scored AI tiers).
 
-#### Mock shells (8)
+#### Casual, puzzle, touch & big engines (34)
+
+23 casual/puzzle titles (color spill, supernova, tiles, slider puzzle,
+shell game, trash throw, tug-o-war, snowball, run and jump, hairball,
+splatter bug, goo splat, a beanstalk tale, animalgrams, bbq battle, bees,
+castles and cannons, decoder ring, fan prediction, penalty flick soccer,
+space battle 2, vine climb, wordmonger), 5 touch/toy/physics titles
+(dr optics, fingerpaint, 3D picture puzzle, finger physics, tiki totems),
+and 6 big engines (audiosurf tilt, echoes, labyrinth, lucky lanes bowling,
+PGR Ferrari, vans sk8) on a dependency-free OpenGL ES 3.0 core
+(`ui/apps/engine3d/`).
+
+#### Dead-service local UIs (7 + social)
 
 weather · twitter · facebook · email · messenger · msn money ·
-zune reader · zunesocial — era-faithful canned layouts for the dead
-marketplace services (canon §8 mock category).
+zune reader · zunesocial — decompiled screen inventories rebuilt as
+pixel-faithful offline surfaces with simulated local content (canon §8).
+
+Per-app behavior and provenance: [`docs/apps/`](docs/apps/) and
+[`docs/official-apps-audit.md`](docs/official-apps-audit.md).
 
 ### Reverse-engineering deliverable
 
@@ -208,7 +223,7 @@ mini-app platform.
 | Radio (HD / FM) | ✅ | ✅ | FM = user stations, HD = presets; canvas dial + drag |
 | Internet browser | ✅ | ✅ | WebView + URL bar + in-page back/forward + bookmarks |
 | Marketplace (apps pivot) | ✅ | ✅ | Installed registry + frozen 62-entry catalog |
-| Mini-app platform | ✅ | ✅ | 29 apps (12 utilities + 9 games + 8 mocks) |
+| Mini-app platform | ✅ | ✅ | 62 apps (all official packages; 3D core + AI engines) |
 | Crossbar pivot nav | ✅ | ✅ | All collection screens have horizontal pivot pivots |
 | Screensaver / now-playing art | ✅ | ✅ | |
 | Widget (home-screen) | ✅ | ✅ | Glance `NowPlayingWidget`: Now Playing + transport |

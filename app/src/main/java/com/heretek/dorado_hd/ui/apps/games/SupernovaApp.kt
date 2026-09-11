@@ -6,7 +6,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -232,7 +231,7 @@ fun SupernovaApp() {
                 NovaText("menu") { screen = "menu"; game = null; saved = null; paused = false }
             }
             Spacer(Modifier.height(4.dp))
-            BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
+            Box(Modifier.fillMaxWidth().weight(1f)) {
                 NovaField(current, Modifier.fillMaxSize()) { x, y -> fire(x, y) }
                 if (intro || paused || current.isOver) {
                     Box(

@@ -298,3 +298,41 @@ TV-out selector, usage/telemetry reporting, ACS firmware update
 
 Then **M13** (motion & HUD) → **M14** (playback & library depth) → **M15**
 (social/content/commerce). Corpus mining continues opportunistically.
+
+---
+
+## 9. Official-app reimplementation program (M16) — *complete*
+
+Every one of the 62 official Zune HD marketplace packages now has a native,
+launchable implementation in `DoradoApps` / `OfficialCatalog` (previously 21).
+The program is documented-first: each package has a synthesized behavioral spec
+with `Assembly!Type.Method` citations under [`apps/`](apps/), and the machine
+register is [`official-apps.json`](official-apps.json) with the generated audit
+[`official-apps-audit.md`](official-apps-audit.md).
+
+| Wave | Apps | Scope | Evidence |
+|---|---:|---|---|
+| W1 | 12 | utilities/music fidelity upgrades (calculator expression machine, four-page alarm, calendar agenda/recurrence, piano/drum, quiz rounds) | `*-LogicTest`/`*EngineTest` |
+| W2 | 9 | card/board rules + scored AI tiers (solitaire scoring, sudoku generator, hexic cluster rebuild, negascout checkers, opening-book chess, 6-seat poker) | `*RulesTest`, `*AiTest` |
+| W3 | 12 | new casual/puzzle engines (flood fill, chain reaction, slider, shell game, flick physics, tile melt, platformer, …) | per-app `*Test` |
+| W4 | 11 | new casual/word titles (tower defense, siege, hive harvester, cipher crossword, shmup, climbers, flick soccer, offline prediction) | per-app `*Test` |
+| W5 | 5 | touch/toy/physics + the first `engine3d` title (3D picture puzzle, optics tracer, rigid-body solver, physics totems, paint) | per-app `*Test` |
+| W6 | 6 | big engines (echo-replay arena, 116-maze marble, AudioFeatures surf courses, bowling sim, 30 Hz racing with kudos/career, pool skating) | per-app `*Test` |
+| W7 | 7+social | dead-service screen inventories rebuilt as pixel-faithful offline UIs | `*ModelTest` |
+
+**Gates:** 1,086/1,086 unit tests; `DesignInvariantTest` 0 violations; the
+`OfficialAppsTest` register⇔catalog⇔registry⇔spec consistency gate; corpus
+sources stay external (`tools/zune_archive_mirror.py`,
+`tools/zune_app_corpus.py`, `tools/app_mine.py`) and no Microsoft content is
+committed.
+
+**Known deltas (documented per app):** content is re-authored (fewer
+cars/tracks/levels than the shipping binaries), mid-level resume exists where
+an engine serializes state, and network/multiplayer surfaces are local-only
+because their backends are dead (canon §11 N-A register).
+
+**Corpus acquisition:** the full Zune Archive (70 items, 51.4 GB) is mirrored
+externally with per-file MD5 verification; the decompiled app tree verifies
+7,843/7,844 files (the one miss is absent upstream). `color-spill` remains
+corpus-blocked (its package shares a GUID with Reversi) and its implementation
+uses provisional genre constants, marked in the spec.

@@ -163,13 +163,31 @@ Ratings (tri-state heart, from the Zune desktop/HD family):
   marketplace/apps (canon §3.6).
 - Apps must render correctly in device mode (480x272) and adaptive mode.
 - Dorado-HD ships behavioral re-implementations only — no Microsoft code,
-  binaries or assets: utilities (calculator, notes, stopwatch, metronome,
-  alarm clock, calendar, level, piano, drum machine, chord finder, music
-  quiz, shuffle by album), games (solitaire, sudoku, hexic, reversi, hearts,
-  spades, checkers, chess, texas hold 'em), and offline mock shells for dead
-  services (weather, twitter, facebook, email, messenger, msn money, zune
-  reader, zunesocial). The 12 utilities / 9 games / 8 mocks split is the
-  ZuneRedux `zune-hd-apps` archive inventory (`docs/zcp-inventory.md`).
+  binaries or assets.
+- **All 62 official packages are implemented** (program record:
+  [`official-apps-audit.md`](official-apps-audit.md), per-app behavior:
+  [`apps/`](apps/)). The `OfficialCatalog` → `DoradoApps` mapping is total:
+  every catalog row resolves to a launchable app.
+  - **Utilities & music (12):** calculator, notes, stopwatch, alarm clock,
+    calendar, level, metronome, piano, drum machine, chord finder, music
+    quiz, shuffle by album.
+  - **Card, board & AI (9):** solitaire, sudoku, hexic, reversi, hearts,
+    spades, checkers, chess, texas hold 'em.
+  - **Casual & puzzle (23):** color spill, supernova, tiles, slider puzzle,
+    shell game, trash throw, tug-o-war, snowball, run and jump, hairball,
+    splatter bug, goo splat, a beanstalk tale, animalgrams, bbq battle,
+    bees, castles and cannons, decoder ring, fan prediction, penalty flick
+    soccer, space battle 2, vine climb, wordmonger.
+  - **Touch, toy & physics (5):** dr optics, fingerpaint, 3D picture puzzle,
+    finger physics, tiki totems.
+  - **Big engines (6):** audiosurf tilt, echoes, labyrinth, lucky lanes
+    bowling, PGR Ferrari, vans sk8.
+  - **Dead-service local UIs (7 packages + the social shell):** weather,
+    twitter, facebook, email, messenger, msn money, zune reader, zunesocial —
+    pixel-faithful layouts with simulated local content, clearly offline.
+- Provenance: every behavior is re-derived from the decrypted package tree
+  (`docs/zcp-inventory.md`, `docs/apps/`), never copied; all artwork, levels,
+  word lists and audio are re-authored in code (`NOTICE.md`).
 
 ## 9. Reference library
 - dorado (desktop) design-system skill + extracted Zune assets (MIT).

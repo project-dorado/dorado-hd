@@ -362,7 +362,9 @@ private fun AnimalgramsMenu(progress: AnimalgramsEngine.AnagramProgress, onPlay:
                 text = "words found $total",
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textInactive),
             )
-            if (!AnimalgramsEngine.isEnglishTag(java.util.Locale.getDefault().language)) {
+            val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+            val language = configuration.locales[0]?.language.orEmpty()
+            if (!AnimalgramsEngine.isEnglishTag(language)) {
                 BasicText(
                     text = "english only · this game accepts english words",
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.accent),
