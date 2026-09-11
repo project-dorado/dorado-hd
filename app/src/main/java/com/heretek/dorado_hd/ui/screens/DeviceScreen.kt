@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -85,12 +85,12 @@ fun DeviceScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
     }
 
     DetailScaffold(title = "device link") {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 48.dp),
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 48.dp),
         ) {
+            // Lazy: the eager scroll column composed every manifest/content row.
+            item {
             SectionLabel("status")
             EdgeCropText(
                 // Derive the status copy from the actual pairing state; the
@@ -192,6 +192,9 @@ fun DeviceScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                 )
             }
 
+            }
+
+            item {
             SectionLabel("storage")
             GasGauge(transport)
             EdgeCropText(
@@ -270,27 +273,34 @@ fun DeviceScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                 }
             }
 
-            SectionLabel("on device")
+            }
+
+            item { SectionLabel("on device") }
             if (contents.isEmpty()) {
+                item {
                 EdgeCropText(
                     text = "nothing on device",
                     fontSize = DoradoTokens.TYPE_LIST.dp,
                     alpha = 0.4f,
                     modifier = Modifier.padding(horizontal = DoradoTokens.EDGE.dp),
                 )
+                }
             } else {
-                contents.forEach { item -> DeviceItemRow(item) { graph.deviceLink.copyBack(item) } }
+                items(contents) { contentItem ->
+                    DeviceItemRow(contentItem) { graph.deviceLink.copyBack(contentItem) }
+                }
             }
 
             if (pending.isNotEmpty()) {
-                SectionLabel("pending imports (${pending.size})")
-                pending.forEach { p ->
+                item { SectionLabel("pending imports (${pending.size})") }
+                items(pending) { p ->
                     EdgeCropText(
                         text = "${p.title} · ${formatBytes(p.sizeBytes)}",
                         fontSize = DoradoTokens.TYPE_LIST.dp,
                         modifier = Modifier.padding(horizontal = DoradoTokens.EDGE.dp, vertical = 2.dp),
                     )
                 }
+                item {
                 EdgeCropText(
                     text = "clear queue",
                     fontSize = DoradoTokens.TYPE_NOW_META.dp,
@@ -299,6 +309,7 @@ fun DeviceScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                         .clickable { graph.deviceLink.clearPending() }
                         .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 6.dp),
                 )
+                }
             }
         }
     }
@@ -392,7 +403,9 @@ private fun DeviceItemRow(item: DeviceContentItem, onCopyBack: () -> Unit) {
             .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 4.dp),
     ) {
         Column(Modifier.weight(1f)) {
-            EdgeCropText(text = item.title, fontSize = DoradoTokens.TYPE_LIST.dp)
+            // fillMaxWidth constrains the crop to the column; without it the
+            // single-line text lays out at intrinsic width over "copy back".
+            EdgeCropText(text = item.title, fontSize = DoradoTokens.TYPE_LIST.dp, modifier = Modifier.fillMaxWidth())
             EdgeCropText(
                 text = "${item.category} · ${formatBytes(item.sizeBytes)}",
                 fontSize = DoradoTokens.TYPE_CAPTION.dp,

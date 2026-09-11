@@ -70,7 +70,7 @@ fun RadioScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 8.dp)
+                    .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 6.dp)
                     .height(DoradoTokens.DIAL_HEIGHT.dp)
                     .background(colors.elevated),
             ) {
@@ -109,6 +109,52 @@ fun RadioScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.textPrimary),
                     modifier = Modifier.align(Alignment.BottomStart).padding(DoradoTokens.EDGE.dp / 2),
                 )
+                // Actions live on the dial itself so the station list gets the
+                // full remainder of the canvas (the old separate row left the
+                // list only a sliver in device mode).
+                Row(
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(DoradoTokens.EDGE.dp / 2),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    EdgeCropText(
+                        text = "tune in",
+                        fontSize = DoradoTokens.TYPE_LIST.dp,
+                        color = LocalDoradoColors.current.accent,
+                        modifier = Modifier.clickable {
+                            val match = stations.firstOrNull { it.frequencyKhz == dialKhz }
+                                ?: stations.firstOrNull { it.streamUrl.isNotBlank() }
+                            if (match != null) {
+                                current = match
+                                playStation(graph, match)
+                                scope.launch { graph.radio.touch(match.id) }
+                            }
+                        },
+                    )
+                    EdgeCropText(
+                        text = "+ station",
+                        fontSize = DoradoTokens.TYPE_LIST.dp,
+                        color = LocalDoradoColors.current.accent,
+                        modifier = Modifier.clickable {
+                            menus.showPrompt("add station", "name|url") { text ->
+                                val parts = text.split("|")
+                                if (parts.size >= 2) {
+                                    scope.launch {
+                                        graph.radio.add(
+                                            RadioStationEntity(
+                                                name = parts[0].trim().ifBlank { "stream" },
+                                                frequencyKhz = dialKhz,
+                                                streamUrl = parts[1].trim(),
+                                                isPreset = false,
+                                                lastPlayedAt = 0,
+                                            ),
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                    )
+                }
             }
             val fmStations = stations.filter { !it.isPreset && it.frequencyKhz > 0 }
             val hdStations = stations.filter { it.isPreset }
@@ -127,68 +173,26 @@ fun RadioScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
             )
             androidx.compose.foundation.pager.HorizontalPager(state = radioPagerState, modifier = Modifier.fillMaxSize()) { page ->
                 val pivotList = pivotBuckets.getOrNull(page) ?: emptyList()
-                Column(Modifier.fillMaxSize()) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = DoradoTokens.EDGE.dp, vertical = 4.dp)) {
-                        EdgeCropText(
-                            text = "tune in",
-                            fontSize = DoradoTokens.TYPE_LIST.dp,
-                            color = LocalDoradoColors.current.accent,
-                            modifier = Modifier.clickable {
-                                val match = stations.firstOrNull { it.frequencyKhz == dialKhz }
-                                    ?: stations.firstOrNull { it.streamUrl.isNotBlank() }
-                                if (match != null) {
-                                    current = match
-                                    playStation(graph, match)
-                                    scope.launch { graph.radio.touch(match.id) }
-                                }
-                            },
+                RadioStationList(
+                    stations = pivotList,
+                    current = current,
+                    onStation = { s ->
+                        current = s
+                        dialKhz = s.frequencyKhz.coerceAtLeast(87500)
+                        playStation(graph, s)
+                        scope.launch { graph.radio.touch(s.id) }
+                    },
+                    onLongPress = { s ->
+                        menus.show(
+                            title = s.name,
+                            actions = listOf(
+                                MenuAction("remove") {
+                                    scope.launch { graph.radio.delete(s.id) }
+                                },
+                            ),
                         )
-                        Spacer(Modifier.weight(1f))
-                        EdgeCropText(
-                            text = "+ station",
-                            fontSize = DoradoTokens.TYPE_LIST.dp,
-                            color = LocalDoradoColors.current.accent,
-                            modifier = Modifier.clickable {
-                                menus.showPrompt("add station", "name|url") { text ->
-                                    val parts = text.split("|")
-                                    if (parts.size >= 2) {
-                                        scope.launch {
-                                            graph.radio.add(
-                                                RadioStationEntity(
-                                                    name = parts[0].trim().ifBlank { "stream" },
-                                                    frequencyKhz = dialKhz,
-                                                    streamUrl = parts[1].trim(),
-                                                    isPreset = false,
-                                                    lastPlayedAt = 0,
-                                                ),
-                                            )
-                                        }
-                                    }
-                                }
-                            },
-                        )
-                    }
-                    RadioStationList(
-                        stations = pivotList,
-                        current = current,
-                        onStation = { s ->
-                            current = s
-                            dialKhz = s.frequencyKhz.coerceAtLeast(87500)
-                            playStation(graph, s)
-                            scope.launch { graph.radio.touch(s.id) }
-                        },
-                        onLongPress = { s ->
-                            menus.show(
-                                title = s.name,
-                                actions = listOf(
-                                    MenuAction("remove") {
-                                        scope.launch { graph.radio.delete(s.id) }
-                                    },
-                                ),
-                            )
-                        },
-                    )
-                }
+                    },
+                )
             }
         }
     }
@@ -229,7 +233,7 @@ private fun RadioStationList(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    EdgeCropText(text = s.name, fontSize = DoradoTokens.TYPE_LIST.dp, color = if (s.id == current?.id) LocalDoradoColors.current.accent else LocalDoradoColors.current.textPrimary)
+                    EdgeCropText(text = s.name, fontSize = DoradoTokens.TYPE_LIST.dp, color = if (s.id == current?.id) LocalDoradoColors.current.accent else LocalDoradoColors.current.textPrimary, modifier = Modifier.fillMaxWidth())
                     EdgeCropText(text = formatDial(s.frequencyKhz), fontSize = DoradoTokens.TYPE_CAPTION.dp, color = LocalDoradoColors.current.textSecondary)
                 }
             }
