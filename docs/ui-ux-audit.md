@@ -98,6 +98,12 @@ not committed):
   mock (all 7 days visible, scrolls).
 - **Stress**: `monkey -p com.heretek.dorado_hd.debug --throttle 100 1200` —
   1 200 events, `logcat -b crash` empty.
+- **Close-out pass (adaptive portrait)**: radio dial hosts `tune in` /
+  `+ station` with a full-height station region and the 98.7 needle maps
+  correctly; Device Link flings through the lazy manifest to the bottom with
+  titles cropping cleanly at “copy back”; album detail renders art, actions and
+  tracks; artist crossbar/related pivots reachable; `monkey` 900 events with an
+  empty crash buffer and zero ANRs.
 - **Gates**: `:app:assembleDebug`, `:app:testDebugUnitTest` (175 tests),
   `:app:lintDebug` all green after every batch.
 
@@ -111,6 +117,31 @@ not committed):
 | `4c69cdb` | core screens: home/music/media/now-playing/components/lock/cloud |
 | `31922b4` | podcasts, radio, marketplace, settings, device link |
 | `677743b` | hexic/sudoku/reversi cell sizing; mock scroll/wrap |
+| close-out pass | detail-screen insets/empty states/related wrap/MusicBrainz URL; widget album art + sizing/preview; density-normalized fling cap; tablet scale headroom; visualizer draw-scope + seamless loop; dp saver drift; radio dial-action overlay; lazy Device Link; title crop constraints |
+
+### 3.1 Close-out pass (2026-09-11)
+
+A follow-up pass corrected items that the first sweep had recorded but not
+actually applied, and finished the smaller scale/motion work:
+
+- **Detail screens**: `bottomPadding = 40.dp` on the album/artist/genre/playlist
+  track lists; “album not found” and “no songs in this genre” empty states;
+  play/shuffle hidden when an album has no tracks; the related-artists
+  explanation wraps (it was a single-line crop) and the MusicBrainz link uses
+  the valid `/search?query=…&type=artist` route.
+- **Widget**: renders the album art (Glance 1.2 has no URI provider, so the
+  updater decodes a 128px PNG thumbnail off-main and the widget renders
+  `ImageProvider(bitmap)`) plus the album line; declared size raised to
+  110dp/2 cells with description and preview; dead `albumArtUri` helper removed.
+- **Scaling/motion**: adaptive scale ceiling raised 2.1 → 2.6 for tablets;
+  fling cap normalized by the adaptive density multiplier (device-mode behavior
+  unchanged); visualizer phase read in the draw scope with a seamless 60s loop;
+  screensaver drift expressed in dp.
+- **Radio**: `tune in` / `+ station` now overlay the dial so the station list
+  gets the full remaining height (verified on device).
+- **Device Link**: converted to `LazyColumn` (keyed items for device contents
+  and pending imports); long titles now crop instead of overlapping
+  “copy back”.
 
 ## 4. Known remaining / deliberately deferred
 
@@ -124,21 +155,12 @@ These were found and are recorded here rather than changed in this pass:
 2. **Spades scoring/AI depth.** Rules are now coherent and bag penalties apply,
    but AI play and nil-handling remain deliberately simple.
 3. **Pivot state resets** when returning from a detail pushed inside a pivot
-   (e.g., Marketplace → Album → back returns to the first pivot). Pager state
-   is not hoisted; cosmetic, not incorrect.
-4. **Device Link page composes eagerly** (up to ~100 manifest rows in a
-   `verticalScroll` column). Convert to `LazyColumn` when the page is next
-   touched; low user impact today.
-5. **`ZuneFling` velocity cap is in px/s** while adaptive mode scales density;
-   the cap is therefore effectively lower on high-scale layouts. The kinetic
-   retention model itself remains an empirical approximation (canon §10, parity
-   audit §3).
-6. **SpectrumVisualizer reads animation state in composition** (recomposes per
-   frame while playing); move the phase read into the draw scope when
-   profiling warrants it.
-7. **Canon string decisions** (`Various Artist`, ` by `, `noItems`, `Ffwd`,
+   (e.g., Marketplace → Album → back returns to the first pivot; Music →
+   Artist → back returns to the Albums pivot). Pager state is not hoisted;
+   cosmetic, not incorrect.
+4. **Canon string decisions** (`Various Artist`, ` by `, `noItems`, `Ffwd`,
    `Mute`) remain per the M12 decision in canon §11.
-8. **Audiobooks, queue capacity events, DRM/MTPZ/TV-out** remain out of scope
+5. **Audiobooks, queue capacity events, DRM/MTPZ/TV-out** remain out of scope
    per parity audit §11.
 
 ## 5. How to re-verify
