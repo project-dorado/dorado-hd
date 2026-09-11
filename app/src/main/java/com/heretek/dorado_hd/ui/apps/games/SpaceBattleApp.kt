@@ -45,6 +45,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoAccent
 import com.heretek.dorado_hd.design.DoradoColors
 import com.heretek.dorado_hd.design.DoradoTokens
@@ -192,7 +193,7 @@ fun SpaceBattleApp() {
             stageId = min(id, SpaceBattleEngine.NUM_STAGES),
             difficulty = difficulty,
             build = progress.build,
-            seed = System.currentTimeMillis().toInt(),
+            seed = AppClock.millis().toInt(),
         )
         game = if (carry == null) {
             fresh
@@ -217,7 +218,7 @@ fun SpaceBattleApp() {
             stageId = 1,
             difficulty = difficulty,
             build = progress.build,
-            seed = System.currentTimeMillis().toInt(),
+            seed = AppClock.millis().toInt(),
             mode = SpaceBattleEngine.GameMode.RACE,
             raceId = trackId,
             ghost = progress.ghosts[trackId],

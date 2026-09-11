@@ -292,7 +292,7 @@ fun MetronomeApp() {
                     modifier = Modifier
                         .combinedClickable(
                             onClick = {
-                                metro = MetronomeEngine.tapTempo(metro, System.currentTimeMillis())
+                                metro = MetronomeEngine.tapTempo(metro, AppClock.millis())
                                 bank.play("tick")
                             },
                             onLongClick = {},

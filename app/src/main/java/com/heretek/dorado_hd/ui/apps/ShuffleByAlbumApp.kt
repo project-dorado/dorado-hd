@@ -307,7 +307,7 @@ fun ShuffleByAlbumApp() {
     var state by remember { mutableStateOf<ShuffleEngine.ShuffleState?>(null) }
     var overlay by remember { mutableStateOf(ShuffleOverlay.NONE) }
     var dragX by remember { mutableStateOf(0f) }
-    var lastTouchAt by remember { mutableStateOf(System.currentTimeMillis()) }
+    var lastTouchAt by remember { mutableStateOf(AppClock.millis()) }
     var saver by remember { mutableStateOf(false) }
     var prefs by remember { mutableStateOf(ShuffleEngine.ShufflePrefs(false, ShuffleEngine.Scope.ALL, null)) }
 
@@ -351,12 +351,12 @@ fun ShuffleByAlbumApp() {
     LaunchedEffect(Unit) {
         while (true) {
             delay(500)
-            if (System.currentTimeMillis() - lastTouchAt >= DoradoTokens.IDLE_SCREENSAVER_MS) saver = true
+            if (AppClock.millis() - lastTouchAt >= DoradoTokens.IDLE_SCREENSAVER_MS) saver = true
         }
     }
 
     fun touch() {
-        lastTouchAt = System.currentTimeMillis()
+        lastTouchAt = AppClock.millis()
         saver = false
     }
 

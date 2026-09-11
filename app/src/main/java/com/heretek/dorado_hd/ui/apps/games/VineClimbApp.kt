@@ -41,6 +41,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoAccent
 import com.heretek.dorado_hd.design.DoradoColors
 import com.heretek.dorado_hd.design.DoradoTokens
@@ -143,7 +144,7 @@ fun VineClimbApp() {
     }
 
     fun startGame() {
-        game = VineClimbEngine.newGame(seed = System.currentTimeMillis().toInt())
+        game = VineClimbEngine.newGame(seed = AppClock.millis().toInt())
         screen = "game"
         paused = false
         recorded = false

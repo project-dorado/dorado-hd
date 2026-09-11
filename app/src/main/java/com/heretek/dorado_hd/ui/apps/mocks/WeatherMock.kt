@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.heretek.dorado_hd.design.DoradoTokens
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.LocalDoradoColors
 import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.design.components.EdgeCropText
@@ -120,7 +121,7 @@ private fun CityPagerScreen(
     onOpenSettings: () -> Unit,
 ) {
     val colors = LocalDoradoColors.current
-    val now = remember { System.currentTimeMillis() }
+    val now = remember { AppClock.millis() }
     val pages = state.cities.size.coerceAtLeast(1)
     val pager = rememberPagerState(initialPage = state.selected.coerceIn(0, pages - 1)) { pages }
 
@@ -163,7 +164,7 @@ private fun CityPagerScreen(
                     color = colors.accent,
                     modifier = Modifier
                         .clickable {
-                            val at = System.currentTimeMillis()
+                            val at = AppClock.millis()
                             onState(
                                 state.copy(
                                     cities = state.cities.mapIndexed { index, city ->

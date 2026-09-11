@@ -44,6 +44,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoAccent
 import com.heretek.dorado_hd.design.DoradoColors
 import com.heretek.dorado_hd.design.DoradoTokens
@@ -129,7 +130,7 @@ fun WordMongerApp() {
     }
 
     fun startGame(fresh: Boolean) {
-        val next = if (fresh) WordMongerEngine.newGame(1, (System.currentTimeMillis() and 0x7FFFFFFF).toInt(), tutorial) else saved
+        val next = if (fresh) WordMongerEngine.newGame(1, (AppClock.millis() and 0x7FFFFFFF).toInt(), tutorial) else saved
         game = next
         saved = null
         paused = false

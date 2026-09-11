@@ -124,3 +124,19 @@ instrumentation; IME correctness is structural (root insets + `adjustResize`)
 and visually spot-checked on the emulator rather than simulated in Robolectric;
 canvas-drawn text is not exposed to the accessibility tree (a standing
 fidelity/accessibility opportunity, not a parity regression).
+
+---
+
+## 8. Track A hardening (post-program)
+
+| Item | Result |
+|---|---|
+| A1 CI guards | `lintDebug`, `tools/ui_lint.py` and a `py_compile` check now run in the HD CI workflow alongside the unit/UI suites |
+| A2 Interactive flow crawl | `tools/emulator_flow_crawl.py` drives each app's primary flow, then backgrounds/relaunches and cold-restarts it, scanning logcat per step: **63/63 apps, 0 crashes** (evidence: `reports/emulator/flows/`) |
+| A3 Accessibility | `AppTouch.kt` (`appTap` / `appHold` / `appDescription`) applied across the catalog: every button/row/tab exposes a TalkBack click action, boards and readouts carry state descriptions, press-and-hold controls expose a click. The flow crawl had to tap text bounds because pointerInput controls previously exposed no click action — that gap is closed |
+| A4 Golden expansion | Wall-clock seam `AppClock` (production = system clock; tests frozen at 2024-06-15T12:34Z) enables deterministic goldens for the alarm/calendar/weather/notes entry frames; the suite now records **126 goldens** (device 480x272 + adaptive landscape for all 63 apps) and verifies within tolerance. Suite total: **1,477 tests** |
+
+The four clock/date exclusions from the original golden set are gone: the
+seam makes those entry frames deterministic. Second-screen goldens remain
+the one deferred item — mid-flow visuals are covered by the interactive
+flow crawl's per-step screenshots.

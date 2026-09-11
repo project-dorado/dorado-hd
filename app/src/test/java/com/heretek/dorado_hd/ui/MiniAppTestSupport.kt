@@ -45,7 +45,11 @@ fun MiniAppHarness(slug: String, mode: HarnessMode) {
             LocalDoradoGraph provides graph,
             com.heretek.dorado_hd.ui.components.LocalContextMenu provides menus,
         ) {
-            Box(Modifier.requiredSize(mode.width, mode.height).testTag("miniapp-harness")) {
+            Box(
+                Modifier
+                    .requiredSize(mode.width, mode.height)
+                    .testTag("miniapp-harness-${mode.name.lowercase()}"),
+            ) {
                 DeviceCanvas(deviceMode = mode.deviceMode) { canvasWidth, _ ->
                     MiniAppScreen(slug, canvasWidth)
                 }

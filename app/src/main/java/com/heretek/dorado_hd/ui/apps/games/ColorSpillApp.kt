@@ -34,6 +34,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoAccent
 import com.heretek.dorado_hd.design.DoradoColors
 import com.heretek.dorado_hd.design.DoradoTokens
@@ -115,7 +116,7 @@ fun ColorSpillApp() {
     }
 
     fun start(level: Int) {
-        game = ColorSpillEngine.newGame(level = level, seed = System.currentTimeMillis().toInt())
+        game = ColorSpillEngine.newGame(level = level, seed = AppClock.millis().toInt())
         recorded = false
         screen = "game"
     }

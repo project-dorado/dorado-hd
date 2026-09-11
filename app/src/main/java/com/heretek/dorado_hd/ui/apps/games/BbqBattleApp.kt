@@ -39,6 +39,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoAccent
 import com.heretek.dorado_hd.design.DoradoColors
 import com.heretek.dorado_hd.design.DoradoTokens
@@ -146,7 +147,7 @@ fun BbqBattleApp() {
     }
 
     fun startNew() {
-        val fresh = BbqBattleEngine.newGame(System.currentTimeMillis().toInt(), easyMode = easy)
+        val fresh = BbqBattleEngine.newGame(AppClock.millis().toInt(), easyMode = easy)
         game = fresh
         saved = null
         recorded = false

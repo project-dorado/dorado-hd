@@ -35,6 +35,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoAccent
 import com.heretek.dorado_hd.design.DoradoColors
 import com.heretek.dorado_hd.design.DoradoTokens
@@ -93,7 +94,7 @@ fun AnimalgramsApp() {
     }
 
     fun openRound(key: String) {
-        game = AnimalgramsEngine.newRound(key, seed = (System.currentTimeMillis() and 0x7FFFFFFF).toInt())
+        game = AnimalgramsEngine.newRound(key, seed = (AppClock.millis() and 0x7FFFFFFF).toInt())
         recorded = false
         screen = "game"
     }

@@ -35,6 +35,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoAccent
 import com.heretek.dorado_hd.design.DoradoColors
 import com.heretek.dorado_hd.design.DoradoTokens
@@ -191,7 +192,7 @@ fun SnowballApp() {
         }
     }
 
-    fun startCampaign(level: Int, seed: Int = System.currentTimeMillis().toInt()) {
+    fun startCampaign(level: Int, seed: Int = AppClock.millis().toInt()) {
         game = SnowballEngine.newCampaign(level, seed)
         showTutorial = !progress.tutorialCampaignSeen
         countdownMs = if (showTutorial) 0L else SNOW_COUNTDOWN_TOTAL_MS
@@ -203,7 +204,7 @@ fun SnowballApp() {
     }
 
     fun startSurvival() {
-        game = SnowballEngine.newSurvival(System.currentTimeMillis().toInt())
+        game = SnowballEngine.newSurvival(AppClock.millis().toInt())
         showTutorial = !progress.tutorialSurvivalSeen
         countdownMs = if (showTutorial) 0L else SNOW_COUNTDOWN_TOTAL_MS
         paused = false

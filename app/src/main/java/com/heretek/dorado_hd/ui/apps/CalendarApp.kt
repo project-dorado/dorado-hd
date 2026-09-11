@@ -230,8 +230,8 @@ fun CalendarApp() {
     val colors = LocalDoradoColors.current
     val appts by graph.calendar.appointments().collectAsState(initial = emptyList())
     val zone = remember { ZoneId.systemDefault() }
-    var monthStart by remember { mutableStateOf(YearMonth.now()) }
-    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+    var monthStart by remember { mutableStateOf(AppClock.yearMonth()) }
+    var selectedDate by remember { mutableStateOf(AppClock.localDate()) }
     var view by remember { mutableStateOf(CalendarView.DAY) }
 
     val dayStart = selectedDate.atStartOfDay(zone).toInstant().toEpochMilli()
@@ -343,8 +343,8 @@ fun CalendarApp() {
                     modifier = Modifier
                         .combinedClickable(
                             onClick = {
-                                selectedDate = LocalDate.now()
-                                monthStart = YearMonth.now()
+                                selectedDate = AppClock.localDate()
+                                monthStart = AppClock.yearMonth()
                             },
                             onLongClick = {},
                         )

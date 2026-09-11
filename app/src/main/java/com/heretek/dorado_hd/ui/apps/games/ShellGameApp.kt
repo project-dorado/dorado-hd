@@ -51,6 +51,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoAccent
 import com.heretek.dorado_hd.design.DoradoColors
 import com.heretek.dorado_hd.design.DoradoTokens
@@ -89,7 +90,7 @@ fun ShellGameApp() {
         onDispose { synth.stop() }
     }
 
-    var shell by remember { mutableStateOf(ShellGameEngine.idle(seed = System.currentTimeMillis().toInt())) }
+    var shell by remember { mutableStateOf(ShellGameEngine.idle(seed = AppClock.millis().toInt())) }
     var paused by remember { mutableStateOf(false) }
     var about by remember { mutableStateOf(false) }
     var volume by remember { mutableStateOf(2) }
@@ -108,7 +109,7 @@ fun ShellGameApp() {
         val unlocked = graph.appState.get("shell-game.trophies")
             ?.split(",")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
         volume = graph.appState.get("shell-game.volume")?.toIntOrNull() ?: 2
-        shell = ShellGameEngine.idle(unlocked, System.currentTimeMillis().toInt())
+        shell = ShellGameEngine.idle(unlocked, AppClock.millis().toInt())
         loaded = true
     }
 

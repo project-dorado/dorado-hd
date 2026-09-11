@@ -35,6 +35,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.design.LocalDoradoColors
 import com.heretek.dorado_hd.design.Selawik
@@ -122,7 +123,7 @@ fun TilesApp() {
     }
 
     fun start(mode: TilesMode) {
-        game = TilesEngine.newGame(mode, System.currentTimeMillis().toInt())
+        game = TilesEngine.newGame(mode, AppClock.millis().toInt())
         recorded = false
         confirm = null
         screen = "game"

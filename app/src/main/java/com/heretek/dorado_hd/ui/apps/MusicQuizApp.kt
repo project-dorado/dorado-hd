@@ -104,7 +104,7 @@ fun MusicQuizApp() {
         val state = QuizEngine.startRound(
             tracks = pool,
             difficulty = difficulty,
-            seed = System.currentTimeMillis(),
+            seed = AppClock.millis(),
             bonusEnabled = bonusEnabled,
             mixName = mixName,
         )

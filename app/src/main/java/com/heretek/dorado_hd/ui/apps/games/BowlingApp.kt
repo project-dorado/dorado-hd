@@ -34,6 +34,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.data.db.GameScoreEntity
 import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.design.LocalDoradoColors
@@ -205,7 +206,7 @@ fun BowlingApp() {
     }
 
     fun startGame() {
-        match = BowlingEngine.newMatch(mode, length, lane, ball, rival, seed = System.currentTimeMillis().toInt())
+        match = BowlingEngine.newMatch(mode, length, lane, ball, rival, seed = AppClock.millis().toInt())
         recorded = false
         paused = false
         aim = 0f

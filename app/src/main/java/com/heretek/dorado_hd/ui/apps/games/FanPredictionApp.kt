@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.design.LocalDoradoColors
 import com.heretek.dorado_hd.design.Selawik
@@ -81,8 +82,8 @@ fun FanPredictionApp() {
         val deviceId = graph.appState.get("fan-prediction-device")
             ?: UUID.randomUUID().toString().also { graph.appState.put("fan-prediction-device", it) }
         val loaded = savedBlob?.let { FanPredictionEngine.decode(it) }
-            ?: FanPredictionEngine.newState(deviceId, System.currentTimeMillis(), System.currentTimeMillis().toInt())
-        state = FanPredictionEngine.refresh(loaded, System.currentTimeMillis())
+            ?: FanPredictionEngine.newState(deviceId, AppClock.millis(), AppClock.millis().toInt())
+        state = FanPredictionEngine.refresh(loaded, AppClock.millis())
     }
     LaunchedEffect(state) {
         val current = state ?: return@LaunchedEffect
@@ -92,7 +93,7 @@ fun FanPredictionApp() {
         while (true) {
             delay(30_000)
             val current = state ?: continue
-            state = FanPredictionEngine.apply(current, FanEvent.Refresh(System.currentTimeMillis()))
+            state = FanPredictionEngine.apply(current, FanEvent.Refresh(AppClock.millis()))
         }
     }
 
@@ -130,7 +131,7 @@ fun FanPredictionApp() {
                 onStandings = { screen = "standings"; playCue("select") },
                 onSettings = { nicknameDraft = current.profile.nickname; screen = "settings"; playCue("select") },
                 onAbout = { screen = "about"; playCue("select") },
-                onRefresh = { dispatch(FanEvent.Refresh(System.currentTimeMillis())) },
+                onRefresh = { dispatch(FanEvent.Refresh(AppClock.millis())) },
             )
         }
 

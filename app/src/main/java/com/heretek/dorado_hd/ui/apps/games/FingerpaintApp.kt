@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoAccent
 import com.heretek.dorado_hd.design.DoradoColors
 import com.heretek.dorado_hd.design.DoradoTokens
@@ -171,7 +172,7 @@ fun FingerpaintApp() {
     }
 
     fun startParty() {
-        val seed = System.currentTimeMillis().toInt()
+        val seed = AppClock.millis().toInt()
         val names = (1..playerCount).map { "player $it" }
         session = FingerpaintEngine.startRound(FingerpaintEngine.newSession(names, seed), seed)
         brush = FingerpaintBrush()
@@ -183,7 +184,7 @@ fun FingerpaintApp() {
 
     fun restart() {
         val names = session?.players?.map { it.name } ?: return
-        val seed = System.currentTimeMillis().toInt()
+        val seed = AppClock.millis().toInt()
         session = FingerpaintEngine.startRound(FingerpaintEngine.newSession(names, seed), seed)
         brush = FingerpaintBrush()
         liveStrokes.clear()
@@ -205,7 +206,7 @@ fun FingerpaintApp() {
             saved = saved,
             best = scores.firstOrNull()?.score ?: 0,
             onSolo = {
-                val seed = System.currentTimeMillis().toInt()
+                val seed = AppClock.millis().toInt()
                 session = FingerpaintEngine.soloSession(seed)
                 brush = FingerpaintBrush()
                 liveStrokes.clear()

@@ -38,6 +38,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoColors
 import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.design.LocalDoradoColors
@@ -324,7 +325,7 @@ fun PenaltyApp() {
 
     fun startTournament(teamId: Int) {
         saved = null
-        val t = PenaltyEngine.newTournament(teamId, System.currentTimeMillis().toInt())
+        val t = PenaltyEngine.newTournament(teamId, AppClock.millis().toInt())
         tournament = t
         tournamentRecorded = false
         screen = "bracket"
@@ -332,14 +333,14 @@ fun PenaltyApp() {
     }
 
     fun startMad() {
-        mad = PenaltyEngine.newMadMinute(System.currentTimeMillis().toInt())
+        mad = PenaltyEngine.newMadMinute(AppClock.millis().toInt())
         madRecorded = false
         screen = "mad"
         playCue("select")
     }
 
     fun startStreak() {
-        streak = PenaltyEngine.newGoalStreak(System.currentTimeMillis().toInt())
+        streak = PenaltyEngine.newGoalStreak(AppClock.millis().toInt())
         screen = "streak"
         playCue("select")
     }
@@ -429,7 +430,7 @@ fun PenaltyApp() {
                 onSwipe = { swipe -> takePlayerShot(swipe, forPractice = false) },
                 onZone = { zone ->
                     heldZone = zone
-                    pressedAt = System.currentTimeMillis()
+                    pressedAt = AppClock.millis()
                     playCue("click")
                 },
                 onContinue = {
@@ -530,7 +531,7 @@ fun PenaltyApp() {
                     onSwipe = { swipe -> takePlayerShot(swipe, forPractice = true) },
                     onZone = { zone ->
                         heldZone = zone
-                        pressedAt = System.currentTimeMillis()
+                        pressedAt = AppClock.millis()
                         playCue("click")
                         if (lesson == 2) {
                             tutorialLesson = 3

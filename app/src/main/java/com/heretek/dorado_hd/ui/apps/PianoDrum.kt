@@ -319,12 +319,12 @@ fun PianoApp() {
     }
 
     fun playKey(key: PianoEngine.PianoKey) {
-        piano = PianoEngine.press(piano, key, System.currentTimeMillis())
+        piano = PianoEngine.press(piano, key, AppClock.millis())
         voices.play(key.midi)
     }
 
     fun releaseMidi(midi: Int) {
-        piano = PianoEngine.release(piano, midi, System.currentTimeMillis())
+        piano = PianoEngine.release(piano, midi, AppClock.millis())
     }
 
     DetailScaffold(title = "piano") {
@@ -365,7 +365,7 @@ fun PianoApp() {
                         color = if (piano.sustain) colors.accent else colors.textSecondary,
                         modifier = Modifier.appTap(label = "sustain") {
                             piano = if (piano.sustain) {
-                                PianoEngine.unsustain(piano.copy(sustain = false), System.currentTimeMillis())
+                                PianoEngine.unsustain(piano.copy(sustain = false), AppClock.millis())
                             } else {
                                 piano.copy(sustain = true)
                             }
@@ -508,7 +508,7 @@ private fun PianoKeyboard(
         },
     ) {
         val offset = state.whiteOffset
-        val audible = PianoEngine.audibleMidis(state, System.currentTimeMillis())
+        val audible = PianoEngine.audibleMidis(state, AppClock.millis())
         drawRect(color = colors.elevated)
         val first = floor(offset).toInt().coerceAtLeast(0)
         val last = (first + (size.width / whiteWidth).toInt() + 2).coerceAtMost(PianoEngine.WHITE_KEYS - 1)
@@ -874,10 +874,10 @@ fun DrumMachineApp() {
 
     LaunchedEffect(machine.mode) {
         if (machine.mode != DrumMachineEngine.Mode.PLAYBACK) return@LaunchedEffect
-        playbackStart = System.currentTimeMillis()
+        playbackStart = AppClock.millis()
         while (true) {
             delay(16)
-            val elapsed = System.currentTimeMillis() - playbackStart
+            val elapsed = AppClock.millis() - playbackStart
             val (due, next) = DrumMachineEngine.dueEvents(machine, elapsed)
             due.forEach { event ->
                 machine.pads.firstOrNull { it.id == event.padId }?.let { bank.play(it, event.zone) }
@@ -904,7 +904,7 @@ fun DrumMachineApp() {
     fun strike(pad: DrumMachineEngine.DrumPad, zone: DrumMachineEngine.Zone) {
         bank.play(pad, zone)
         if (machine.mode == DrumMachineEngine.Mode.RECORD) {
-            machine = DrumMachineEngine.record(machine, System.currentTimeMillis(), pad.id, zone)
+            machine = DrumMachineEngine.record(machine, AppClock.millis(), pad.id, zone)
         }
     }
 
@@ -946,7 +946,7 @@ fun DrumMachineApp() {
                         machine = if (machine.mode == DrumMachineEngine.Mode.RECORD) {
                             machine.copy(mode = DrumMachineEngine.Mode.PLAY)
                         } else {
-                            DrumMachineEngine.beginRecording(machine, System.currentTimeMillis())
+                            DrumMachineEngine.beginRecording(machine, AppClock.millis())
                         }
                     },
                 )

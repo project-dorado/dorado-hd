@@ -296,12 +296,12 @@ fun StopwatchApp() {
     var mode by remember { mutableStateOf(StopwatchEngine.MODE_STOPWATCH) }
     var sw by remember { mutableStateOf(StopwatchState()) }
     var cd by remember { mutableStateOf(CountdownState()) }
-    var nowMs by remember { mutableStateOf(System.currentTimeMillis()) }
+    var nowMs by remember { mutableStateOf(AppClock.millis()) }
     var loaded by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         graph.appState.get("stopwatch")?.let { blob ->
-            val restored = StopwatchEngine.restore(blob, System.currentTimeMillis())
+            val restored = StopwatchEngine.restore(blob, AppClock.millis())
             sw = restored.stopwatch
             cd = restored.countdown
             mode = restored.mode
@@ -334,18 +334,18 @@ fun StopwatchApp() {
     }
     LaunchedEffect(sw.running, cd.running) {
         while (sw.running || cd.running) {
-            nowMs = System.currentTimeMillis()
+            nowMs = AppClock.millis()
             if (sw.running) sw = StopwatchEngine.tick(sw, nowMs)
             if (cd.running) cd = StopwatchEngine.tickCountdown(cd, nowMs)
             delay(33)
         }
-        nowMs = System.currentTimeMillis()
+        nowMs = AppClock.millis()
     }
     LaunchedEffect(cd.alarming, cd.alarmStartedAtWall) {
         if (!cd.alarming) return@LaunchedEffect
         synth.start()
         while (isActive) {
-            val phase = StopwatchEngine.alarmPhase(System.currentTimeMillis() - cd.alarmStartedAtWall)
+            val phase = StopwatchEngine.alarmPhase(AppClock.millis() - cd.alarmStartedAtWall)
             if (phase.expired) {
                 cd = StopwatchEngine.stopAlarm(cd)
                 break
@@ -377,14 +377,14 @@ fun StopwatchApp() {
                     nowMs = nowMs,
                     onStartPause = {
                         if (sw.running) {
-                            sw = StopwatchEngine.pause(sw, System.currentTimeMillis())
+                            sw = StopwatchEngine.pause(sw, AppClock.millis())
                         } else {
-                            sw = StopwatchEngine.start(sw, System.currentTimeMillis())
+                            sw = StopwatchEngine.start(sw, AppClock.millis())
                             bank.play("select")
                         }
                     },
                     onLap = {
-                        sw = StopwatchEngine.lap(sw, System.currentTimeMillis())
+                        sw = StopwatchEngine.lap(sw, AppClock.millis())
                         bank.play("tick")
                     },
                     onReset = { sw = StopwatchEngine.reset(sw) },
@@ -396,9 +396,9 @@ fun StopwatchApp() {
                     onWheel = { unit, delta -> cd = StopwatchEngine.adjustWheel(cd, unit, delta) },
                     onStartPause = {
                         if (cd.running) {
-                            cd = StopwatchEngine.pauseCountdown(cd, System.currentTimeMillis())
+                            cd = StopwatchEngine.pauseCountdown(cd, AppClock.millis())
                         } else {
-                            cd = StopwatchEngine.startCountdown(cd, System.currentTimeMillis())
+                            cd = StopwatchEngine.startCountdown(cd, AppClock.millis())
                             bank.play("select")
                         }
                     },

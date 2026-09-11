@@ -245,7 +245,7 @@ fun NotesApp() {
     }
 
     val docs = remember(notes) { notes.map { NotesEngine.decode(it.id, it.title, it.body, it.modifiedAt) } }
-    val now = System.currentTimeMillis()
+    val now = AppClock.millis()
 
     if (selected != null) {
         val start = selected!!
@@ -256,7 +256,7 @@ fun NotesApp() {
         }
         val persist: () -> Unit = {
             val edited = start.copy(title = title, body = body, items = items.toList())
-            val saved = NotesEngine.saveOnExit(if (start.id == 0L) null else start, edited, System.currentTimeMillis())
+            val saved = NotesEngine.saveOnExit(if (start.id == 0L) null else start, edited, AppClock.millis())
             scope.launch(kotlinx.coroutines.NonCancellable) {
                 if (saved == null) {
                     if (start.id != 0L) graph.notes.delete(start.id)
@@ -483,7 +483,7 @@ fun NotesApp() {
                         .combinedClickable(
                             onClick = {
                                 query = ""
-                                val nowMs = System.currentTimeMillis()
+                                val nowMs = AppClock.millis()
                                 selected = if (page == NoteKind.NOTE) {
                                     NoteDoc(0L, "", "", emptyList(), nowMs, nowMs, NoteKind.NOTE)
                                 } else {

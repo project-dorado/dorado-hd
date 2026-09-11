@@ -36,6 +36,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoAccent
 import com.heretek.dorado_hd.design.DoradoColors
 import com.heretek.dorado_hd.design.DoradoTokens
@@ -150,7 +151,7 @@ fun SplatterBugApp() {
     }
 
     fun startNew() {
-        game = SplatterBugEngine.newGame(System.currentTimeMillis().toInt())
+        game = SplatterBugEngine.newGame(AppClock.millis().toInt())
         recorded = false
         paused = false
         pendingTaps.clear()

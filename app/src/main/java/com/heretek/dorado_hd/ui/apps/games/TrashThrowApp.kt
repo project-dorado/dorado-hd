@@ -40,6 +40,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoColors
 import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.design.LocalDoradoColors
@@ -135,7 +136,7 @@ fun TrashThrowApp() {
     }
 
     fun startScene(scene: TrashScene) {
-        game = TrashThrowEngine.newGame(scene, System.currentTimeMillis().toInt())
+        game = TrashThrowEngine.newGame(scene, AppClock.millis().toInt())
         paused = false
         screen = "game"
     }
@@ -215,7 +216,7 @@ fun TrashThrowApp() {
                             .pointerInput(current.phase, paused) {
                                 detectDragGestures(
                                     onDragStart = {
-                                        dragStartMs = System.currentTimeMillis()
+                                        dragStartMs = AppClock.millis()
                                         dragX = 0f
                                         dragY = 0f
                                     },
@@ -224,7 +225,7 @@ fun TrashThrowApp() {
                                         dragY += drag.y
                                     },
                                     onDragEnd = {
-                                        val ticks = ((System.currentTimeMillis() - dragStartMs) / 16L).toInt()
+                                        val ticks = ((AppClock.millis() - dragStartMs) / 16L).toInt()
                                         val currentGame = game
                                         if (currentGame != null &&
                                             TrashThrowEngine.isSwipe(dragX, dragY, ticks) &&

@@ -31,7 +31,7 @@ The current port faithfully reproduces the device across **home + quickplay
 9 card/board titles with AI, 23 casual/puzzle games, 5 touch/toy/physics
 titles, 6 big engines (3D racing, skating, marble, bowling, music-surf and
 arena), and 7 dead-service local UIs (plus the social shell). Everything is
-design-language-correct, tokenized, and audited by 1,410 unit/UI tests
+design-language-correct, tokenized, and audited by 1,477 unit/UI tests
 (including a 63-app smoke suite, layout-bounds gate, back-contract tests,
 screenshot goldens and an emulator crawl) plus a source-level design-invariant
 scanner.

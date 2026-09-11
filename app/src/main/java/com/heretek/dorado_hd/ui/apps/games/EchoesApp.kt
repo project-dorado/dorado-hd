@@ -41,6 +41,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoAccent
 import com.heretek.dorado_hd.design.DoradoColors
 import com.heretek.dorado_hd.design.DoradoTokens
@@ -160,7 +161,7 @@ fun EchoesApp() {
     }
 
     fun startNew(level: Int) {
-        game = EchoesEngine.newGame(mode, difficulty, System.currentTimeMillis().toInt(), level, ECHOES_COUNTDOWN_MS)
+        game = EchoesEngine.newGame(mode, difficulty, AppClock.millis().toInt(), level, ECHOES_COUNTDOWN_MS)
         recorded = false
         paused = false
         stickOrigin = null

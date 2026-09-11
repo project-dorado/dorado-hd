@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.design.LocalDoradoColors
 import com.heretek.dorado_hd.design.Selawik
@@ -235,7 +236,7 @@ fun PicturePuzzleApp() {
                     onGrid = { gridSize = it },
                     onSides = { twoSided = it },
                     onCategory = { category = it },
-                    onStart = { startGame(seed = (System.currentTimeMillis() and 0x7fffffff).toInt()) },
+                    onStart = { startGame(seed = (AppClock.millis() and 0x7fffffff).toInt()) },
                 )
 
                 PuzzleScreen.MIXUP -> PuzzleOverlay(

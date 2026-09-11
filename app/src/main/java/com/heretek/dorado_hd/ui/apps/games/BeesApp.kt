@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoAccent
 import com.heretek.dorado_hd.design.DoradoColors
 import com.heretek.dorado_hd.design.DoradoTokens
@@ -156,7 +157,7 @@ fun BeesApp() {
     }
 
     fun startLevel(id: Int, mode: BeesMode) {
-        val fresh = BeesEngine.newGame(id, mode, System.currentTimeMillis().toInt(), progress.upgrades)
+        val fresh = BeesEngine.newGame(id, mode, AppClock.millis().toInt(), progress.upgrades)
         game = fresh
         saved = null
         recorded = false

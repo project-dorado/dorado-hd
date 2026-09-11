@@ -40,6 +40,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoAccent
 import com.heretek.dorado_hd.design.DoradoColors
 import com.heretek.dorado_hd.design.DoradoTokens
@@ -127,7 +128,7 @@ fun BeanstalkApp() {
     }
 
     fun startRun() {
-        run = BeanstalkEngine.newRun(seed = (System.currentTimeMillis() and 0x7FFFFFFF).toInt())
+        run = BeanstalkEngine.newRun(seed = (AppClock.millis() and 0x7FFFFFFF).toInt())
         tap = null
         paused = false
         recorded = false

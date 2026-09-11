@@ -32,6 +32,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.design.LocalDoradoColors
 import com.heretek.dorado_hd.design.Selawik
@@ -251,7 +252,7 @@ fun SkateApp() {
             skaterId = career.skaterId,
             boardId = career.boardId,
             wheelId = career.wheelId,
-            seed = (System.currentTimeMillis() and 0x7fffffff).toInt(),
+            seed = (AppClock.millis() and 0x7fffffff).toInt(),
         )
         pendingEvent = event
         recorded = false

@@ -34,6 +34,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoAccent
 import com.heretek.dorado_hd.design.DoradoColors
 import com.heretek.dorado_hd.design.DoradoTokens
@@ -152,7 +153,7 @@ fun SupernovaApp() {
     }
 
     fun startLevel(level: Int) {
-        game = SupernovaEngine.newLevel(mode, level, System.currentTimeMillis().toInt())
+        game = SupernovaEngine.newLevel(mode, level, AppClock.millis().toInt())
         recorded = false
         intro = true
         paused = false

@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.ui.apps.AppClock
 import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.design.LocalDoradoColors
 import com.heretek.dorado_hd.design.Selawik
@@ -129,7 +130,7 @@ fun HairballApp() {
     }
 
     fun startNew() {
-        game = HairballEngine.newGame(System.currentTimeMillis().toInt())
+        game = HairballEngine.newGame(AppClock.millis().toInt())
         recorded = false
         paused = false
         runId++

@@ -359,7 +359,7 @@ fun AlarmClockApp() {
     var engine by remember { mutableStateOf(AlarmClockEngine.initial()) }
     var loaded by remember { mutableStateOf(false) }
     var nowMinute by remember {
-        mutableStateOf(LocalTime.now().let { it.hour * 60 + it.minute })
+        mutableStateOf(AppClock.localTime().let { it.hour * 60 + it.minute })
     }
     val pager = rememberPagerState(initialPage = 0, pageCount = { 4 })
     // Short pivot labels so all four tabs fit the crossbar without the last
@@ -405,7 +405,7 @@ fun AlarmClockApp() {
     // sleep countdown; buzzer/ping audio is synthesized per second.
     LaunchedEffect(Unit) {
         while (isActive) {
-            val now = LocalTime.now()
+            val now = AppClock.localTime()
             nowMinute = now.hour * 60 + now.minute
             engine = AlarmClockEngine.tick(
                 engine,
