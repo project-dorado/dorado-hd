@@ -84,11 +84,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tags=$(gh release list --limit 200 --json tagName,isPrerelease \
+          tags=$(gh release list -R "$GITHUB_REPOSITORY" --limit 200 --json tagName,isPrerelease \
             --jq '[.[] | select(.isPrerelease)
                        | select(.tagName | startswith("dorado-hd-"))
                        | .tagName] | .[10:]')
           for t in $tags; do
             echo "deleting stale prerelease $t"
-            gh release delete "$t" --yes --cleanup-tag
+            gh release delete "$t" -R "$GITHUB_REPOSITORY" --yes --cleanup-tag
           done
