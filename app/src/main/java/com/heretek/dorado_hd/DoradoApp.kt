@@ -95,7 +95,10 @@ open class DoradoApp : Application() {
                 if (cloudMetadata.isEnabled()) cloudMetadata.recordListen(artist, title, album)
             },
         )
-        val controller = PlaybackController(this, library, quickplay, scrobble, playCountStore)
+        val controller = PlaybackController(
+            this, library, quickplay, scrobble, playCountStore,
+            crossfadeMs = { latestSettings.get().crossfadeSeconds * 1000L },
+        )
         val nav = DoradoNav()
         val artistImages = ArtistImageService(this, db, settings, cloudMetadata)
         val artistBios = com.heretek.dorado_hd.net.ArtistBioService(this, cloudMetadata)

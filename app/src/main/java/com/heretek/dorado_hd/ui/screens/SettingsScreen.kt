@@ -48,6 +48,7 @@ fun SettingsScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val settings by graph.settingsFlow.collectAsState(initial = com.heretek.dorado_hd.data.repo.DoradoSettings())
+    val sleepRemaining by graph.controller.sleepRemainingMs.collectAsState()
     val colors = LocalDoradoColors.current
     val scanState by graph.library.scanning.collectAsState()
     val importState by graph.library.importing.collectAsState()
@@ -133,6 +134,35 @@ fun SettingsScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                     val index = presets.indexOfFirst { it.name.equals(settings.eqPreset, ignoreCase = true) }
                     val next = presets[(index + 1).mod(presets.size)]
                     scope.launch { graph.settings.setEqPreset(next.name) }
+                },
+            )
+
+            SectionLabel("playback")
+            SettingsRow(
+                label = "crossfade",
+                subLabel = if (settings.crossfadeSeconds == 0) {
+                    "off"
+                } else {
+                    "${settings.crossfadeSeconds} s fade-through (post-device extension)"
+                },
+                onClick = {
+                    val options = listOf(0, 2, 4, 6, 8)
+                    val next = options[(options.indexOf(settings.crossfadeSeconds).coerceAtLeast(0) + 1).mod(options.size)]
+                    scope.launch { graph.settings.setCrossfadeSeconds(next) }
+                },
+            )
+            SettingsRow(
+                label = "sleep timer",
+                subLabel = when {
+                    sleepRemaining > 0L -> "stopping in ${formatSleep(sleepRemaining)}"
+                    settings.sleepTimerMinutes > 0 -> "armed · ${settings.sleepTimerMinutes} min (pauses playback)"
+                    else -> "off"
+                },
+                onClick = {
+                    val options = listOf(0, 15, 30, 45, 60, 90)
+                    val next = options[(options.indexOf(settings.sleepTimerMinutes).coerceAtLeast(0) + 1).mod(options.size)]
+                    scope.launch { graph.settings.setSleepTimerMinutes(next) }
+                    if (next == 0) graph.controller.cancelSleepTimer() else graph.controller.startSleepTimer(next)
                 },
             )
 
@@ -304,6 +334,13 @@ private fun scanStatusText(
         else "import error: ${lastImportResult.error}"
     }
     return parts.joinToString("\n")
+}
+
+private fun formatSleep(ms: Long): String {
+    val totalSeconds = ms / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%d:%02d".format(minutes, seconds)
 }
 
 private fun formatTimestamp(ms: Long): String {

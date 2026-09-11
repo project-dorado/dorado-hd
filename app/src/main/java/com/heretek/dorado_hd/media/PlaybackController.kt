@@ -37,10 +37,15 @@ class PlaybackController(
     private val quickplay: QuickplayRepository,
     private val scrobble: ScrobbleService? = null,
     private val playCounts: PlayCountStore? = null,
+    /** Fade-through duration in ms (0 disables); read live from settings. */
+    private val crossfadeMs: () -> Long = { 0L },
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var controller: MediaController? = null
     private var candidateReachedThreshold = false
+    private var fadeJob: kotlinx.coroutines.Job? = null
+    private var fadeGeneration = 0
+    private var fadeOutTriggered = false
 
     private val _nowPlaying = MutableStateFlow<Track?>(null)
     val nowPlaying: StateFlow<Track?> = _nowPlaying.asStateFlow()
@@ -69,6 +74,13 @@ class PlaybackController(
     private val _currentRating = MutableStateFlow(Rating.NONE)
     val currentRating: StateFlow<Rating> = _currentRating.asStateFlow()
 
+    /** Sleep-timer countdown in ms; 0 when no timer is armed. */
+    private val _sleepRemainingMs = MutableStateFlow(0L)
+    val sleepRemainingMs: StateFlow<Long> = _sleepRemainingMs.asStateFlow()
+
+    private var sleepDeadlineElapsedMs = 0L
+    private var sleepActive = false
+
     private var baseOrder: List<Track> = emptyList()
 
     suspend fun connect() {
@@ -91,6 +103,10 @@ class PlaybackController(
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            fadeOutTriggered = false
+            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+                fadeIn()
+            }
             val previous = _nowPlaying.value
             val previousReached = candidateReachedThreshold
             val index = controller?.currentMediaItemIndex ?: return
@@ -133,8 +149,129 @@ class PlaybackController(
                     if (reachedScrobbleThreshold(position, _durationMs.value)) {
                         candidateReachedThreshold = true
                     }
+                    // Fade-through: ramp out over the tail of the track so the
+                    // automatic advance fades in on the next item.
+                    val fadeMs = FadeRamp.effectiveMs(crossfadeMs())
+                    if (fadeMs > 0 && !fadeOutTriggered &&
+                        FadeRamp.inFadeOutWindow(position, _durationMs.value, fadeMs)
+                    ) {
+                        fadeOutTriggered = true
+                        fadeTo(0f, fadeMs)
+                    }
+                    tickSleepTimer(player)
                 }
                 delay(500)
+            }
+        }
+    }
+
+    // ---- fade-through transition (post-device extension, canon §10) ----
+
+    private fun cancelFade() {
+        fadeGeneration++
+        fadeJob?.cancel()
+        fadeJob = null
+    }
+
+    private fun fadeIn() {
+        val player = controller ?: return
+        val ms = FadeRamp.effectiveMs(crossfadeMs())
+        if (ms <= 0L) {
+            cancelFade()
+            player.volume = 1f
+            return
+        }
+        player.volume = 0f
+        fadeTo(1f, ms)
+    }
+
+    private fun fadeTo(target: Float, durationMs: Long) {
+        val player = controller ?: return
+        if (FadeRamp.effectiveMs(crossfadeMs()) <= 0L) {
+            cancelFade()
+            player.volume = 1f
+            return
+        }
+        val from = player.volume
+        val gen = ++fadeGeneration
+        fadeJob?.cancel()
+        fadeJob = scope.launch {
+            val steps = FadeRamp.steps(durationMs)
+            for (i in 1..steps) {
+                if (gen != fadeGeneration) return@launch
+                delay(FadeRamp.STEP_MS)
+                player.volume = FadeRamp.value(from, target, i * FadeRamp.STEP_MS, durationMs)
+            }
+            if (gen == fadeGeneration) player.volume = target
+        }
+    }
+
+    // ---- sleep timer (post-device extension, canon §10) ----
+
+    /** Arm the sleep timer for [minutes]; 0 or negative cancels it. */
+    fun startSleepTimer(minutes: Int) {
+        if (minutes <= 0) {
+            cancelSleepTimer()
+            return
+        }
+        sleepDeadlineElapsedMs = android.os.SystemClock.elapsedRealtime() + minutes * 60_000L
+        sleepActive = true
+        _sleepRemainingMs.value = minutes * 60_000L
+    }
+
+    fun cancelSleepTimer() {
+        sleepActive = false
+        sleepDeadlineElapsedMs = 0L
+        _sleepRemainingMs.value = 0L
+    }
+
+    private fun tickSleepTimer(player: MediaController) {
+        if (!sleepActive) return
+        val remaining = (sleepDeadlineElapsedMs - android.os.SystemClock.elapsedRealtime()).coerceAtLeast(0L)
+        _sleepRemainingMs.value = remaining
+        if (remaining > 0L) return
+        sleepActive = false
+        // Fade out over a short window, then stop; restore volume for the
+        // next manual play.
+        cancelFade()
+        fadeJob = scope.launch {
+            val ms = 3_000L
+            val from = player.volume
+            val steps = FadeRamp.steps(ms)
+            for (i in 1..steps) {
+                delay(FadeRamp.STEP_MS)
+                player.volume = FadeRamp.value(from, 0f, i * FadeRamp.STEP_MS, ms)
+            }
+            player.pause()
+            player.volume = 1f
+        }
+        _sleepRemainingMs.value = 0L
+    }
+
+    /** Manual skip: quick fade-out, then advance (the transition fades in). */
+    private fun skipWithFade(action: (MediaController) -> Unit) {
+        val player = controller ?: return
+        val ms = FadeRamp.effectiveMs(crossfadeMs())
+        if (ms <= 0L) {
+            cancelFade()
+            player.volume = 1f
+            action(player)
+            return
+        }
+        val quick = ms.coerceAtMost(400L)
+        val gen = ++fadeGeneration
+        fadeJob?.cancel()
+        fadeJob = scope.launch {
+            val from = player.volume
+            val steps = FadeRamp.steps(quick)
+            for (i in 1..steps) {
+                if (gen != fadeGeneration) return@launch
+                delay(FadeRamp.STEP_MS)
+                player.volume = FadeRamp.value(from, 0f, i * FadeRamp.STEP_MS, quick)
+            }
+            if (gen == fadeGeneration) {
+                player.volume = 0f
+                action(player)
             }
         }
     }
@@ -147,7 +284,10 @@ class PlaybackController(
         val player = controller ?: return
         player.setMediaItems(items, startIndex, 0L)
         player.prepare()
+        fadeOutTriggered = false
+        if (FadeRamp.effectiveMs(crossfadeMs()) > 0L) player.volume = 0f
         player.play()
+        if (FadeRamp.effectiveMs(crossfadeMs()) > 0L) fadeTo(1f, FadeRamp.effectiveMs(crossfadeMs()))
     }
 
     fun enqueue(track: Track) {
@@ -159,15 +299,23 @@ class PlaybackController(
 
     fun toggle() {
         val player = controller ?: return
-        if (player.isPlaying) player.pause() else player.play()
+        if (player.isPlaying) {
+            // Pausing mid-fade must not leave the volume at 0 for the resume.
+            cancelFade()
+            player.volume = 1f
+            player.pause()
+        } else {
+            player.play()
+            fadeIn()
+        }
     }
 
     fun next() {
-        controller?.seekToNextMediaItem()
+        skipWithFade { it.seekToNextMediaItem() }
     }
 
     fun previous() {
-        controller?.seekToPreviousMediaItem()
+        skipWithFade { it.seekToPreviousMediaItem() }
     }
 
     fun seekTo(positionMs: Long) {

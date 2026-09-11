@@ -38,6 +38,10 @@ data class DoradoSettings(
     val cloudAccessToken: String = "",
     /** M14 — device equalizer preset (`EqPreset` name; flat by default). */
     val eqPreset: String = "FLAT",
+    /** M6 — fade-through transition between tracks (seconds; 0 = off). */
+    val crossfadeSeconds: Int = 0,
+    /** M10 — sleep-timer preset in minutes (0 = no timer armed). */
+    val sleepTimerMinutes: Int = 0,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -61,6 +65,8 @@ class SettingsRepository(private val context: Context) {
         val CLOUD_BASE_URL = stringPreferencesKey("cloud_base_url")
         val CLOUD_ACCESS_TOKEN = stringPreferencesKey("cloud_access_token")
         val EQ_PRESET = stringPreferencesKey("eq_preset")
+        val CROSSFADE_SECONDS = intPreferencesKey("crossfade_seconds")
+        val SLEEP_TIMER_MINUTES = intPreferencesKey("sleep_timer_minutes")
     }
 
     val settings: Flow<DoradoSettings> = context.dataStore.data.map { p ->
@@ -84,6 +90,8 @@ class SettingsRepository(private val context: Context) {
             cloudBaseUrl = p[Keys.CLOUD_BASE_URL] ?: "",
             cloudAccessToken = p[Keys.CLOUD_ACCESS_TOKEN] ?: "",
             eqPreset = p[Keys.EQ_PRESET] ?: "FLAT",
+            crossfadeSeconds = p[Keys.CROSSFADE_SECONDS] ?: 0,
+            sleepTimerMinutes = p[Keys.SLEEP_TIMER_MINUTES] ?: 0,
         )
     }
 
@@ -108,4 +116,6 @@ class SettingsRepository(private val context: Context) {
     suspend fun setCloudBaseUrl(value: String) = context.dataStore.edit { it[Keys.CLOUD_BASE_URL] = value }
     suspend fun setCloudAccessToken(value: String) = context.dataStore.edit { it[Keys.CLOUD_ACCESS_TOKEN] = value }
     suspend fun setEqPreset(value: String) = context.dataStore.edit { it[Keys.EQ_PRESET] = value }
+    suspend fun setCrossfadeSeconds(value: Int) = context.dataStore.edit { it[Keys.CROSSFADE_SECONDS] = value }
+    suspend fun setSleepTimerMinutes(value: Int) = context.dataStore.edit { it[Keys.SLEEP_TIMER_MINUTES] = value }
 }

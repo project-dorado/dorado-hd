@@ -220,10 +220,14 @@ canon; they must be labelled as extensions wherever they surface.
 **Shipped:** Dynamic Mix (similar-to-track/album/favorites + Top Played from
 persisted play counts), on-device DSP audio features, Last.fm scrobbling with an
 offline queue, LRCLIB lyrics, the Glance Now Playing widget, cloud update-check,
-and Device Link (mDNS discovery + paired LAN sync).
+Device Link (mDNS discovery + paired LAN sync), EQ presets, **fade-through
+crossfade** (`crossfade` setting: linear volume ramp over the track tail plus a
+fade-in on the next item — Media3 has no overlapping crossfade; labelled
+"fade-through" wherever it surfaces), and the **sleep timer**
+(settings ▸ playback; countdown shown in the Now Playing status OSD).
 
-**Pending:** EQ presets, crossfade, live-radio pause-and-cache, richer lock-screen
-art/controls, and a sleep timer — tracked in `docs/parity-roadmap.md` (M5/M6/M10).
+**Pending:** live-radio pause-and-cache and richer lock-screen art/controls —
+tracked in `docs/parity-roadmap.md` (M5/M6/M10).
 
 - **Lane fling tuning.** The device's kinetic glide is `pos += (dt/1000)·v` at
   62.5 Hz (`xuidll.dll@0x41841D58`; see §6). Dorado-HD approximates it with a

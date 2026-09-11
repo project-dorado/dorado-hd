@@ -892,6 +892,7 @@ private fun TimeLabel(text: String) {
 private fun StatusOsd(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val colors = LocalDoradoColors.current
+    val sleepRemaining by LocalDoradoGraph.current.controller.sleepRemainingMs.collectAsState()
     // Live values: the battery receiver updates on change and the clock ticks,
     // instead of freezing at first composition.
     var battery by remember { mutableStateOf(-1) }
@@ -918,7 +919,8 @@ private fun StatusOsd(modifier: Modifier = Modifier) {
     }
     Box(modifier) {
         androidx.compose.foundation.text.BasicText(
-            text = (if (battery >= 0) "$battery%  " else "") + clock,
+            text = (if (battery >= 0) "$battery%  " else "") + clock +
+                (if (sleepRemaining > 0L) "  sleep ${formatSleepRemaining(sleepRemaining)}" else ""),
             style = TextStyle(
                 fontFamily = Selawik,
                 fontSize = DoradoTokens.TYPE_CAPTION.sp,
@@ -929,7 +931,11 @@ private fun StatusOsd(modifier: Modifier = Modifier) {
 }
 
 private fun osdClock(): String =
-    java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+    com.heretek.dorado_hd.ui.apps.AppClock.localTime()
+        .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+
+private fun formatSleepRemaining(ms: Long): String =
+    "%d:%02d".format(ms / 60_000, (ms / 1000) % 60)
 
 @Composable
 private fun OverlayGlyph(text: String) {

@@ -83,8 +83,11 @@ A code-verified snapshot (not README claims):
 
 ### M6 — Community wishlist
 
-- EQ presets (rock / acoustic / hip-hop / pop / classical / electronic).
-- Crossfade on `play()` (settings toggle).
+- ✅ EQ presets (rock / acoustic / hip-hop / pop / classical / electronic).
+- ✅ Crossfade on `play()` — settings ▸ playback cycles off/2/4/6/8 s; the
+  implementation is a **fade-through** (Media3 cannot overlap items in one
+  player): tail fade-out, next-item fade-in. Pure ramp math in
+  `media/FadeRamp.kt` with unit tests.
 - Live-radio pause-and-cache ("Live / Rewind ±5 min") — capability-gated on a
   real-time streaming source.
 - Lock-screen Now Playing art + controls (richer than the default Media3
@@ -194,7 +197,9 @@ referencing `dorado/src/Dorado.Application`); re-run it after any desktop
   declared in `AndroidManifest.xml`. No Material chrome; the matte-black canvas
   and white/muted text honor the invariant's spirit.
 - ⬜ Richer lock-screen Now Playing art/controls.
-- ⬜ Optional sleep timer (post-device extension).
+- ✅ Optional sleep timer (post-device extension): settings ▸ playback arms
+  off/15/30/45/60/90 min; the countdown shows in the Now Playing status OSD and
+  playback fades out when it expires (`PlaybackController.tickSleepTimer`).
 
 ### M11 — Hardware stretch (capability-gated)
 
