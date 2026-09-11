@@ -10,7 +10,7 @@ reimplemented clean-room in Kotlin/Compose. Decompiled sources are never
 committed; specs under `docs/apps/` are synthesized analysis with
 `Assembly!Type.Method` citations.
 
-**Coverage:** 62 packages — mock 7, native 21, todo 34.
+**Coverage:** 62 packages — mock 7, native 33, todo 22.
 
 | Wave | Apps | Focus |
 |---|---:|---|
@@ -50,18 +50,18 @@ and content count); `Complexity` is the authored engine-effort estimate.
 | W2 | Spades | native | `Spades.exe` | 4 | 7550 | 113 | L | TBD | [`spades.md`](apps/spades.md) |
 | W2 | Sudoku | native | `Sudoku.exe` | 1 | 8120 | 103 | L | TBD | [`sudoku.md`](apps/sudoku.md) |
 | W2 | Texas Hold Em | native | `Holdem.exe` | 2 | 22672 | 111 | XL | TBD | [`texasholdem.md`](apps/texasholdem.md) |
-| W3 | Color Spill | todo | `ColorSpill.exe` | 0 | — | 0 | ? | TBD | [`color-spill.md`](apps/color-spill.md) |
-| W3 | Goo Splat | todo | `GooSplat.exe` | 3 | 3537 | 112 | M | TBD | [`goo-splat.md`](apps/goo-splat.md) |
-| W3 | Hairball | todo | `Hairball.exe` | 4 | 2843 | 24 | M | TBD | [`hairball.md`](apps/hairball.md) |
-| W3 | Run and Jump | todo | `RunAndJump.exe` | 5 | 3917 | 101 | M | TBD | [`run-and-jump.md`](apps/run-and-jump.md) |
-| W3 | Shell Game of the Future | todo | `Shells.exe` | 3 | 3208 | 94 | M | TBD | [`shell-game-of-the-future.md`](apps/shell-game-of-the-future.md) |
-| W3 | Slider Puzzle | todo | `PuzzleGame.exe` | 4 | 3895 | 51 | M | TBD | [`slider-puzzle.md`](apps/slider-puzzle.md) |
-| W3 | Snowball | todo | `Snowball.exe` | 3 | 18517 | 87 | XL | TBD | [`snowball.md`](apps/snowball.md) |
-| W3 | Splatter Bug | todo | `SplatterBug.exe` | 1 | 2698 | 80 | M | TBD | [`splatter-bug.md`](apps/splatter-bug.md) |
-| W3 | SuperNova | todo | `Supernova.exe` | 4 | 3304 | 68 | M | TBD | [`supernova.md`](apps/supernova.md) |
-| W3 | Tiles | todo | `Tiles.exe` | 1 | 2083 | 85 | M | TBD | [`tiles.md`](apps/tiles.md) |
-| W3 | Trash Throw | todo | `TrashThrow.exe` | 2 | 4904 | 39 | M | TBD | [`trash-throw.md`](apps/trash-throw.md) |
-| W3 | Tug-O-War | todo | `Tuginator.exe` | 2 | 1722 | 74 | M | TBD | [`tug-o-war.md`](apps/tug-o-war.md) |
+| W3 | Color Spill | native | `ColorSpill.exe` | 0 | — | 0 | ? | TBD | [`color-spill.md`](apps/color-spill.md) |
+| W3 | Goo Splat | native | `GooSplat.exe` | 3 | 3537 | 112 | M | TBD | [`goo-splat.md`](apps/goo-splat.md) |
+| W3 | Hairball | native | `Hairball.exe` | 4 | 2843 | 24 | M | TBD | [`hairball.md`](apps/hairball.md) |
+| W3 | Run and Jump | native | `RunAndJump.exe` | 5 | 3917 | 101 | M | TBD | [`run-and-jump.md`](apps/run-and-jump.md) |
+| W3 | Shell Game of the Future | native | `Shells.exe` | 3 | 3208 | 94 | M | TBD | [`shell-game-of-the-future.md`](apps/shell-game-of-the-future.md) |
+| W3 | Slider Puzzle | native | `PuzzleGame.exe` | 4 | 3895 | 51 | M | TBD | [`slider-puzzle.md`](apps/slider-puzzle.md) |
+| W3 | Snowball | native | `Snowball.exe` | 3 | 18517 | 87 | XL | TBD | [`snowball.md`](apps/snowball.md) |
+| W3 | Splatter Bug | native | `SplatterBug.exe` | 1 | 2698 | 80 | M | TBD | [`splatter-bug.md`](apps/splatter-bug.md) |
+| W3 | SuperNova | native | `Supernova.exe` | 4 | 3304 | 68 | M | TBD | [`supernova.md`](apps/supernova.md) |
+| W3 | Tiles | native | `Tiles.exe` | 1 | 2083 | 85 | M | TBD | [`tiles.md`](apps/tiles.md) |
+| W3 | Trash Throw | native | `TrashThrow.exe` | 2 | 4904 | 39 | M | TBD | [`trash-throw.md`](apps/trash-throw.md) |
+| W3 | Tug-O-War | native | `Tuginator.exe` | 2 | 1722 | 74 | M | TBD | [`tug-o-war.md`](apps/tug-o-war.md) |
 | W4 | A Beanstalk Tale | todo | `BeanstalkTale.exe` | 2 | 12062 | 93 | L | TBD | [`a-beanstalk-tale.md`](apps/a-beanstalk-tale.md) |
 | W4 | Animalgrams | todo | `Anagrams.exe` | 4 | 4320 | 137 | M | TBD | [`animalgrams.md`](apps/animalgrams.md) |
 | W4 | BBQ Battle | todo | `BBQBattle.exe` | 4 | 4042 | 77 | M | TBD | [`bbq-battle.md`](apps/bbq-battle.md) |
