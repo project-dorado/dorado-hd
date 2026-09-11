@@ -1,0 +1,776 @@
+[
+  {
+    "id": "H-01",
+    "app": "harness",
+    "area": "back",
+    "severity": "P1",
+    "title": "Hardware back pops the whole mini-app from any sub-screen",
+    "evidence": "ui/DoradoRoot.kt:122-130; no per-screen BackHandler in ui/apps/**",
+    "status": "open"
+  },
+  {
+    "id": "H-02",
+    "app": "harness",
+    "area": "context-menu",
+    "severity": "P1",
+    "title": "Context menu/prompt renders top-left over the header",
+    "evidence": "ui/components/Common.kt:131-190 is a root-level sibling with no Box/align",
+    "status": "open"
+  },
+  {
+    "id": "H-03",
+    "app": "harness",
+    "area": "context-menu",
+    "severity": "P1",
+    "title": "Nested prompt text leaks between prompts",
+    "evidence": "ui/components/Common.kt:195 PromptPanel keeps `text` across requests; CalendarApp.kt:251-278",
+    "status": "open"
+  },
+  {
+    "id": "H-04",
+    "app": "harness",
+    "area": "ime",
+    "severity": "P1",
+    "title": "No IME insets: keyboards cover compose/search fields",
+    "evidence": "MainActivity.kt:28 + ui/DoradoRoot.kt:102-105 (no imePadding); manifest lacks windowSoftInputMode",
+    "status": "open"
+  },
+  {
+    "id": "H-05",
+    "app": "harness",
+    "area": "layout",
+    "severity": "P1",
+    "title": "Adaptive density scaling leaves a ~227-unit logical width; fixed rows overflow",
+    "evidence": "design/components/DeviceCanvas.kt:42-57; offenders H-20..H-26",
+    "status": "open"
+  },
+  {
+    "id": "H-06",
+    "app": "harness",
+    "area": "layout",
+    "severity": "P1",
+    "title": "Device/adaptive bottom content sits under the system nav bar in apps",
+    "evidence": "weather forecast row, calendar rail (crawl 2026-09-11)",
+    "status": "open"
+  },
+  {
+    "id": "H-07",
+    "app": "harness",
+    "area": "lifecycle",
+    "severity": "P1",
+    "title": "Wake shade raised on ANY onPause, including permission dialogs and deep-link relaunch",
+    "evidence": "ui/DoradoRoot.kt:83-92; crawl screenshots show the shade over the next app",
+    "status": "open"
+  },
+  {
+    "id": "H-08",
+    "app": "harness",
+    "area": "persistence",
+    "severity": "P1",
+    "title": "High-frequency Room writes from ticking state",
+    "evidence": "StopwatchApp.kt:302-304 (~30Hz); PianoDrum.kt:855-857 (per drag frame); AlarmClockApp.kt:357-359 (1Hz); MessengerMock.kt:281-283 (per keystroke)",
+    "status": "open"
+  },
+  {
+    "id": "H-09",
+    "app": "harness",
+    "area": "state",
+    "severity": "P2",
+    "title": "State mutation/recording inside composition; double-record guards",
+    "evidence": "SudokuApp.kt:140-151; ReversiApp.kt:151-165; HeartsApp.kt:88-101; SpadesApp.kt:93-107; SolitaireApp.kt:146-157",
+    "status": "open"
+  },
+  {
+    "id": "H-10",
+    "app": "harness",
+    "area": "audio",
+    "severity": "P1",
+    "title": "Three games never call MiniSynth.start(): all SFX silent",
+    "evidence": "CheckersApp.kt:57-59; ChessApp.kt:56-58; HexicApp.kt:64-66",
+    "status": "open"
+  },
+  {
+    "id": "H-11",
+    "app": "harness",
+    "area": "layout",
+    "severity": "P2",
+    "title": "Bottom bars/toasts overlay content with no reserved padding",
+    "evidence": "FacebookMock.kt:1118-1167; TwitterMock.kt:621-637; MiniPlayer over Marketplace",
+    "status": "open"
+  },
+  {
+    "id": "H-12",
+    "app": "harness",
+    "area": "fidelity",
+    "severity": "P2",
+    "title": "Inconsistent menu button sizing/styles across apps",
+    "evidence": "content-width left stacks (penalty, run-and-jump, snowball, vans, tug-o-war) vs full-width menus",
+    "status": "open"
+  },
+  {
+    "id": "H-13",
+    "app": "harness",
+    "area": "fidelity",
+    "severity": "P2",
+    "title": "In-content heading duplicates the cropped header",
+    "evidence": "PicturePuzzleApp (double clipped title), Labyrinth, Reversi, Sudoku",
+    "status": "open"
+  },
+  {
+    "id": "H-14",
+    "app": "harness",
+    "area": "fidelity",
+    "severity": "P2",
+    "title": "Empty states carry no guidance (bare rails, blank search boxes)",
+    "evidence": "CalendarApp empty day; NotesApp search field without placeholder; DrumMachine dead sequencer panel",
+    "status": "open"
+  },
+  {
+    "id": "H-15",
+    "app": "harness",
+    "area": "input",
+    "severity": "P2",
+    "title": "Sub-24dp tap targets",
+    "evidence": "DecoderRingApp.kt:383-401 (~20.7dp); TilesApp.kt:308-316; FanPredictionApp.kt:564-577",
+    "status": "open"
+  },
+  {
+    "id": "A-01",
+    "app": "run-and-jump",
+    "area": "state",
+    "severity": "P0",
+    "title": "Death softlock: respawn gate never runs because step() is the only deadMs decrement",
+    "evidence": "RunAndJumpApp.kt:85-87 vs RunAndJumpEngine.kt:361-363",
+    "status": "open"
+  },
+  {
+    "id": "A-02",
+    "app": "hairball",
+    "area": "state",
+    "severity": "P0",
+    "title": "Retry renders a frozen game (loop keyed on screen/paused, lost breaks it)",
+    "evidence": "HairballApp.kt:94-97, 290",
+    "status": "open"
+  },
+  {
+    "id": "A-03",
+    "app": "splatter-bug",
+    "area": "state",
+    "severity": "P0",
+    "title": "Restart after game over renders a frozen game",
+    "evidence": "SplatterBugApp.kt:106-109, 330",
+    "status": "open"
+  },
+  {
+    "id": "A-04",
+    "app": "vine-climb",
+    "area": "input",
+    "severity": "P0",
+    "title": "Taps rewind the run (stale state captured by the gesture coroutine)",
+    "evidence": "VineClimbApp.kt:178 vs 189/194",
+    "status": "open"
+  },
+  {
+    "id": "A-05",
+    "app": "bbq-battle",
+    "area": "input",
+    "severity": "P0",
+    "title": "Gesture detector resets every frame (pointerInput keyed on towers)",
+    "evidence": "BbqBattleApp.kt:191; engine rebuilds towers each step",
+    "status": "open"
+  },
+  {
+    "id": "A-06",
+    "app": "bees",
+    "area": "input",
+    "severity": "P0",
+    "title": "Gesture detector resets every frame (pointerInput keyed on nodes)",
+    "evidence": "BeesApp.kt:228; engine rebuilds nodes each step",
+    "status": "open"
+  },
+  {
+    "id": "A-07",
+    "app": "slider-puzzle",
+    "area": "state",
+    "severity": "P0",
+    "title": "Pause does not stop the clock; autosave starved and cancelled on exit",
+    "evidence": "SliderPuzzleApp.kt:93-98, 110-116, 244, 254/266",
+    "status": "open"
+  },
+  {
+    "id": "A-08",
+    "app": "wordmonger",
+    "area": "persistence",
+    "severity": "P0",
+    "title": "Autosave starved (400ms debounce on 20ms state); save & exit cancels the write",
+    "evidence": "WordMongerApp.kt:108-114, 285-289",
+    "status": "open"
+  },
+  {
+    "id": "A-09",
+    "app": "castles-and-cannons",
+    "area": "input",
+    "severity": "P0",
+    "title": "Coin taps use a stale camera after panning",
+    "evidence": "CastlesApp.kt:232, 247, 261-263",
+    "status": "open"
+  },
+  {
+    "id": "A-10",
+    "app": "texasholdem",
+    "area": "persistence",
+    "severity": "P0",
+    "title": "Leaving mid-event burns the buy-in; ladder can become unaffordable",
+    "evidence": "TexasHoldemApp.kt:95-105, 177; PokerEngine.kt:1039-1047",
+    "status": "open"
+  },
+  {
+    "id": "A-11",
+    "app": "facebook",
+    "area": "back",
+    "severity": "P0",
+    "title": "Settings -> About trap: back returns to About (pivot still set)",
+    "evidence": "FacebookMock.kt:1020, 395",
+    "status": "open"
+  },
+  {
+    "id": "A-12",
+    "app": "twitter",
+    "area": "state",
+    "severity": "P0",
+    "title": "DM to a new handle is stored but invisible (DMs tab iterates seeds only)",
+    "evidence": "TwitterMock.kt:316-317 vs 583, 827",
+    "status": "open"
+  },
+  {
+    "id": "A-13",
+    "app": "piano",
+    "area": "input",
+    "severity": "P0",
+    "title": "Octave drag always snaps back to the stale first-composition octave",
+    "evidence": "PianoDrum.kt:410-416",
+    "status": "open"
+  },
+  {
+    "id": "A-14",
+    "app": "hearts",
+    "area": "input",
+    "severity": "P0",
+    "title": "PassPicker duplicate selection (stale `selected` capture) can pass duplicates",
+    "evidence": "CardViews.kt:120-134",
+    "status": "open"
+  },
+  {
+    "id": "A-15",
+    "app": "metronome",
+    "area": "input",
+    "severity": "P0",
+    "title": "Dial drag cancels after one step (pointerInput keyed on bpm)",
+    "evidence": "MetronomeApp.kt:341",
+    "status": "open"
+  },
+  {
+    "id": "A-16",
+    "app": "calendar",
+    "area": "layout",
+    "severity": "P0",
+    "title": "Month grid 6th week unreachable (no scroll, clipped) and nested prompt prefill bug",
+    "evidence": "CalendarApp.kt:540-578; Common.kt:195 with CalendarApp.kt:251-278",
+    "status": "open"
+  },
+  {
+    "id": "A-17",
+    "app": "shell-game-of-the-future",
+    "area": "input",
+    "severity": "P0",
+    "title": "No-sensor dead end: SITTING requires shake with no tap fallback",
+    "evidence": "ShellGameApp.kt:110-126; ShellGameEngine.kt:202",
+    "status": "open"
+  },
+  {
+    "id": "A-18",
+    "app": "snowball",
+    "area": "input",
+    "severity": "P0",
+    "title": "No-sensor branch is empty: the ball never moves",
+    "evidence": "SnowballApp.kt:304-306",
+    "status": "open"
+  },
+  {
+    "id": "A-19",
+    "app": "tug-o-war",
+    "area": "input",
+    "severity": "P0",
+    "title": "SHAKE mode is a no-op without a sensor",
+    "evidence": "TugOWarApp.kt:277, 195-212",
+    "status": "open"
+  },
+  {
+    "id": "A-20",
+    "app": "alarm",
+    "area": "crash",
+    "severity": "P0",
+    "title": "AlarmManager.set can throw SecurityException when exact alarms are revoked (Android 12+)",
+    "evidence": "AlarmClockApp.kt:420",
+    "status": "open"
+  },
+  {
+    "id": "A-21",
+    "app": "alarm",
+    "area": "persistence",
+    "severity": "P0",
+    "title": "Sleep timer state is not serialized; silently lost on leave",
+    "evidence": "AlarmClockApp.kt:283-316",
+    "status": "open"
+  },
+  {
+    "id": "A-22",
+    "app": "3d-picture-puzzle",
+    "area": "performance",
+    "severity": "P0",
+    "title": "Scene rebuild storm leaks GL textures/meshes (rebuild per 100ms + per 16ms camera tick)",
+    "evidence": "PicturePuzzleApp.kt:150-167 vs engine3d/GlSceneView.kt:51-52, 143-168",
+    "status": "open"
+  },
+  {
+    "id": "A-23",
+    "app": "pgr-ferrari-edition",
+    "area": "performance",
+    "severity": "P0",
+    "title": "Per-frame MeshFactory.box leak into an unpruned renderer cache; engine audio drones in background",
+    "evidence": "PgrApp.kt:1168 via 259-278; 246-256",
+    "status": "open"
+  },
+  {
+    "id": "A-24",
+    "app": "pgr-ferrari-edition",
+    "area": "fidelity",
+    "severity": "P2",
+    "title": "City props use a direction component as a yaw angle",
+    "evidence": "PgrApp.kt:1060 (atan2 used for gates at 1078)",
+    "status": "open"
+  },
+  {
+    "id": "A-25",
+    "app": "echoes",
+    "area": "input",
+    "severity": "P0",
+    "title": "Countdown re-keys pointerInput every frame, cancelling in-progress drags",
+    "evidence": "EchoesApp.kt:256",
+    "status": "open"
+  },
+  {
+    "id": "A-26",
+    "app": "vans-sk8-pool-service",
+    "area": "state",
+    "severity": "P1",
+    "title": "Pause mid-grind drops the release handler: session can stay GRINDING",
+    "evidence": "SkateApp.kt:292-299, 402-441",
+    "status": "open"
+  },
+  {
+    "id": "A-27",
+    "app": "audiosurf-tilt",
+    "area": "state",
+    "severity": "P1",
+    "title": "Music-on ride can soft-lock if playback stalls before the song ends",
+    "evidence": "AudiosurfApp.kt:204-206",
+    "status": "open"
+  },
+  {
+    "id": "A-28",
+    "app": "lucky-lanes-bowling",
+    "area": "persistence",
+    "severity": "P1",
+    "title": "Resume ignores saved lane/ball/rival and reseeds; physics keeps running off-screen",
+    "evidence": "BowlingApp.kt:133-134, 204-212, 140-180",
+    "status": "open"
+  },
+  {
+    "id": "A-29",
+    "app": "fingerpaint",
+    "area": "persistence",
+    "severity": "P1",
+    "title": "Autosave starved (500ms debounce vs 250ms tick); brush change loses the live stroke",
+    "evidence": "FingerpaintApp.kt:104-112 vs 114-124, 716-718",
+    "status": "open"
+  },
+  {
+    "id": "A-30",
+    "app": "checkers",
+    "area": "state",
+    "severity": "P1",
+    "title": "Draw clock counts only human plies (AI plies never update quietPlies)",
+    "evidence": "CheckersApp.kt:201 vs 122-125",
+    "status": "open"
+  },
+  {
+    "id": "A-31",
+    "app": "sudoku",
+    "area": "persistence",
+    "severity": "P1",
+    "title": "Resume resets the elapsed timer",
+    "evidence": "SudokuApp.kt:128-137; SudokuEngine.kt:422-440",
+    "status": "open"
+  },
+  {
+    "id": "A-32",
+    "app": "supernova",
+    "area": "persistence",
+    "severity": "P1",
+    "title": "COMPLETE does not clear the saved game: stale 'continue' after relaunch",
+    "evidence": "SupernovaApp.kt:113-120",
+    "status": "open"
+  },
+  {
+    "id": "A-33",
+    "app": "environment",
+    "area": "persistence",
+    "severity": "P1",
+    "title": "Cold-start clobber races: default state written before the load completes",
+    "evidence": "SupernovaApp.kt:97-99, SnowballApp.kt:84, RunAndJumpApp.kt:81, SpaceBattleApp.kt:98, PenaltyApp.kt:128, VineClimbApp.kt:83-84, DecoderRingApp.kt:83",
+    "status": "open"
+  },
+  {
+    "id": "V-01",
+    "app": "calculator",
+    "area": "layout",
+    "severity": "P1",
+    "title": "Opens scientific in portrait; 'basic' key label wraps to two lines",
+    "evidence": "crawl 2026-09-11; CalculatorApp.kt keypad",
+    "status": "open"
+  },
+  {
+    "id": "V-02",
+    "app": "fan-prediction",
+    "area": "layout",
+    "severity": "P1",
+    "title": "'no favourite' wraps mid-word on every row; 4th footer action off-screen",
+    "evidence": "crawl 2026-09-11",
+    "status": "open"
+  },
+  {
+    "id": "V-03",
+    "app": "shell-game-of-the-future",
+    "area": "layout",
+    "severity": "P1",
+    "title": "'pause' wraps; right-hand shop column clipped off-screen",
+    "evidence": "crawl 2026-09-11",
+    "status": "open"
+  },
+  {
+    "id": "V-04",
+    "app": "solitaire",
+    "area": "layout",
+    "severity": "P1",
+    "title": "Right action column collapses to vertical letter fragments and clips",
+    "evidence": "crawl 2026-09-11",
+    "status": "open"
+  },
+  {
+    "id": "V-05",
+    "app": "msnmoney",
+    "area": "layout",
+    "severity": "P1",
+    "title": "Bottom tab bar jams/truncates labels; header tab 'refre' clipped",
+    "evidence": "crawl 2026-09-11",
+    "status": "open"
+  },
+  {
+    "id": "V-06",
+    "app": "messenger",
+    "area": "layout",
+    "severity": "P1",
+    "title": "Presence selector clips its third option",
+    "evidence": "crawl 2026-09-11",
+    "status": "open"
+  },
+  {
+    "id": "V-07",
+    "app": "alarm",
+    "area": "layout",
+    "severity": "P1",
+    "title": "Fourth page tab clipped at the right edge",
+    "evidence": "crawl 2026-09-11",
+    "status": "open"
+  },
+  {
+    "id": "V-08",
+    "app": "weather",
+    "area": "layout",
+    "severity": "P1",
+    "title": "Last forecast row sits under the nav bar; banner clipped",
+    "evidence": "crawl 2026-09-11",
+    "status": "open"
+  },
+  {
+    "id": "V-09",
+    "app": "shufflebyalbum",
+    "area": "layout",
+    "severity": "P1",
+    "title": "Two-line track titles clash with row borders; 'shuffle' button truncated",
+    "evidence": "crawl 2026-09-11",
+    "status": "open"
+  },
+  {
+    "id": "V-10",
+    "app": "drummachine",
+    "area": "layout",
+    "severity": "P2",
+    "title": "Dead empty sequencer panel occupies ~40% of the screen",
+    "evidence": "crawl 2026-09-11",
+    "status": "open"
+  },
+  {
+    "id": "V-11",
+    "app": "notes",
+    "area": "fidelity",
+    "severity": "P2",
+    "title": "Search box has no placeholder; 'no items' has no guidance",
+    "evidence": "crawl 2026-09-11",
+    "status": "open"
+  },
+  {
+    "id": "V-12",
+    "app": "calendar",
+    "area": "fidelity",
+    "severity": "P2",
+    "title": "Empty day shows a bare hour rail with no empty-state copy",
+    "evidence": "crawl 2026-09-11",
+    "status": "open"
+  },
+  {
+    "id": "V-13",
+    "app": "3d-picture-puzzle",
+    "area": "fidelity",
+    "severity": "P2",
+    "title": "Title duplicated (both crops) and the hint sentence is cut",
+    "evidence": "crawl 2026-09-11",
+    "status": "open"
+  },
+  {
+    "id": "V-14",
+    "app": "audiosurf-tilt",
+    "area": "layout",
+    "severity": "P2",
+    "title": "Two-line ride titles clamp under the row border",
+    "evidence": "crawl 2026-09-11",
+    "status": "open"
+  },
+  {
+    "id": "V-15",
+    "app": "harness",
+    "area": "fidelity",
+    "severity": "P2",
+    "title": "Cropped headers cut long titles mid-word (audited as canon; keep unless the crop contradicts canon)",
+    "evidence": "crawl 2026-09-11: 'alarm cloc', 'run and jun', ... (intentional cropped typography, canon \u00a77)",
+    "status": "open"
+  },
+  {
+    "id": "C-01",
+    "app": "bbq-battle",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-02",
+    "app": "bees",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-03",
+    "app": "checkers",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-04",
+    "app": "chess",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-05",
+    "app": "color-spill",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-06",
+    "app": "echoes",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-07",
+    "app": "email",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-08",
+    "app": "fingerpaint",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-09",
+    "app": "hairball",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-10",
+    "app": "hexic",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-11",
+    "app": "level",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-12",
+    "app": "musicquiz",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-13",
+    "app": "piano",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-14",
+    "app": "reversi",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-15",
+    "app": "snowball",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-16",
+    "app": "spades",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-17",
+    "app": "stopwatch",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-18",
+    "app": "sudoku",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-19",
+    "app": "supernova",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-20",
+    "app": "tiki-totems",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-21",
+    "app": "tiles",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-22",
+    "app": "tug-o-war",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  },
+  {
+    "id": "C-23",
+    "app": "vine-climb",
+    "area": "audit",
+    "severity": "none",
+    "title": "Entry screen visually clean in baseline crawl",
+    "evidence": "reports/emulator crawl 2026-09-11",
+    "status": "verified"
+  }
+]
