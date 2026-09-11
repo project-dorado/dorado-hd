@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -26,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,6 +74,7 @@ fun BbqBattleApp() {
 
     var screen by remember { mutableStateOf("menu") }
     var game by remember { mutableStateOf<BbqBattleState?>(null) }
+    val latestGame = rememberUpdatedState(game)
     var saved by remember { mutableStateOf<BbqBattleState?>(null) }
     var paused by remember { mutableStateOf(false) }
     var popup by remember { mutableStateOf<BbqPopup?>(null) }
@@ -90,9 +94,16 @@ fun BbqBattleApp() {
         easy = graph.appState.get("$BBQ_SAVE_KEY.easy") == "1"
     }
 
-    LaunchedEffect(game?.elapsedMs?.div(4_000)) {
-        val current = game ?: return@LaunchedEffect
-        if (!current.over) graph.appState.put(BBQ_SAVE_KEY, BbqBattleEngine.encode(current))
+    // Periodic autosave: ticking state changes every frame, so a keyed debounce
+    // would never settle. Snapshot on a fixed cadence plus explicit writes on
+    // pause/exit (persistSnapshot).
+    LaunchedEffect(screen, paused) {
+        if (screen != "game" || paused) return@LaunchedEffect
+        while (true) {
+            delay(2_000)
+            val current = game ?: continue
+            if (!current.over) graph.appState.put(BBQ_SAVE_KEY, BbqBattleEngine.encode(current))
+        }
     }
 
     LaunchedEffect(screen, paused) {
@@ -134,18 +145,25 @@ fun BbqBattleApp() {
     }
 
     fun startNew() {
-        game = BbqBattleEngine.newGame(System.currentTimeMillis().toInt(), easyMode = easy)
+        val fresh = BbqBattleEngine.newGame(System.currentTimeMillis().toInt(), easyMode = easy)
+        game = fresh
         saved = null
         recorded = false
         paused = false
         popup = null
         speed = 1f
         screen = "game"
+        scope.launch { graph.appState.put(BBQ_SAVE_KEY, BbqBattleEngine.encode(fresh)) }
     }
 
     fun applyGame(transform: (BbqBattleState) -> BbqBattleState) {
         val snapshot = game ?: return
         game = transform(snapshot)
+    }
+
+    fun persistSnapshot() {
+        val current = game ?: return
+        if (!current.over) scope.launch { graph.appState.put(BBQ_SAVE_KEY, BbqBattleEngine.encode(current)) }
     }
 
     fun resume() {
@@ -178,31 +196,33 @@ fun BbqBattleApp() {
     }
 
     val current = game ?: return
-    DetailScaffold(title = "bbq battle", onBack = { paused = true }) {
+    DetailScaffold(title = "bbq battle", onBack = { persistSnapshot(); paused = true }) {
         Box(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
             Column(Modifier.fillMaxSize()) {
-                BbqHud(current, speed, bestFlow.firstOrNull()?.score ?: 0) { paused = true }
+                BbqHud(current, speed, bestFlow.firstOrNull()?.score ?: 0) { persistSnapshot(); paused = true }
                 Spacer(Modifier.height(2.dp))
                 BoxWithConstraints(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    val view = bbqView(constraints.maxWidth.toFloat(), constraints.maxHeight.toFloat())
                     Canvas(
                         modifier = Modifier
                             .fillMaxSize()
-                            .pointerInput(current.towers, paused) {
+                            .pointerInput(BbqBattleEngine.runToken(current), paused) {
                                 detectTapGestures { offset ->
                                     if (paused) return@detectTapGestures
-                                    val (wx, wy) = view.toWorld(offset.x, offset.y)
+                                    val snapshot = latestGame.value ?: return@detectTapGestures
+                                    val liveView = bbqView(size.width.toFloat(), size.height.toFloat())
+                                    val (wx, wy) = liveView.toWorld(offset.x, offset.y)
                                     val cellX = ((wx - BBQ_GRID_X) / BBQ_CELL).toInt()
                                     val cellY = ((wy - BBQ_GRID_Y) / BBQ_CELL).toInt()
                                     if (!BbqBattleEngine.inGrid(cellX, cellY)) {
                                         popup = null
                                         return@detectTapGestures
                                     }
-                                    val tower = current.towers.firstOrNull { it.x == cellX && it.y == cellY }
+                                    val tower = snapshot.towers.firstOrNull { it.x == cellX && it.y == cellY }
                                     popup = BbqPopup(BbqPoint(cellX, cellY), tower)
                                 }
                             },
                     ) {
+                        val view = bbqView(size.width, size.height)
                         drawBbqBoard(current, view, colors)
                     }
                 }
@@ -253,7 +273,7 @@ fun BbqBattleApp() {
                     current = current,
                     onResume = { paused = false },
                     onNew = { startNew() },
-                    onMenu = { screen = "menu"; game = null },
+                    onMenu = { persistSnapshot(); screen = "menu"; game = null },
                 )
             }
         }
@@ -263,7 +283,12 @@ fun BbqBattleApp() {
 @Composable
 private fun BbqHud(current: BbqBattleState, speed: Float, best: Int, onPause: () -> Unit) {
     val colors = LocalDoradoColors.current
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         BasicText(
             text = "food ${current.foodHp}",
             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = if (current.foodHp < 30) colors.accentBright else colors.accent),
@@ -275,7 +300,7 @@ private fun BbqHud(current: BbqBattleState, speed: Float, best: Int, onPause: ()
         )
         Spacer(Modifier.width(10.dp))
         BasicText(
-            text = "wave ${current.completedWaves + 1}/30",
+            text = "wave ${current.completedWaves + 1}/${BbqBattleEngine.WIN_WAVES}",
             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textPrimary),
         )
         Spacer(Modifier.width(10.dp))
@@ -283,7 +308,7 @@ private fun BbqHud(current: BbqBattleState, speed: Float, best: Int, onPause: ()
             text = "kills ${current.killed}",
             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
         )
-        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.width(12.dp))
         BasicText(
             text = "best $best",
             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
@@ -377,7 +402,12 @@ private fun BbqMilestone(milestone: Int, onPick: (Int) -> Unit) {
                 text = "wave $milestone cleared · choose a bonus",
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 labels.forEachIndexed { index, label ->
                     BbqPanelButton(label = label, enabled = true, width = 150.dp) { onPick(index) }
                 }
@@ -408,14 +438,19 @@ private fun BbqPausePanel(
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             BasicText(
-                text = if (current.over) "food eaten · game over" else "paused",
+                text = BbqBattleEngine.outcomeLabel(current),
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
             )
             BasicText(
                 text = "waves ${current.completedWaves} · kills ${current.killed} · %d:%02d".format(current.elapsedMs / 60_000, (current.elapsedMs / 1_000) % 60),
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textPrimary),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 if (!current.over) BbqPanelButton("resume", true, 110.dp) { onResume() }
                 BbqPanelButton("new game", true, 110.dp) { onNew() }
                 BbqPanelButton("main menu", true, 110.dp) { onMenu() }

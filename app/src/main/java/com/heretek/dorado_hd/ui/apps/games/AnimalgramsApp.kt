@@ -460,9 +460,10 @@ private fun AnimalgramsOptions(
                 text = "sound",
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
             )
+            val (soundOnLabel, soundOffLabel) = AnimalgramsEngine.soundOptionLabels(progress.sound)
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                AnimalgramsButton(if (progress.sound) "on" else "on*") { onSound(true) }
-                AnimalgramsButton(if (!progress.sound) "off" else "off*") { onSound(false) }
+                AnimalgramsButton(soundOnLabel) { onSound(true) }
+                AnimalgramsButton(soundOffLabel) { onSound(false) }
             }
             Spacer(Modifier.height(10.dp))
             AnimalgramsButton("reset progress", Modifier.fillMaxWidth()) { onReset() }

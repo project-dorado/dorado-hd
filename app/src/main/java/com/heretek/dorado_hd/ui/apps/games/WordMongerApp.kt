@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -58,6 +59,9 @@ import kotlin.math.min
 
 private const val WORDMONGER_SLUG = "wordmonger"
 
+/** Run snapshots are written on this cadence plus on pause/exit. */
+private const val WORDMONGER_SNAPSHOT_MS = 2_000L
+
 @Composable
 fun WordMongerApp() {
     val colors = LocalDoradoColors.current
@@ -82,19 +86,21 @@ fun WordMongerApp() {
     var nickname by remember { mutableStateOf("player") }
     var tutorial by remember { mutableStateOf(true) }
     var recorded by remember { mutableStateOf(false) }
-    var loaded by remember { mutableStateOf(false) }
     val scores by graph.games.top(WORDMONGER_SLUG, 10).collectAsState(initial = emptyList())
     val latestGame = rememberUpdatedState(game)
 
     LaunchedEffect(Unit) {
         nickname = graph.appState.get("$WORDMONGER_SLUG.nick") ?: "player"
+        tutorial = graph.appState.get("$WORDMONGER_SLUG.tutorial") != "0"
         saved = WordMongerEngine.decode(graph.appState.get(WORDMONGER_SLUG))
-        loaded = true
     }
 
+    // Run snapshots every 2 s from inside the 20 ms step loop: a debounce keyed
+    // on the ticking state would be cancelled before it ever fires.
     val active = screen == "game" && game != null && !paused && game?.gameOver == false
     LaunchedEffect(active) {
         if (!active) return@LaunchedEffect
+        var snapshotClock = 0L
         while (true) {
             kotlinx.coroutines.delay(20)
             val current = latestGame.value ?: break
@@ -102,14 +108,11 @@ fun WordMongerApp() {
             val next = WordMongerEngine.step(current, 20)
             next.events.forEach { wordmongerSfx(it)?.let(bank::play) }
             game = next
-        }
-    }
-
-    LaunchedEffect(game, loaded) {
-        val current = game ?: return@LaunchedEffect
-        if (loaded && !current.gameOver) {
-            kotlinx.coroutines.delay(400)
-            graph.appState.put(WORDMONGER_SLUG, WordMongerEngine.encode(current))
+            snapshotClock += 20
+            if (snapshotClock >= WORDMONGER_SNAPSHOT_MS) {
+                snapshotClock = 0L
+                graph.appState.put(WORDMONGER_SLUG, WordMongerEngine.encode(next))
+            }
         }
     }
 
@@ -124,7 +127,8 @@ fun WordMongerApp() {
     }
 
     fun startGame(fresh: Boolean) {
-        game = if (fresh) WordMongerEngine.newGame(1, (System.currentTimeMillis() and 0x7FFFFFFF).toInt(), tutorial) else saved
+        val next = if (fresh) WordMongerEngine.newGame(1, (System.currentTimeMillis() and 0x7FFFFFFF).toInt(), tutorial) else saved
+        game = next
         saved = null
         paused = false
         swapMode = false
@@ -133,6 +137,12 @@ fun WordMongerApp() {
         dragEnd = null
         recorded = false
         screen = "game"
+        if (next != null && !next.gameOver) scope.launch { graph.appState.put(WORDMONGER_SLUG, WordMongerEngine.encode(next)) }
+    }
+
+    fun persistSnapshot() {
+        val current = game ?: return
+        if (!current.gameOver) scope.launch { graph.appState.put(WORDMONGER_SLUG, WordMongerEngine.encode(current)) }
     }
 
     fun commitWord() {
@@ -168,9 +178,15 @@ fun WordMongerApp() {
             nickname = nickname,
             tutorial = tutorial,
             onNickname = { nickname = it.take(12) },
-            onTutorial = { tutorial = it },
+            onTutorial = {
+                tutorial = it
+                scope.launch { graph.appState.put("$WORDMONGER_SLUG.tutorial", if (it) "1" else "0") }
+            },
             onSave = {
-                scope.launch { graph.appState.put("$WORDMONGER_SLUG.nick", nickname) }
+                scope.launch {
+                    graph.appState.put("$WORDMONGER_SLUG.nick", nickname)
+                    graph.appState.put("$WORDMONGER_SLUG.tutorial", if (tutorial) "1" else "0")
+                }
                 screen = "menu"
             },
             onBack = { screen = "menu" },
@@ -179,9 +195,14 @@ fun WordMongerApp() {
     }
 
     val current = game ?: return
-    DetailScaffold(title = "wordmonger", onBack = { paused = true }) {
+    DetailScaffold(title = "wordmonger", onBack = { persistSnapshot(); paused = true }) {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 BasicText(
                     text = "score ${current.score}",
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -200,7 +221,7 @@ fun WordMongerApp() {
                         color = if (current.rushActive) colors.accentBright else colors.textSecondary,
                     ),
                 )
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.width(12.dp))
                 BasicText(
                     text = current.bonusWord?.let { "bonus ${it.length}" } ?: "hattrick ${current.longStreak}/3",
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.accentBright),
@@ -283,6 +304,7 @@ fun WordMongerApp() {
                         actions = listOf(
                             "resume" to { paused = false },
                             "save & exit" to {
+                                persistSnapshot()
                                 paused = false
                                 game = null
                                 screen = "menu"
@@ -302,16 +324,22 @@ fun WordMongerApp() {
                 }
             }
             Spacer(Modifier.height(4.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                WordMongerButton(if (swapMode) "swap on" else "select on", Modifier.weight(1f)) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                WordMongerButton(if (swapMode) "swap on" else "select on") {
                     swapMode = !swapMode
                     swapAnchor = null
                 }
-                WordMongerButton("submit", Modifier.weight(1f), enabled = current.selection.size >= 2) { commitWord() }
-                WordMongerButton("clear", Modifier.weight(1f), enabled = current.selection.isNotEmpty()) {
+                WordMongerButton("submit", enabled = current.selection.size >= 2) { commitWord() }
+                WordMongerButton("clear", enabled = current.selection.isNotEmpty()) {
                     game = WordMongerEngine.clearSelection(current)
                 }
-                WordMongerButton("pause", Modifier.weight(1f)) { paused = true }
+                WordMongerButton("pause") { persistSnapshot(); paused = true }
             }
             Spacer(Modifier.height(3.dp))
             BasicText(

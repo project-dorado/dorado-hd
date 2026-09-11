@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -52,7 +54,6 @@ import kotlin.math.max
 import kotlin.math.min
 
 private const val CASTLES_SAVE_KEY = "castles-and-cannons"
-private const val CASTLES_VIEW_H = 200f
 
 @Composable
 fun CastlesApp() {
@@ -196,7 +197,12 @@ fun CastlesApp() {
     DetailScaffold(title = "castles and cannons", onBack = { paused = true }) {
         Box(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
             Column(Modifier.fillMaxSize()) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                ) {
                     BasicText(
                         text = "level ${current.level}",
                         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textPrimary),
@@ -216,7 +222,7 @@ fun CastlesApp() {
                         text = "enemy %d".format(current.enemyHp.toInt()),
                         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
                     )
-                    Spacer(Modifier.weight(1f))
+                    Spacer(Modifier.width(12.dp))
                     BasicText(
                         text = "%d:%02d".format(current.elapsedMs / 60_000, (current.elapsedMs / 1_000) % 60),
                         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
@@ -244,13 +250,15 @@ fun CastlesApp() {
                                         if (dragging) {
                                             dragCurrent += drag
                                         } else {
-                                            camera = (camera - drag.x / view.scale).coerceIn(0f, CASTLES_WORLD_W - CASTLES_VIEW_W)
+                                            val liveScale = castlesView(size.width.toFloat(), size.height.toFloat(), camera).scale
+                                            camera = (camera - drag.x / liveScale).coerceIn(0f, CASTLES_WORLD_W - CASTLES_VIEW_W)
                                         }
                                     },
                                     onDragEnd = {
                                         if (dragging) {
-                                            val dx = (dragCurrent.x - dragStart.x) / view.scale
-                                            val dy = (dragCurrent.y - dragStart.y) / view.scale
+                                            val liveScale = castlesView(size.width.toFloat(), size.height.toFloat(), camera).scale
+                                            val dx = (dragCurrent.x - dragStart.x) / liveScale
+                                            val dy = (dragCurrent.y - dragStart.y) / liveScale
                                             applyBattle { CastlesEngine.fireCannon(it, dx, dy) }
                                         }
                                         dragging = false
@@ -260,7 +268,15 @@ fun CastlesApp() {
                             }
                             .pointerInput(current.level, paused) {
                                 detectTapGestures { offset ->
-                                    val worldX = view.toWorldX(offset.x)
+                                    // Recompute the projection from the live camera:
+                                    // the gesture block survives pans, so a captured
+                                    // view would map the tap to the pre-pan world x.
+                                    val worldX = CastlesEngine.screenToWorldX(
+                                        screenX = offset.x,
+                                        viewWidth = size.width.toFloat(),
+                                        viewHeight = size.height.toFloat(),
+                                        camera = camera,
+                                    )
                                     applyBattle { CastlesEngine.collectCoins(it, worldX, 150f) }
                                 }
                             },
@@ -312,14 +328,18 @@ fun CastlesApp() {
 
 @Composable
 private fun CastlesBuyBar(current: CastlesBattleState, onBuy: (CastlesUnitKind) -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
         CastlesUnitKind.entries.forEach { kind ->
             val unlocked = current.stats.availableUnits >= kind.slot
             val cooldown = current.buyCooldowns[kind] ?: 0L
             CastlesButton(
                 label = "${kind.label} ${kind.cost}",
                 enabled = unlocked && current.gold >= kind.cost && cooldown <= 0L,
-                modifier = Modifier.weight(1f),
             ) { onBuy(kind) }
         }
     }
@@ -328,7 +348,12 @@ private fun CastlesBuyBar(current: CastlesBattleState, onBuy: (CastlesUnitKind) 
 @Composable
 private fun CastlesHealBar(current: CastlesBattleState, onHeal: () -> Unit) {
     val colors = LocalDoradoColors.current
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
         BasicText(
             text = "cannon " + if (current.cannonCooldownMs <= 0L) "ready" else "%ds".format((current.cannonCooldownMs / 1000) + 1),
             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST_SECONDARY.sp, color = if (current.cannonCooldownMs <= 0L) colors.accent else colors.textInactive),
@@ -338,11 +363,10 @@ private fun CastlesHealBar(current: CastlesBattleState, onHeal: () -> Unit) {
             text = "drag a cannon to aim · drag the field to pan · tap coins",
             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST_SECONDARY.sp, color = colors.textSecondary),
         )
-        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.width(8.dp))
         CastlesButton(
             label = if (current.healCooldownMs > 0L) "heal %ds".format((current.healCooldownMs / 1000) + 1) else "heal ${CASTLES_HEAL_COST}",
             enabled = current.gold >= CASTLES_HEAL_COST && current.healCooldownMs <= 0L,
-            modifier = Modifier.width(90.dp),
         ) { onHeal() }
     }
 }
@@ -401,7 +425,12 @@ private fun CastlesEndPanel(
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textPrimary),
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 if (paused && !current.over) {
                     CastlesButton("resume", true, Modifier.width(100.dp)) { onResume() }
                 }
@@ -534,7 +563,6 @@ private class CastlesView(val scale: Float, val ox: Float, val oy: Float, val ca
     fun x(worldX: Float): Float = ox + (worldX - camera) * scale
     fun y(worldY: Float): Float = oy + worldY * scale
     fun s(v: Float): Float = v * scale
-    fun toWorldX(screenX: Float): Float = camera + (screenX - ox) / scale
     fun worldX(worldX: Float): Float = x(worldX)
 }
 

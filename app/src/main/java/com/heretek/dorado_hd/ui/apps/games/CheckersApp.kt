@@ -45,8 +45,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.min
 
-private const val CHECKERS_DRAW_PLIES = 80
-
 @Composable
 fun CheckersApp() {
     val colors = LocalDoradoColors.current
@@ -122,6 +120,8 @@ fun CheckersApp() {
         val move = withContext(Dispatchers.Default) { CheckersEngine.bestMove(state, difficulty, mode) }
         if (move != null) {
             state = CheckersEngine.applyMove(state, move)
+            // AI plies feed the same 80-ply draw clock as human plies.
+            quietPlies = CheckersEngine.quietPliesAfter(quietPlies, move)
             bank.play(if (move.isJump) "hit" else "click")
         }
     }
@@ -140,7 +140,7 @@ fun CheckersApp() {
     }
 
     LaunchedEffect(quietPlies) {
-        if (quietPlies >= CHECKERS_DRAW_PLIES && !recorded) {
+        if (quietPlies >= CheckersEngine.DRAW_QUIET_PLIES && !recorded) {
             recorded = true
             bank.play("lose")
             graph.games.record("checkers", 0, "${mode.name.lowercase()}:${difficulty.label}:draw")
@@ -199,7 +199,7 @@ fun CheckersApp() {
             state = state.copy(mode = mode)
             bank.play(if (move.isJump) "hit" else "click")
             if (move.promoted) bank.play("coin")
-            quietPlies = if (move.captures.isEmpty()) quietPlies + 1 else 0
+            quietPlies = CheckersEngine.quietPliesAfter(quietPlies, move)
             selected = null
             hintMove = null
         } else if (own != null && own.color == state.turn) {
@@ -368,7 +368,7 @@ fun CheckersApp() {
                 CheckersButton("pause", Modifier.weight(1f)) { paused = true }
                 CheckersButton("menu", Modifier.weight(1f)) { screen = "menu"; paused = false }
             }
-            if (state.winner != null || paused || quietPlies >= CHECKERS_DRAW_PLIES) {
+            if (state.winner != null || paused || quietPlies >= CheckersEngine.DRAW_QUIET_PLIES) {
                 Spacer(Modifier.height(6.dp))
                 Box(
                     Modifier
@@ -380,7 +380,7 @@ fun CheckersApp() {
                     Column {
                         BasicText(
                             text = when {
-                                quietPlies >= CHECKERS_DRAW_PLIES -> "draw — no captures"
+                                quietPlies >= CheckersEngine.DRAW_QUIET_PLIES -> "draw — no captures"
                                 state.winner == humanColor -> "you win"
                                 state.winner != null -> "ai wins"
                                 else -> "paused"

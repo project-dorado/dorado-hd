@@ -50,6 +50,7 @@ import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlin.math.ceil
 import kotlin.math.min
 import kotlin.math.sin
+import kotlinx.coroutines.delay
 
 private const val TUG_DESIGN_W = 272f
 private const val TUG_DESIGN_H = 480f
@@ -78,19 +79,42 @@ fun TugOWarApp() {
     var dragStart by remember { mutableStateOf<Offset?>(null) }
     var dragDistance by remember { mutableStateOf(0f) }
     var previousTilt by remember { mutableStateOf<Pair<Float, Float>?>(null) }
+    var loaded by remember { mutableStateOf(false) }
+    var runId by remember { mutableStateOf(0) }
     val best by graph.games.top("tug-o-war", 1).collectAsState(initial = emptyList())
 
     LaunchedEffect(Unit) {
         saved = graph.appState.get("tug-o-war")?.let { TugOWarEngine.decode(it) }
+        loaded = true
     }
 
-    LaunchedEffect(game) {
+    // H-08: the engine ticks at 60 Hz, so persist on a one-second cadence
+    // instead of writing app-state on every frame.
+    LaunchedEffect(screen, paused, runId, loaded) {
+        if (!loaded || screen != "game" || paused) return@LaunchedEffect
+        while (true) {
+            delay(1000)
+            val current = game ?: break
+            if (current.status == TugStatus.PLAYING || current.status == TugStatus.ROUND_OVER) {
+                graph.appState.put("tug-o-war", TugOWarEngine.encode(current))
+            } else {
+                break
+            }
+        }
+    }
+
+    // Write once more the moment the player pauses; clear when the match ends.
+    LaunchedEffect(paused, loaded) {
+        if (!loaded || !paused) return@LaunchedEffect
         val current = game ?: return@LaunchedEffect
         if (current.status == TugStatus.PLAYING || current.status == TugStatus.ROUND_OVER) {
             graph.appState.put("tug-o-war", TugOWarEngine.encode(current))
-        } else {
-            graph.appState.clear("tug-o-war")
         }
+    }
+
+    LaunchedEffect(game?.status, loaded) {
+        if (!loaded) return@LaunchedEffect
+        if (game?.status == TugStatus.MATCH_OVER) graph.appState.clear("tug-o-war")
     }
 
     LaunchedEffect(screen, paused) {
@@ -146,6 +170,7 @@ fun TugOWarApp() {
         recorded = false
         dragStart = null
         previousTilt = null
+        runId++
         screen = "game"
     }
 
@@ -157,6 +182,8 @@ fun TugOWarApp() {
         countdownMs = 0L
         paused = false
         recorded = false
+        previousTilt = null
+        runId++
         screen = "game"
     }
 
@@ -196,6 +223,20 @@ fun TugOWarApp() {
         enabled = screen == "game" && mode == TugInputMode.SHAKE && !paused && current.status == TugStatus.PLAYING,
         smoothing = 0.5f,
     )
+    // A sensorless device degrades SHAKE to the TAP timing window instead of
+    // dead input; the header says which of the two is live.
+    val sensorFallback = mode == TugInputMode.SHAKE && !tilt.value.available
+    val inputLabel = if (sensorFallback) "shake (tap)" else mode.name.lowercase()
+
+    fun pullAt(point: Offset) {
+        val snapshot = game ?: return
+        if (countdownMs > 0L || paused || snapshot.status != TugStatus.PLAYING) return
+        when {
+            TugOWarEngine.tapRegisters(snapshot, TugSide.PLAYER, point.y) -> pull(TugSide.PLAYER)
+            hotseat && TugOWarEngine.tapRegisters(snapshot, TugSide.OPPONENT, point.y) -> pull(TugSide.OPPONENT)
+        }
+    }
+
     LaunchedEffect(tilt.value) {
         val value = tilt.value
         if (!value.available || current.status != TugStatus.PLAYING || paused || countdownMs > 0L) return@LaunchedEffect
@@ -225,7 +266,7 @@ fun TugOWarApp() {
                 )
                 Spacer(Modifier.weight(1f))
                 BasicText(
-                    text = current.mode.name.lowercase(),
+                    text = inputLabel,
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
                 )
                 Spacer(Modifier.width(8.dp))
@@ -239,16 +280,10 @@ fun TugOWarApp() {
                 Canvas(
                     Modifier
                         .fillMaxSize()
-                        .pointerInput(mode, hotseat) {
+                        .pointerInput(mode, hotseat, sensorFallback) {
                             when (mode) {
                                 TugInputMode.TAP -> detectTapGestures { offset ->
-                                    val snapshot = game ?: return@detectTapGestures
-                                    if (countdownMs > 0L || paused || snapshot.status != TugStatus.PLAYING) return@detectTapGestures
-                                    val point = designPoint(size, offset)
-                                    when {
-                                        TugOWarEngine.tapRegisters(snapshot, TugSide.PLAYER, point.y) -> pull(TugSide.PLAYER)
-                                        hotseat && TugOWarEngine.tapRegisters(snapshot, TugSide.OPPONENT, point.y) -> pull(TugSide.OPPONENT)
-                                    }
+                                    pullAt(designPoint(size, offset))
                                 }
 
                                 TugInputMode.DRAG -> detectDragGestures(
@@ -274,7 +309,13 @@ fun TugOWarApp() {
                                     },
                                 )
 
-                                TugInputMode.SHAKE -> Unit
+                                TugInputMode.SHAKE -> {
+                                    if (sensorFallback) {
+                                        detectTapGestures { offset ->
+                                            pullAt(designPoint(size, offset))
+                                        }
+                                    }
+                                }
                             }
                         },
                 ) {
@@ -285,7 +326,7 @@ fun TugOWarApp() {
                     TugOverlay(
                         "paused",
                         "resume" to { paused = false },
-                        "input ${mode.name.lowercase()}" to {
+                        "input $inputLabel" to {
                             mode = TugInputMode.entries[(mode.ordinal + 1) % TugInputMode.entries.size]
                         },
                         "menu" to { screen = "menu"; game = null },

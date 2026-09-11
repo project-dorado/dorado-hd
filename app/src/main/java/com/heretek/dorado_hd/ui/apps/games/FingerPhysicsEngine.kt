@@ -993,6 +993,12 @@ object FingerPhysicsEngine {
 
     fun level(mode: FpMode, slot: Int): FpLevel = LEVELS[mode.ordinal * 9 + (slot - 1).coerceIn(0, 8)]
 
+    /**
+     * Slot that follows [slot], or null when the mode's ninth level is done.
+     * Callers must not wrap 9 back to 9 (it replayed the last level forever).
+     */
+    fun nextSlot(slot: Int): Int? = if (slot < 9) slot + 1 else null
+
     fun levelsFor(mode: FpMode): List<FpLevel> = LEVELS.filter { it.mode == mode }
 
     /** Linear falloff: full strength inside 48 px, gone at 192 px. */

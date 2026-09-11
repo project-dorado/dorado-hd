@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -35,11 +37,14 @@ import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
 import com.heretek.dorado_hd.ui.apps.engine3d.Color4
 import com.heretek.dorado_hd.ui.apps.engine3d.Material3d
+import com.heretek.dorado_hd.ui.apps.engine3d.MeshData
 import com.heretek.dorado_hd.ui.apps.engine3d.MeshFactory
 import com.heretek.dorado_hd.ui.apps.engine3d.Scene3d
 import com.heretek.dorado_hd.ui.apps.engine3d.Scene3dView
+import com.heretek.dorado_hd.ui.apps.engine3d.TextureData
 import com.heretek.dorado_hd.ui.apps.engine3d.Vec3
 import com.heretek.dorado_hd.ui.apps.engine3d.nodeAt
+import com.heretek.dorado_hd.ui.apps.engine3d.rebuild
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlin.math.cos
 import kotlinx.coroutines.delay
@@ -50,6 +55,44 @@ private enum class PuzzleScreen { MENU, MIXUP, PLAY, DONE }
 private val CATEGORY_LABELS = listOf(
     "animals", "architecture", "cartoons", "plants", "scenery", "patterns", "numbers",
 )
+
+/**
+ * Cached procedural assets for the puzzle: full pictures, per-tile crops,
+ * hint numbers and the shared meshes. Textures only depend on
+ * category/grid/home-cell, so a move no longer regenerates any of them.
+ */
+private class PuzzleAssets {
+    private val pictures = HashMap<Long, TextureData>()
+    private val tiles = HashMap<Long, TextureData>()
+    private val numbers = HashMap<Long, TextureData>()
+    private val planes = HashMap<Int, MeshData>()
+
+    val tileMesh: MeshData = MeshFactory.box(1f, 0.16f, 1f)
+    val quadMesh: MeshData = MeshFactory.quad(1f, 1f)
+
+    fun plane(grid: Int): MeshData = planes.getOrPut(grid) {
+        val span = grid * 1.05f - 0.05f
+        MeshFactory.plane(span + 0.5f, span + 0.5f)
+    }
+
+    fun picture(category: Int, index: Int): TextureData =
+        pictures.getOrPut(pack(category, index, 0, 0, 0)) {
+            PuzzleTextures.picture(category, index)
+        }
+
+    fun tile(picture: TextureData, category: Int, index: Int, grid: Int, row: Int, col: Int): TextureData =
+        tiles.getOrPut(pack(category, index, grid, row, col)) {
+            PuzzleTextures.tile(picture, grid, row, col)
+        }
+
+    fun number(value: Int, front: Boolean): TextureData =
+        numbers.getOrPut(pack(value, if (front) 1 else 0, 0, 0, 0)) {
+            PuzzleTextures.number(value, front)
+        }
+
+    private fun pack(a: Int, b: Int, c: Int, d: Int, e: Int): Long =
+        (a.toLong() shl 32) or (b.toLong() shl 24) or (c.toLong() shl 16) or (d.toLong() shl 8) or e.toLong()
+}
 
 /**
  * 3D Picture Puzzle — sliding-tile puzzle on an OpenGL board, with 3x3/4x4
@@ -83,6 +126,7 @@ fun PicturePuzzleApp() {
     var bestLabel by remember { mutableStateOf<String?>(null) }
 
     val scene = remember { Scene3d() }
+    val assets = remember { PuzzleAssets() }
 
     fun config() = PuzzleConfig(gridSize, twoSided)
 
@@ -131,14 +175,31 @@ fun PicturePuzzleApp() {
         }
     }
 
-    // Camera spin while the empty slot crosses to the other board.
+    // Camera spin while the empty slot crosses to the other board. This only
+    // mutates scene.camera; it never rebuilds the node list.
+    fun applyCamera() {
+        val current = state ?: return
+        val span = current.config.gridSize.toFloat()
+        val distance = span * 1.55f + 1.2f
+        val angle = cameraProgress * Math.PI.toFloat()
+        scene.camera = scene.camera.copy(
+            eye = Vec3(0f, span * 1.25f, cos(angle) * distance),
+            target = Vec3(0f, 0f, -0.5f * cameraProgress),
+        )
+    }
+
     LaunchedEffect(state?.emptySide, screen) {
         val target = if (state?.emptySide == PuzzleSide.BACK) 1f else 0f
         while (cameraProgress != target) {
             val delta = target - cameraProgress
             cameraProgress += delta.coerceIn(-0.08f, 0.08f)
+            applyCamera()
             delay(16)
         }
+    }
+
+    LaunchedEffect(state?.config, screen) {
+        applyCamera()
     }
 
     LaunchedEffect(gridSize, twoSided) {
@@ -146,22 +207,18 @@ fun PicturePuzzleApp() {
         bestLabel = graph.appState.get(key)?.toLongOrNull()?.let { PicturePuzzleEngine.formatTime(it) }
     }
 
-    // Scene rebuild on every visible change.
-    DisposableEffect(state, hintHeld, cameraProgress, screen) {
+    // Geometry rebuilds only on structural changes: a move changes pieces,
+    // hint toggles, screen changes. The 100 ms clock and the 16 ms camera
+    // spin no longer touch the node list (A-22).
+    DisposableEffect(state?.pieces, state?.config, hintHeld, screen) {
         val current = state
-        scene.clear()
-        scene.backgroundColor = Color4(0.04f, 0.04f, 0.05f)
-        scene.ambient = 0.5f
-        scene.lightDirection = Vec3(-0.4f, -1f, -0.35f)
-        if (current != null && (screen == PuzzleScreen.PLAY || screen == PuzzleScreen.DONE)) {
-            buildPuzzleScene(scene, current, category, hintHeld)
-            val span = current.config.gridSize.toFloat()
-            val distance = span * 1.55f + 1.2f
-            val angle = cameraProgress * Math.PI.toFloat()
-            scene.camera = scene.camera.copy(
-                eye = Vec3(0f, span * 1.25f, cos(angle) * distance),
-                target = Vec3(0f, 0f, -0.5f * cameraProgress),
-            )
+        scene.rebuild {
+            backgroundColor = Color4(0.04f, 0.04f, 0.05f)
+            ambient = 0.5f
+            lightDirection = Vec3(-0.4f, -1f, -0.35f)
+            if (current != null && (screen == PuzzleScreen.PLAY || screen == PuzzleScreen.DONE)) {
+                buildPuzzleScene(this, current, category, hintHeld, assets)
+            }
         }
         onDispose { }
     }
@@ -308,7 +365,7 @@ private fun HudButton(
         Modifier
             .background(colors.tile)
             .tapAction(onPress, onRelease, onClick)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
     ) {
         EdgeCropText(text = label, fontSize = DoradoTokens.TYPE_CAPTION.dp)
     }
@@ -347,10 +404,10 @@ private fun PuzzleMenu(
     Column(
         Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(DoradoTokens.EDGE.dp),
         verticalArrangement = Arrangement.spacedBy(DoradoTokens.EDGE.dp),
     ) {
-        EdgeCropText(text = "3d picture puzzle", fontSize = DoradoTokens.TYPE_HEADER_CROPPED.dp)
         Row(horizontalArrangement = Arrangement.spacedBy(DoradoTokens.EDGE.dp)) {
             MenuChip("3x3", gridSize == 3) { onGrid(3) }
             MenuChip("4x4", gridSize == 4) { onGrid(4) }
@@ -367,10 +424,14 @@ private fun PuzzleMenu(
         }
         Spacer(Modifier.height(4.dp))
         MenuChip("start", selected = true, onClick = onStart)
-        EdgeCropText(
+        BasicText(
             text = "tap a tile beside the gap to slide — two-sided: tap the other board to flip — hold hint for numbers",
-            fontSize = DoradoTokens.TYPE_CAPTION.dp,
-            color = colors.textSecondary,
+            style = TextStyle(
+                fontFamily = Selawik,
+                fontSize = DoradoTokens.TYPE_CAPTION.sp,
+                color = colors.textSecondary,
+                lineHeight = (DoradoTokens.TYPE_CAPTION * 1.4f).sp,
+            ),
         )
     }
 }
@@ -382,7 +443,7 @@ private fun MenuChip(label: String, selected: Boolean, onClick: () -> Unit) {
         Modifier
             .background(if (selected) colors.accent else colors.tile)
             .tapAction(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
     ) {
         EdgeCropText(
             text = label,
@@ -405,26 +466,32 @@ private fun parseTag(tag: String?): Triple<PuzzleSide, Int, Int>? {
 private fun tileTag(side: PuzzleSide, row: Int, col: Int): String =
     "p:${if (side == PuzzleSide.FRONT) "front" else "back"}:$row:$col"
 
-private fun buildPuzzleScene(scene: Scene3d, state: PuzzleState, category: Int, hintHeld: Boolean) {
+private fun buildPuzzleScene(
+    scene: Scene3d,
+    state: PuzzleState,
+    category: Int,
+    hintHeld: Boolean,
+    assets: PuzzleAssets,
+) {
     val grid = state.config.gridSize
     val cell = 1f
     val gap = 0.05f
     val step = cell + gap
     val span = grid * step - gap
     val backOffset = -(span + 1.2f)
-    val frontPicture = PuzzleTextures.picture(category, 0)
-    val backPicture = PuzzleTextures.picture(category, 1)
+    val frontPicture = assets.picture(category, 0)
+    val backPicture = assets.picture(category, 1)
 
     scene.add(
         nodeAt(
-            MeshFactory.plane(span + 0.5f, span + 0.5f),
+            assets.plane(grid),
             y = -0.02f,
             material = Material3d(Color4(0.09f, 0.09f, 0.11f), unlit = true),
         ),
     )
     scene.add(
         nodeAt(
-            MeshFactory.plane(span + 0.5f, span + 0.5f),
+            assets.plane(grid),
             y = -0.02f,
             z = backOffset,
             material = Material3d(Color4(0.08f, 0.08f, 0.1f), unlit = true),
@@ -438,21 +505,22 @@ private fun buildPuzzleScene(scene: Scene3d, state: PuzzleState, category: Int, 
         val tag = tileTag(piece.side, piece.row, piece.col)
         val showNumbers = hintHeld || category == PicturePuzzleEngine.NUMBERS_CATEGORY
         val texture = if (showNumbers) {
-            PuzzleTextures.number(PicturePuzzleEngine.homeNumber(state, piece), piece.side == PuzzleSide.FRONT)
+            assets.number(PicturePuzzleEngine.homeNumber(state, piece), piece.side == PuzzleSide.FRONT)
         } else {
             val picture = if (piece.side == PuzzleSide.FRONT) frontPicture else backPicture
-            PuzzleTextures.tile(picture, grid, piece.homeRow, piece.homeCol)
+            val pictureIndex = if (piece.side == PuzzleSide.FRONT) 0 else 1
+            assets.tile(picture, category, pictureIndex, grid, piece.homeRow, piece.homeCol)
         }
         scene.add(
             nodeAt(
-                MeshFactory.box(cell, 0.16f, cell),
+                assets.tileMesh,
                 x = x, y = -0.08f, z = z, tag = tag, yawRad = yaw,
                 material = Material3d(Color4(0.16f, 0.16f, 0.18f), unlit = true),
             ),
         )
         scene.add(
             nodeAt(
-                MeshFactory.quad(cell, cell),
+                assets.quadMesh,
                 x = x, y = 0.01f, z = z, tag = tag,
                 pitchRad = -Math.PI.toFloat() / 2f,
                 yawRad = yaw,

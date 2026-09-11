@@ -182,4 +182,14 @@ class SnowballTest {
         assertEquals(a, b)
         assertTrue(a.mode == SnowMode.CAMPAIGN)
     }
+
+    @Test
+    fun `no-sensor touch vector rolls the ball`() {
+        val start = SnowballEngine.newCampaign(1, seed = 3)
+        val next = SnowballEngine.step(start, 200L, 0.6, 0.0)
+        assertTrue("a drag vector must move the ball", next.playerX > start.playerX)
+        val still = SnowballEngine.step(start, 200L, 0.0, 0.0)
+        assertEquals(start.playerX, still.playerX, 1e-9)
+        assertEquals(start.playerY, still.playerY, 1e-9)
+    }
 }

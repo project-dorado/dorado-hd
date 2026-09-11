@@ -49,6 +49,7 @@ import com.heretek.dorado_hd.design.components.EdgeCropText
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -408,12 +409,15 @@ private fun OctaveBar(
 ) {
     val colors = LocalDoradoColors.current
     val current = PianoEngine.octaveForOffset(whiteOffset)
+    // The drag detector is keyed on Unit, so it must read the live offset at
+    // drag end instead of the offset captured at first composition.
+    val latestOffset = rememberUpdatedState(whiteOffset)
     Box(
         modifier
             .background(colors.elevated)
             .pointerInput(Unit) {
                 detectVerticalDragGestures(
-                    onDragEnd = { onSnap(current) },
+                    onDragEnd = { onSnap(PianoEngine.octaveForOffset(latestOffset.value)) },
                 ) { change, _ ->
                     val fraction = (change.position.y / size.height).coerceIn(0f, 1f)
                     val first = PianoEngine.snapWhiteIndex(1).toFloat()
@@ -852,8 +856,22 @@ fun DrumMachineApp() {
         DrumMachineEngine.decode(graph.appState.get("drums"))?.let { machine = it }
     }
 
-    LaunchedEffect(machine.bpm, machine.metronome, machine.pads) {
+    // Persist once per state transition and take a 1 s snapshot; keying the
+    // write on machine.pads would issue a Room write for every drag frame.
+    val drumSnapshot = rememberUpdatedState(DrumMachineEngine.encode(machine))
+    LaunchedEffect(machine.mode) {
         graph.appState.put("drums", DrumMachineEngine.encode(machine))
+    }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(StopwatchEngine.SNAPSHOT_INTERVAL_MS)
+            graph.appState.put("drums", drumSnapshot.value)
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            scope.launch(NonCancellable) { graph.appState.put("drums", drumSnapshot.value) }
+        }
     }
 
     LaunchedEffect(machine.mode) {
@@ -980,15 +998,29 @@ fun DrumMachineApp() {
                 Modifier.fillMaxWidth().weight(1f).background(colors.elevated),
             ) {
                 val scale = minOf(maxWidth.value / DrumMachineEngine.STAGE_W, maxHeight.value / DrumMachineEngine.STAGE_H)
+                // Centre the 272x480 stage instead of pinning it to the top-left;
+                // the height-limited scale used to clump the kit into the left edge.
+                val originX = (maxWidth.value - DrumMachineEngine.STAGE_W * scale) / 2f
+                val originY = (maxHeight.value - DrumMachineEngine.STAGE_H * scale) / 2f
                 machine.pads.sortedBy { it.layerDepth }.forEach { pad ->
                     DrumPadView(
                         pad = pad,
                         scale = scale,
+                        originX = originX,
+                        originY = originY,
                         selected = machine.selectedPad == pad.id,
                         arrange = machine.mode == DrumMachineEngine.Mode.ARRANGE,
                         onStrike = { zone -> strike(pad, zone) },
                         onSelect = { machine = machine.copy(selectedPad = pad.id) },
                         onMove = { dx, dy -> machine = DrumMachineEngine.movePad(machine, pad.id, dx / scale, dy / scale) },
+                    )
+                }
+                if (machine.mode == DrumMachineEngine.Mode.PLAY && machine.recorded.isEmpty()) {
+                    EdgeCropText(
+                        text = "tap a pad to play · record to capture a pattern",
+                        fontSize = DoradoTokens.TYPE_CAPTION.dp,
+                        color = colors.textInactive,
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp),
                     )
                 }
             }
@@ -1000,6 +1032,8 @@ fun DrumMachineApp() {
 private fun DrumPadView(
     pad: DrumMachineEngine.DrumPad,
     scale: Float,
+    originX: Float,
+    originY: Float,
     selected: Boolean,
     arrange: Boolean,
     onStrike: (DrumMachineEngine.Zone) -> Unit,
@@ -1012,7 +1046,7 @@ private fun DrumPadView(
     val sizeDp = (pad.size * scale).dp
     Box(
         Modifier
-            .offset(x = (pad.x * scale).dp, y = (pad.y * scale).dp)
+            .offset(x = (originX + pad.x * scale).dp, y = (originY + pad.y * scale).dp)
             .size(sizeDp)
             .background(if (selected) colors.accent.copy(alpha = 0.35f) else colors.tile)
             .pointerInput(pad.id, arrange) {

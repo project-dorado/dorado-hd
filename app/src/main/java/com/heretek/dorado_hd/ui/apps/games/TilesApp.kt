@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -307,13 +308,18 @@ private fun TilesButton(
 @Composable
 private fun TilesText(label: String, onClick: () -> Unit) {
     val colors = LocalDoradoColors.current
-    BasicText(
-        text = label,
-        style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textPrimary),
+    Box(
         modifier = Modifier
             .pointerInput(label) { detectTapGestures(onTap = { onClick() }) }
+            .defaultMinSize(minWidth = 24.dp, minHeight = 24.dp)
             .padding(horizontal = 4.dp),
-    )
+        contentAlignment = Alignment.Center,
+    ) {
+        BasicText(
+            text = label,
+            style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textPrimary),
+        )
+    }
 }
 
 @Composable

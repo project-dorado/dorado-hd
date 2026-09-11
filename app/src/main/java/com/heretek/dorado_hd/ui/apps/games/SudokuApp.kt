@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,7 +90,16 @@ fun SudokuApp() {
         if (!apiLoaded) return@LaunchedEffect
         val g = game ?: return@LaunchedEffect
         delay(500)
-        graph.appState.put("sudoku", SudokuEngine.encode(g))
+        graph.appState.put("sudoku", SudokuEngine.encode(g.copy(elapsedSeconds = elapsed)))
+    }
+    // Keep the persisted elapsed time fresh without a write per tick.
+    val sudokuSnapshot = rememberUpdatedState(game?.copy(elapsedSeconds = elapsed))
+    LaunchedEffect(apiLoaded, running) {
+        if (!apiLoaded || !running) return@LaunchedEffect
+        while (true) {
+            delay(5_000)
+            sudokuSnapshot.value?.let { graph.appState.put("sudoku", SudokuEngine.encode(it)) }
+        }
     }
 
     LaunchedEffect(records, apiLoaded) {
@@ -128,7 +138,7 @@ fun SudokuApp() {
     fun resume() {
         val g = saved ?: return
         game = g
-        elapsed = 0
+        elapsed = g.elapsedSeconds
         running = !g.solved
         recorded = g.solved
         saved = null
@@ -137,17 +147,19 @@ fun SudokuApp() {
     }
 
     val current = game
-    if (current != null && current.solved && !recorded) {
+    // Record the solve from an effect with a once-guard; mutating state during
+    // composition double-recorded when undo reset the flag.
+    LaunchedEffect(apiLoaded, current?.solved) {
+        val g = current ?: return@LaunchedEffect
+        if (!apiLoaded || !g.solved || recorded) return@LaunchedEffect
         recorded = true
         running = false
-        val key = SudokuEngine.recordKey(current.type, current.level)
+        val key = SudokuEngine.recordKey(g.type, g.level)
         val secs = elapsed
-        LaunchedEffect(Unit) {
-            graph.games.record("sudoku", secs, "$key|won")
-            val prev = records[key] ?: SudokuRecord()
-            val best = if (prev.bestSeconds in 1..secs) prev.bestSeconds else secs
-            records = records + (key to SudokuRecord(best, prev.solved + 1))
-        }
+        graph.games.record("sudoku", secs, "$key|won")
+        val prev = records[key] ?: SudokuRecord()
+        val best = if (prev.bestSeconds in 1..secs) prev.bestSeconds else secs
+        records = records + (key to SudokuRecord(best, prev.solved + 1))
     }
 
     DetailScaffold(title = "sudoku") {

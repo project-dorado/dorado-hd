@@ -89,6 +89,9 @@ fun SplatterBugApp() {
     var paused by remember { mutableStateOf(false) }
     var recorded by remember { mutableStateOf(false) }
     var sound by remember { mutableStateOf(true) }
+    // Bumped on every new run: the frame loop keys on it so "restart" after a
+    // game over restarts a loop that had already exited on `over`.
+    var runId by remember { mutableStateOf(0) }
     val pendingTaps = remember { mutableStateListOf<BugTap>() }
     val labelPaint = remember { android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG) }
     val scores by graph.games.top("splatter-bug", 1).collectAsState(initial = emptyList())
@@ -103,7 +106,7 @@ fun SplatterBugApp() {
         sound = graph.appState.get("splatter-bug-sound") != "0"
     }
 
-    LaunchedEffect(screen, paused) {
+    LaunchedEffect(screen, paused, runId) {
         while (screen == "game" && !paused) {
             val current = game ?: break
             if (current.over) break
@@ -149,6 +152,7 @@ fun SplatterBugApp() {
         recorded = false
         paused = false
         pendingTaps.clear()
+        runId++
         screen = "game"
     }
 

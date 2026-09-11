@@ -64,6 +64,16 @@ data class CheckersState(
 )
 
 object CheckersEngine {
+    /** Plies without a capture that trigger the draw clock. */
+    const val DRAW_QUIET_PLIES = 80
+
+    /**
+     * Advance the quiet-ply draw counter: any capture resets it, otherwise it
+     * increments. Both human and AI plies must move the same counter (A-30).
+     */
+    fun quietPliesAfter(current: Int, move: CheckersMoveRecord): Int =
+        if (move.captures.isEmpty()) current + 1 else 0
+
     private val dirs = listOf(-1 to -1, -1 to 1, 1 to -1, 1 to 1)
 
     private fun onBoard(r: Int, c: Int) = r in 0 until 8 && c in 0 until 8

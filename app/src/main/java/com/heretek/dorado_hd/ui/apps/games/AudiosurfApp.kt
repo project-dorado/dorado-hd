@@ -126,6 +126,7 @@ fun AudiosurfApp() {
     var medals by remember { mutableStateOf<Map<Long, AudiosurfMedal>>(emptyMap()) }
     var lastTiltDir by remember { mutableStateOf(0) }
     var dragPx by remember { mutableStateOf(0f) }
+    var stallMs by remember { mutableStateOf(0L) }
 
     val library by graph.library.tracks().collectAsState(initial = emptyList())
     val picks = remember(library) { buildPicks(graph, library) }
@@ -202,7 +203,21 @@ fun AudiosurfApp() {
                 val dtMs = ((now - last) / 1_000_000L).coerceIn(0L, 50L)
                 last = now
                 val target = if (usePlayer) {
-                    graph.controller.positionMs.value
+                    val playerPosition = graph.controller.positionMs.value
+                    if (playerPosition <= current.trackPositionMs) {
+                        stallMs += dtMs
+                    } else {
+                        stallMs = 0L
+                    }
+                    // A stalled player falls back to the wall clock after the
+                    // grace period so the ride always reaches FINISH (A-27).
+                    AudiosurfEngine.syncedTarget(
+                        currentPositionMs = current.trackPositionMs,
+                        playerPositionMs = playerPosition,
+                        dtMs = dtMs,
+                        speedScale = current.speedScale,
+                        stalledMs = stallMs,
+                    )
                 } else {
                     current.trackPositionMs + (dtMs * current.speedScale).toLong()
                 }
@@ -309,6 +324,7 @@ fun AudiosurfApp() {
         paused = false
         reward = null
         medalAward = null
+        stallMs = 0L
         screen = "ride"
         // Explicit user action only: never start playback implicitly.
         if (usePlayer && pick.track != null) {
@@ -327,6 +343,7 @@ fun AudiosurfApp() {
         paused = false
         reward = null
         medalAward = null
+        stallMs = 0L
         screen = "ride"
     }
 
@@ -531,7 +548,7 @@ private fun RidePickRow(pick: RidePick, medal: AudiosurfMedal?, onStart: () -> U
     Row(
         Modifier
             .fillMaxWidth()
-            .height(30.dp)
+            .height(38.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
             .pointerInput(pick) { detectTapGestures(onTap = { onStart() }) }

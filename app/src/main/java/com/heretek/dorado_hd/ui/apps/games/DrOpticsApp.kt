@@ -8,6 +8,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -497,17 +498,17 @@ private fun DrOpticsControls(
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.accentBright),
             )
             Spacer(Modifier.height(3.dp))
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            // Six controls wrapped instead of one clipped row (adaptive width).
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
                 DrOpticsButton("-15") { onRotate(element.id, -15f) }
-                Spacer(Modifier.width(3.dp))
                 DrOpticsButton("+15") { onRotate(element.id, 15f) }
-                Spacer(Modifier.width(3.dp))
                 DrOpticsButton("smaller") { onGrow(element.id, 0.9f) }
-                Spacer(Modifier.width(3.dp))
                 DrOpticsButton("larger") { onGrow(element.id, 1.1f) }
-                Spacer(Modifier.width(3.dp))
                 DrOpticsButton(if (element.locked) "unlock" else "lock") { onLock(element.id) }
-                Spacer(Modifier.width(3.dp))
                 DrOpticsButton("clear") { onSelect(null) }
             }
         } else {
@@ -541,7 +542,10 @@ private fun DrOpticsOverlay(title: String, vararg actions: Pair<String, () -> Un
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
             )
             Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
                 actions.forEach { (label, action) ->
                     DrOpticsButton(label) { action() }
                 }

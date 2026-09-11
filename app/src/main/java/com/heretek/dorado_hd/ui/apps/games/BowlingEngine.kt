@@ -241,8 +241,15 @@ data class BowlingSeries(
     val turkeys: Int = 0,
 )
 
-/** Saved in-progress card plus its standing-pin mask. */
-data class BowlingSave(val card: BowlingCard, val standing: List<Boolean>)
+/** Saved in-progress card plus its standing-pin mask and full match setup. */
+data class BowlingSave(
+    val card: BowlingCard,
+    val standing: List<Boolean>,
+    val lane: BowlingLane = BowlingLane.PINERY,
+    val ball: BowlingBall = BowlingBall.COMET,
+    val rival: BowlingRival = BowlingRival.KESTREL,
+    val seed: Int = 0,
+)
 
 enum class BowlingPhase { READY, ROLLING, SETTLED, FINISHED }
 
@@ -861,7 +868,8 @@ object BowlingEngine {
             frame.rolls.joinToString("-")
         }
         return "${save.card.mode.name}:${save.card.length.name}:${save.card.frameIndex}:" +
-            "${if (save.card.finished) 1 else 0}:$mask|$rolls"
+            "${if (save.card.finished) 1 else 0}:$mask:" +
+            "${save.lane.name}:${save.ball.name}:${save.rival.name}:${save.seed}|$rolls"
     }
 
     fun decodeSave(text: String?): BowlingSave? {
@@ -870,13 +878,22 @@ object BowlingEngine {
             val sections = text.split("|")
             if (sections.size != 2) return null
             val head = sections[0].split(":")
-            if (head.size != 5) return null
+            if (head.size < 5) return null
             val mode = BowlingMode.valueOf(head[0])
             val length = BowlingLength.valueOf(head[1])
             val frameIndex = head[2].toInt()
             val finished = head[3] == "1"
             val mask = head[4].padEnd(BOWLING_NUM_PINS, '1').take(BOWLING_NUM_PINS)
                 .map { it == '1' }
+            // v1 blobs stop at the mask; v2 appends lane/ball/rival/seed so a
+            // resumed game keeps the setup it was started with (A-28).
+            val lane = head.getOrNull(5)?.let { runCatching { BowlingLane.valueOf(it) }.getOrNull() }
+                ?: BowlingLane.PINERY
+            val ball = head.getOrNull(6)?.let { runCatching { BowlingBall.valueOf(it) }.getOrNull() }
+                ?: BowlingBall.COMET
+            val rival = head.getOrNull(7)?.let { runCatching { BowlingRival.valueOf(it) }.getOrNull() }
+                ?: BowlingRival.KESTREL
+            val seed = head.getOrNull(8)?.toIntOrNull() ?: 0
             val frames = if (sections[1].isEmpty()) {
                 emptyList()
             } else {
@@ -895,7 +912,7 @@ object BowlingEngine {
                 frameIndex = frameIndex.coerceIn(0, expected - 1),
                 finished = finished,
             )
-            BowlingSave(card, mask)
+            BowlingSave(card, mask, lane, ball, rival, seed)
         } catch (_: Exception) {
             null
         }

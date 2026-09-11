@@ -2,6 +2,7 @@ package com.heretek.dorado_hd
 
 import com.heretek.dorado_hd.ui.apps.games.RnJBody
 import com.heretek.dorado_hd.ui.apps.games.RnJEngine
+import com.heretek.dorado_hd.ui.apps.games.RnJEvent
 import com.heretek.dorado_hd.ui.apps.games.RnJKind
 import com.heretek.dorado_hd.ui.apps.games.RnJLevel
 import com.heretek.dorado_hd.ui.apps.games.RnJLevels
@@ -256,5 +257,28 @@ class RunAndJumpTest {
         val medium = RnJLevels.byId(21)
         assertFalse(RnJEngine.isLevelUnlocked(progress, medium))
         assertTrue(abs(RnJEngine.terminalVelocity(1.0) - 512.0) < 1e-9)
+    }
+
+    @Test
+    fun `death countdown always reaches a respawn`() {
+        val level = RnJLevels.byId(1)
+        var state = RnJEngine.newGame(level)
+        state = state.copy(body = RnJBody(x = -400.0, y = -400.0))
+        state = RnJEngine.step(state, level, 20L)
+        assertTrue("dying must start the respawn countdown", state.deadMs > 0L)
+        assertTrue(state.events.contains(RnJEvent.DEAD))
+
+        var guard = 0
+        while (state.deadMs > 0L && guard++ < 100) {
+            state = RnJEngine.step(state, level, 100L)
+            assertTrue(
+                "the death cue must not replay on every countdown frame",
+                state.events.none { it == RnJEvent.DEAD },
+            )
+        }
+        assertEquals(0L, state.deadMs)
+        assertEquals(level.spawnX, state.body.x, 1e-9)
+        assertEquals(level.spawnY, state.body.y, 1e-9)
+        assertFalse(state.finished)
     }
 }

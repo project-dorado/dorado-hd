@@ -148,7 +148,10 @@ fun ReversiApp() {
         }
     }
 
-    if (game.over && screen == ReversiScreen.PLAY && !recorded) {
+    // Record from an effect with a once-guard instead of mutating state during
+    // composition (undo after game-over used to double-record).
+    LaunchedEffect(screen, game.over) {
+        if (screen != ReversiScreen.PLAY || !game.over || recorded) return@LaunchedEffect
         recorded = true
         val human = humanColor
         val result = when {
@@ -159,9 +162,7 @@ fun ReversiApp() {
         }
         val key = if (side == ReversiSide.NONE) "two" else level.name.lowercase()
         val (b, w) = ReversiEngine.score(game.board)
-        LaunchedEffect(Unit) {
-            graph.games.record("reversi", result, "$key|${side.name.lowercase()}|B$b W$w")
-        }
+        graph.games.record("reversi", result, "$key|${side.name.lowercase()}|B$b W$w")
     }
 
     DetailScaffold(title = "reversi") {

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -68,7 +69,7 @@ private fun FbAction(
         },
         modifier = Modifier
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 5.dp, vertical = 3.dp),
+            .padding(horizontal = 5.dp, vertical = 6.dp),
     )
 }
 
@@ -392,7 +393,12 @@ fun FacebookApp() {
             }
             FbScreen.PHOTO -> screen = FbScreen.PROFILE
             FbScreen.REQUESTS -> screen = FbScreen.FRIENDS
-            FbScreen.ABOUT -> screen = FbScreen.SETTINGS
+            FbScreen.ABOUT -> {
+                // Reset the settings pivot so returning from About does not
+                // immediately re-trigger the About destination (A-11).
+                settingsPivot = 0
+                screen = FbScreen.SETTINGS
+            }
             FbScreen.NOTIFICATIONS, FbScreen.SETTINGS -> screen = FbScreen.HOME
         }
     }
@@ -461,7 +467,9 @@ fun FacebookApp() {
 
     DetailScaffold(title = title, onBack = { back() }) {
         Box(Modifier.fillMaxSize()) {
-            when (screen) {
+            Column(Modifier.fillMaxSize()) {
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    when (screen) {
                 FbScreen.LOGIN -> {
                     Column(Modifier.fillMaxSize()) {
                         FbBanner("offline snapshot — the service closed, this profile is local")
@@ -998,7 +1006,12 @@ fun FacebookApp() {
                             .verticalScroll(rememberScrollState())
                             .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 8.dp),
                     ) {
-                        FbPivots(listOf("options", "about", "terms"), settingsPivot) { settingsPivot = it }
+                        FbPivots(listOf("options", "about", "terms"), settingsPivot) { index ->
+                            settingsPivot = index
+                            // Navigate from the click, never during composition,
+                            // so the pivot cannot instantly re-open About (A-11).
+                            if (index == 1) screen = FbScreen.ABOUT
+                        }
                         Spacer(Modifier.height(8.dp))
                         when (settingsPivot) {
                             0 -> {
@@ -1017,8 +1030,7 @@ fun FacebookApp() {
                                     announce("logged out of the snapshot")
                                 }
                             }
-                            1 -> screen = FbScreen.ABOUT
-                            else -> MockBody(
+                            2 -> MockBody(
                                 "terms and attribution for the archived facebook client. " +
                                     "this build is a clean-room re-creation with synthetic content only.",
                             )
@@ -1113,10 +1125,11 @@ fun FacebookApp() {
                         }
                     }
                 }
+                }
             }
 
-            if (inShell) {
-                Column(Modifier.align(Alignment.BottomCenter)) {
+                if (inShell) {
+                    Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
                     when (screen) {
                         FbScreen.HOME, FbScreen.PROFILE, FbScreen.FRIENDS, FbScreen.MESSAGES -> {
                             Row(
@@ -1164,6 +1177,7 @@ fun FacebookApp() {
                         else -> Unit
                     }
                 }
+            }
             }
 
             if (discardAsk) {

@@ -66,14 +66,21 @@ fun HeartsApp() {
         if (started && !state.gameOver) graph.appState.put("hearts", HeartsEngine.encode(state))
     }
 
-    // One AI play per state change; passing is driven by the human picker.
+    // One AI play per state change; the watchdog retries with fresh entropy so
+    // an unchanged AI result cannot silently stall the trick loop.
     LaunchedEffect(state) {
         val cur = state
         if (!started || cur.done || cur.gameOver) return@LaunchedEffect
         if (cur.pendingPassFrom != null) return@LaunchedEffect
         if (cur.currentPlayer == HeartsSeat.SOUTH) return@LaunchedEffect
         delay(240)
-        val next = HeartsEngine.aiPlay(cur, level, Random.Default)
+        var next = HeartsEngine.aiPlay(cur, level, Random.Default)
+        var attempt = 0
+        while (next == cur && attempt < 3) {
+            next = HeartsEngine.aiPlay(cur, level, Random(attempt * 31 + 7))
+            attempt++
+        }
+        if (next == cur) next = HeartsEngine.forceAdvance(cur, Random.Default)
         if (next != cur) state = next
     }
 
@@ -85,19 +92,17 @@ fun HeartsApp() {
         }
     }
 
-    if (state.gameOver && !recorded) {
+    // Record from an effect with a once-guard instead of during composition.
+    LaunchedEffect(state.gameOver) {
+        if (!state.gameOver || recorded) return@LaunchedEffect
         recorded = true
         val won = state.winner == HeartsSeat.SOUTH
         bank.play(if (won) "win" else "lose")
-        LaunchedEffect(Unit) {
-            scope.launch {
-                graph.games.record(
-                    "hearts",
-                    state.totals[HeartsSeat.SOUTH] ?: state.scores[HeartsSeat.SOUTH] ?: 0,
-                    "${state.mode.name.lowercase()} ${if (won) "win" else if (state.winner == null) "tie" else "loss"}",
-                )
-            }
-        }
+        graph.games.record(
+            "hearts",
+            state.totals[HeartsSeat.SOUTH] ?: state.scores[HeartsSeat.SOUTH] ?: 0,
+            "${state.mode.name.lowercase()} ${if (won) "win" else if (state.winner == null) "tie" else "loss"}",
+        )
     }
 
     DetailScaffold(title = "hearts") {

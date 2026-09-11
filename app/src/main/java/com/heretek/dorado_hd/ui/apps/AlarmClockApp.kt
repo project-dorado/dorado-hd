@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +40,7 @@ import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import com.heretek.dorado_hd.ui.components.LocalContextMenu
 import com.heretek.dorado_hd.ui.components.MenuAction
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -55,6 +57,12 @@ enum class ClockFormat { H12, H24 }
 
 /** Alarm delivery source: buzzer / playlist / radio presets. */
 enum class AlarmSource { BUZZER, PLAYLIST, RADIO }
+
+/**
+ * Which AlarmManager call the scheduler may use: exact (permission granted or
+ * pre-Android 12), a 60 s window, or an inexact fallback when the OS refuses.
+ */
+enum class AlarmScheduleMode { EXACT, WINDOW, INEXACT }
 
 /**
  * Immutable alarm-clock state. Persisted through `graph.appState` under the
@@ -100,6 +108,10 @@ object AlarmClockEngine {
     const val VOLUME_LEVELS = 4
 
     fun initial(): AlarmClockState = AlarmClockState()
+
+    /** Exact alarms need the permission from Android 12 (API 31) on. */
+    fun scheduleMode(sdkInt: Int, canScheduleExact: Boolean): AlarmScheduleMode =
+        if (sdkInt < 31 || canScheduleExact) AlarmScheduleMode.EXACT else AlarmScheduleMode.WINDOW
 
     fun normalizeMinute(minuteOfDay: Int): Int = ((minuteOfDay % 1440) + 1440) % 1440
 
@@ -291,6 +303,9 @@ object AlarmClockEngine {
         state.sleepVolume,
         state.playlistId,
         state.radioPreset,
+        if (state.sleepEnabled) 1 else 0,
+        state.sleepSecondsLeft,
+        if (state.sleepOutOfTime) 1 else 0,
     ).joinToString(";")
 
     fun parse(raw: String?): AlarmClockState {
@@ -300,6 +315,8 @@ object AlarmClockEngine {
         fun intAt(index: Int, fallback: Int) = parts.getOrNull(index)?.trim()?.toIntOrNull() ?: fallback
         fun longAt(index: Int, fallback: Long) = parts.getOrNull(index)?.trim()?.toLongOrNull() ?: fallback
         val sleepMinutes = intAt(6, base.sleepMinutes).coerceIn(1, 120)
+        val sleepEnabled = parts.getOrNull(10)?.trim() == "1"
+        val sleepOutOfTime = parts.getOrNull(12)?.trim() == "1"
         return base.copy(
             clockFormat = runCatching { ClockFormat.valueOf(parts[0]) }.getOrDefault(base.clockFormat),
             dim = intAt(1, base.dim).coerceIn(DIM_MIN, DIM_MAX),
@@ -311,7 +328,9 @@ object AlarmClockEngine {
             sleepVolume = intAt(7, base.sleepVolume).coerceIn(0, VOLUME_LEVELS - 1),
             playlistId = longAt(8, base.playlistId),
             radioPreset = longAt(9, base.radioPreset),
-            sleepSecondsLeft = sleepMinutes * 60,
+            sleepEnabled = sleepEnabled,
+            sleepSecondsLeft = if (sleepEnabled) intAt(11, sleepMinutes * 60) else sleepMinutes * 60,
+            sleepOutOfTime = sleepOutOfTime,
         )
     }
 }
@@ -343,7 +362,9 @@ fun AlarmClockApp() {
         mutableStateOf(LocalTime.now().let { it.hour * 60 + it.minute })
     }
     val pager = rememberPagerState(initialPage = 0, pageCount = { 4 })
-    val pageLabels = listOf("clock", "alarm", "sleep", "settings")
+    // Short pivot labels so all four tabs fit the crossbar without the last
+    // one being cropped at the right edge.
+    val pageLabels = listOf("clock", "alarm", "sleep", "setup")
 
     DisposableEffect(Unit) {
         synth.start()
@@ -354,8 +375,30 @@ fun AlarmClockApp() {
         engine = AlarmClockEngine.parse(graph.appState.get("alarm"))
         loaded = true
     }
-    LaunchedEffect(engine) {
+    // Persist only meaningful settings/alarm changes; the 1 Hz tick must not be
+    // a 1 Hz Room write. A 5 s snapshot while the sleep timer runs keeps the
+    // remaining countdown current, and the final dispose write flushes it.
+    LaunchedEffect(
+        loaded, engine.clockFormat, engine.dim, engine.alarmEnabled, engine.alarmMinuteOfDay,
+        engine.alarmSource, engine.snoozeMinutes, engine.sleepMinutes, engine.sleepVolume,
+        engine.playlistId, engine.radioPreset, engine.sleepEnabled, engine.ringing,
+    ) {
         if (loaded) graph.appState.put("alarm", AlarmClockEngine.serialize(engine))
+    }
+    val alarmSnapshot = rememberUpdatedState(AlarmClockEngine.serialize(engine))
+    LaunchedEffect(loaded, engine.sleepEnabled) {
+        if (!loaded || !engine.sleepEnabled) return@LaunchedEffect
+        while (isActive) {
+            delay(5_000)
+            graph.appState.put("alarm", alarmSnapshot.value)
+        }
+    }
+    DisposableEffect(loaded) {
+        onDispose {
+            if (loaded) scope.launch(NonCancellable) {
+                graph.appState.put("alarm", alarmSnapshot.value)
+            }
+        }
     }
 
     // The 1 Hz tick drives minute-match firing, the 30-minute bow-out and the
@@ -417,7 +460,24 @@ fun AlarmClockApp() {
         if (!alarm.enabled) return
         val am = context.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
         val triggerAt = AlarmScheduler.nextFireMs(alarm.hour, alarm.minute, daysOfWeek = alarm.daysOfWeek)
-        am.set(android.app.AlarmManager.RTC_WAKEUP, triggerAt, alarmPi(alarm))
+        val pi = alarmPi(alarm)
+        val exactAllowed = android.os.Build.VERSION.SDK_INT < 31 || am.canScheduleExactAlarms()
+        try {
+            when (AlarmClockEngine.scheduleMode(android.os.Build.VERSION.SDK_INT, exactAllowed)) {
+                AlarmScheduleMode.EXACT ->
+                    am.set(android.app.AlarmManager.RTC_WAKEUP, triggerAt, pi)
+                AlarmScheduleMode.WINDOW ->
+                    am.setWindow(android.app.AlarmManager.RTC_WAKEUP, triggerAt, 60_000L, pi)
+                AlarmScheduleMode.INEXACT ->
+                    am.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, triggerAt, pi)
+            }
+        } catch (_: SecurityException) {
+            // Exact alarms were revoked between the check and the call: fall
+            // back to an allow-idle alarm rather than crashing the page.
+            runCatching {
+                am.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, triggerAt, pi)
+            }
+        }
     }
 
     fun cancel(alarm: AlarmEntity) {
@@ -448,7 +508,7 @@ fun AlarmClockApp() {
                 selected = pager.currentPage,
                 onSelect = { index -> scope.launch { pager.animateScrollToPage(index) } },
             )
-            HorizontalPager(state = pager, modifier = Modifier.fillMaxSize()) { page ->
+            HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth().weight(1f)) { page ->
                 when (page) {
                     0 -> ClockPage(
                         nowMinute = nowMinute,

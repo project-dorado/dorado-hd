@@ -23,6 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -49,6 +50,7 @@ import com.heretek.dorado_hd.ui.apps.engine3d.Scene3d
 import com.heretek.dorado_hd.ui.apps.engine3d.Scene3dView
 import com.heretek.dorado_hd.ui.apps.engine3d.Vec3
 import com.heretek.dorado_hd.ui.apps.engine3d.nodeAt
+import com.heretek.dorado_hd.ui.apps.engine3d.rebuild
 import com.heretek.dorado_hd.ui.apps.rememberTilt
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.launch
@@ -189,6 +191,17 @@ fun SkateApp() {
     val inSession = screen == SkateScreen.SESSION
     val tilt = rememberTilt(enabled = inSession && !paused && session?.finished == false)
 
+    // Pausing mid-grind must not strand the session in GRINDING: the gesture
+    // handler used to be detached with the release handler still pending (A-26).
+    LaunchedEffect(paused) {
+        if (paused) {
+            val current = session
+            if (current != null && current.phase == SkatePhase.GRINDING) {
+                session = SkateEngine.endGrind(current)
+            }
+        }
+    }
+
     LaunchedEffect(screen, paused) {
         if (screen != SkateScreen.SESSION || paused) return@LaunchedEffect
         var last = 0L
@@ -290,20 +303,24 @@ fun SkateApp() {
                 ) {
                     val assets = remember(current.pool.id) { PoolAssets(current.pool) }
                     DisposableEffect(current, paused) {
-                        scene.clear()
-                        scene.backgroundColor = Color4.rgb(18, 20, 26)
-                        scene.ambient = 0.36f
-                        scene.lightDirection = Vec3(-0.35f, -1f, -0.28f)
-                        buildSkateScene(scene, current, assets)
+                        scene.rebuild {
+                            backgroundColor = Color4.rgb(18, 20, 26)
+                            ambient = 0.36f
+                            lightDirection = Vec3(-0.35f, -1f, -0.28f)
+                            buildSkateScene(this, current, assets)
+                        }
                         onDispose { }
                     }
+                    // The handler stays attached while paused; it reads the live
+                    // enabled flag so a pause can still deliver the release (A-26).
+                    val gesturesEnabled = rememberUpdatedState(!paused && !current.finished)
                     Box(Modifier.fillMaxSize().background(colors.background)) {
                         Scene3dView(scene = scene, modifier = Modifier.fillMaxSize())
                         Box(
                             Modifier
                                 .fillMaxSize()
                                 .skateGestures(
-                                    enabled = !paused && !current.finished,
+                                    enabled = { gesturesEnabled.value },
                                     onSwipe = { swipe ->
                                         val snapshot = session
                                         if (snapshot != null) session = SkateEngine.swipe(snapshot, swipe)
@@ -400,42 +417,47 @@ private fun playCues(bank: SfxBank, before: SkateState, after: SkateState) {
 }
 
 private fun Modifier.skateGestures(
-    enabled: Boolean,
+    enabled: () -> Boolean,
     onSwipe: (SkateSwipe) -> Unit,
     onTap: () -> Unit,
     onGrind: () -> Unit,
     onRelease: () -> Unit,
-): Modifier = if (!enabled) {
-    this
-} else {
-    pointerInput(Unit) {
-        awaitPointerEventScope {
-            var start: Offset? = null
-            var grinding = false
-            while (true) {
-                val event = awaitPointerEvent()
-                val pressed = event.changes.count { it.pressed }
-                if (pressed >= 2 && !grinding) {
-                    grinding = true
-                    onGrind()
-                }
-                if (pressed == 0) {
-                    val end = event.changes.firstOrNull()
-                    val from = start
-                    if (!grinding && end != null && from != null) {
-                        val dx = end.position.x - from.x
-                        val dy = end.position.y - from.y
-                        val distance = sqrt(dx * dx + dy * dy)
-                        if (distance >= 36.dp.toPx()) onSwipe(directionOf(dx, dy)) else onTap()
-                    }
-                    start = null
+): Modifier = pointerInput(Unit) {
+    awaitPointerEventScope {
+        var start: Offset? = null
+        var grinding = false
+        while (true) {
+            val event = awaitPointerEvent()
+            if (!enabled()) {
+                if (grinding) {
                     grinding = false
                     onRelease()
-                } else if (start == null) {
-                    start = event.changes.firstOrNull { it.pressed }?.position
                 }
+                start = null
                 event.changes.forEach { it.consume() }
+                continue
             }
+            val pressed = event.changes.count { it.pressed }
+            if (pressed >= 2 && !grinding) {
+                grinding = true
+                onGrind()
+            }
+            if (pressed == 0) {
+                val end = event.changes.firstOrNull()
+                val from = start
+                if (!grinding && end != null && from != null) {
+                    val dx = end.position.x - from.x
+                    val dy = end.position.y - from.y
+                    val distance = sqrt(dx * dx + dy * dy)
+                    if (distance >= 36.dp.toPx()) onSwipe(directionOf(dx, dy)) else onTap()
+                }
+                start = null
+                grinding = false
+                onRelease()
+            } else if (start == null) {
+                start = event.changes.firstOrNull { it.pressed }?.position
+            }
+            event.changes.forEach { it.consume() }
         }
     }
 }
@@ -909,7 +931,7 @@ private fun SkateChip(label: String, selected: Boolean, enabled: Boolean, onClic
         Modifier
             .background(if (selected) colors.accent else colors.tile)
             .tapAction(if (enabled) onClick else null)
-            .padding(horizontal = 6.dp, vertical = 3.dp),
+            .padding(horizontal = 6.dp, vertical = 6.dp),
     ) {
         BasicText(
             text = label,

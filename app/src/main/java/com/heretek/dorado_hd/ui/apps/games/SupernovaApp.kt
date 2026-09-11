@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -85,6 +86,7 @@ fun SupernovaApp() {
     var intro by remember { mutableStateOf(false) }
     var paused by remember { mutableStateOf(false) }
     var recorded by remember { mutableStateOf(false) }
+    var loaded by remember { mutableStateOf(false) }
     val top by graph.games.top("supernova", SupernovaEngine.MAX_HIGH_SCORES).collectAsState(initial = emptyList())
 
     LaunchedEffect(Unit) {
@@ -92,13 +94,16 @@ fun SupernovaApp() {
             mode = runCatching { NovaMode.valueOf(stored) }.getOrDefault(NovaMode.NORMAL)
         }
         saved = graph.appState.get("supernova")?.let { SupernovaEngine.decode(it) }
+        loaded = true
     }
 
-    LaunchedEffect(mode) {
+    LaunchedEffect(mode, loaded) {
+        if (!loaded) return@LaunchedEffect
         graph.appState.put("supernova.mode", mode.name)
     }
 
-    LaunchedEffect(game?.level, game?.phase, screen) {
+    LaunchedEffect(game?.level, game?.phase, screen, loaded) {
+        if (!loaded) return@LaunchedEffect
         while (screen == "game") {
             val current = game ?: break
             if (current.phase != NovaPhase.PLAY && current.phase != NovaPhase.RESOLVING) break
@@ -116,6 +121,8 @@ fun SupernovaApp() {
                 bank.play("win")
                 scope.launch {
                     graph.games.record("supernova", current.score, "${modeLabel(current.mode)} · L${current.level}")
+                    // A completed level must not leave a stale "continue".
+                    graph.appState.clear("supernova")
                 }
             }
             NovaPhase.FAILED -> if (!recorded) {
@@ -331,13 +338,18 @@ private fun NovaButton(
 @Composable
 private fun NovaText(label: String, onClick: () -> Unit) {
     val colors = LocalDoradoColors.current
-    BasicText(
-        text = label,
-        style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textPrimary),
+    Box(
         modifier = Modifier
             .pointerInput(label) { detectTapGestures(onTap = { onClick() }) }
+            .defaultMinSize(minWidth = 24.dp, minHeight = 24.dp)
             .padding(horizontal = 4.dp),
-    )
+        contentAlignment = Alignment.Center,
+    ) {
+        BasicText(
+            text = label,
+            style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textPrimary),
+        )
+    }
 }
 
 @Composable

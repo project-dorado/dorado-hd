@@ -155,4 +155,11 @@ class SliderPuzzleTest {
         assertEquals(scores, SliderPuzzleEngine.decodeScores(SliderPuzzleEngine.encodeScores(scores)))
         assertEquals(emptyList<SliderPuzzleEngine.SlideScore>(), SliderPuzzleEngine.decodeScores(null))
     }
+
+    @Test
+    fun `paused clock does not advance`() {
+        assertEquals(0L, SliderPuzzleEngine.advanceClock(0L, 100L, running = false))
+        assertEquals(1_500L, SliderPuzzleEngine.advanceClock(1_400L, 100L, running = true))
+        assertEquals(1_400L, SliderPuzzleEngine.advanceClock(1_400L, 5_000L, running = false))
+    }
 }

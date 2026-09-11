@@ -248,4 +248,17 @@ class SplatterBugTest {
         assertEquals(state.bugs.first().x, decoded.bugs.first().x, 0.0001f)
         assertNull(SplatterBugEngine.decode("garbage"))
     }
+
+    @Test
+    fun `a fresh run after a game over steps again`() {
+        val over = stateWith(lives = -1, score = 40).copy(over = true)
+        val frozen = SplatterBugEngine.step(over, SPLATTER_SPAWN_MS)
+        assertTrue(frozen.over)
+        assertEquals(over.score, frozen.score)
+
+        val fresh = SplatterBugEngine.newGame(99)
+        val next = SplatterBugEngine.step(fresh, SPLATTER_SPAWN_MS)
+        assertFalse(next.over)
+        assertTrue("a restarted run must advance", next.elapsedMs > fresh.elapsedMs)
+    }
 }

@@ -7,6 +7,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -69,14 +70,19 @@ private fun MsAction(
         },
         modifier = Modifier
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 5.dp, vertical = 3.dp),
+            .padding(horizontal = 5.dp, vertical = 6.dp),
     )
 }
 
 @Composable
 private fun MsPivots(labels: List<String>, selected: Int, onSelect: (Int) -> Unit) {
     val colors = LocalDoradoColors.current
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    // FlowRow wraps instead of clipping: the four-state presence selector used
+    // to shove its third option off-screen on the adaptive canvas (V-06).
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
         labels.forEachIndexed { index, label ->
             EdgeCropText(
                 text = label,
@@ -279,7 +285,11 @@ fun MessengerApp() {
     }
 
     LaunchedEffect(account, loaded) {
-        if (loaded) graph.appState.put("messenger.account", MessengerCodec.encodeAccount(account))
+        if (!loaded) return@LaunchedEffect
+        // The display-name field mutates per keystroke; debounce the Room write
+        // so typing does not queue one upsert per character (H-08).
+        delay(400)
+        graph.appState.put("messenger.account", MessengerCodec.encodeAccount(account))
     }
 
     LaunchedEffect(options, loaded) {

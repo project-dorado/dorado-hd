@@ -79,6 +79,7 @@ fun SpaceBattleApp() {
     var paused by remember { mutableStateOf(false) }
     var recorded by remember { mutableStateOf(false) }
     var completedHandled by remember { mutableStateOf(false) }
+    var loaded by remember { mutableStateOf(false) }
     var input by remember { mutableStateOf(SpaceBattleEngine.SbInput()) }
     val tilt = rememberTilt()
     val scores by graph.games.top("space-battle-2", 20).collectAsState(initial = emptyList())
@@ -94,12 +95,25 @@ fun SpaceBattleApp() {
         } else {
             SpaceBattleEngine.ControlStyle.TOUCH_ABSOLUTE
         }
+        loaded = true
     }
-    LaunchedEffect(progress) {
-        graph.appState.put("space-battle-2.progress", SpaceBattleEngine.encodeProgress(progress))
+    // Cold-start gate: defaults must not be written until the stored profile
+    // has been read back.
+    LaunchedEffect(progress, loaded) {
+        if (loaded) graph.appState.put("space-battle-2.progress", SpaceBattleEngine.encodeProgress(progress))
     }
-    LaunchedEffect(control) {
-        graph.appState.put("space-battle-2.control", if (control == SpaceBattleEngine.ControlStyle.TILT) "tilt" else "touch")
+    LaunchedEffect(control, loaded) {
+        if (loaded) graph.appState.put("space-battle-2.control", if (control == SpaceBattleEngine.ControlStyle.TILT) "tilt" else "touch")
+    }
+    // Persist the campaign checkpoint after the state settles; writing straight
+    // after the assignment can capture the previous (or null) stage.
+    LaunchedEffect(game?.stage, difficulty, screen, loaded) {
+        if (!loaded || screen != "game") return@LaunchedEffect
+        val current = game ?: return@LaunchedEffect
+        if (current.mode != SpaceBattleEngine.GameMode.CAMPAIGN) return@LaunchedEffect
+        if (current.gameOver || current.victory || current.stageComplete) return@LaunchedEffect
+        resumeStage = current.stage
+        graph.appState.put("space-battle-2", "${current.stage}|${difficulty.label}")
     }
 
     val active = screen == "game" && game != null && !paused &&
@@ -134,6 +148,7 @@ fun SpaceBattleApp() {
         val current = game ?: return@LaunchedEffect
         if (current.gameOver && !recorded) {
             recorded = true
+            resumeStage = null
             scope.launch(NonCancellable) {
                 graph.games.record("space-battle-2", current.totalScore + current.score, "${current.difficulty.label}|stage ${current.stage}")
                 graph.appState.clear("space-battle-2")
@@ -141,6 +156,7 @@ fun SpaceBattleApp() {
         }
         if (current.victory && !recorded) {
             recorded = true
+            resumeStage = null
             progress = progress.copy(wins = progress.wins + current.difficulty).let { p ->
                 p.copy(highestStage = p.highestStage + (current.difficulty to SpaceBattleEngine.NUM_STAGES))
             }
@@ -191,9 +207,6 @@ fun SpaceBattleApp() {
         paused = false
         screen = "game"
         input = SpaceBattleEngine.SbInput()
-        scope.launch(NonCancellable) {
-            graph.appState.put("space-battle-2", "${game?.stage}|${difficulty.label}")
-        }
     }
 
     fun startRace(trackId: Int) {
@@ -764,30 +777,20 @@ private fun SpaceBattleGameScreen(
             BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
                 val canvasW = constraints.maxWidth.toFloat()
                 val canvasH = constraints.maxHeight.toFloat()
+                val viewport = SpaceBattleEngine.viewportFor(canvasW, canvasH)
                 Canvas(
                     Modifier
                         .fillMaxSize()
-                        .pointerInput(control, paused) {
+                        .pointerInput(control, paused, viewport) {
                             if (paused) return@pointerInput
+                            fun touch(x: Float, y: Float) = SpaceBattleEngine.SbInput(
+                                touching = true,
+                                touchX = viewport.viewX(x),
+                                touchY = viewport.viewY(y),
+                            )
                             detectDragGestures(
-                                onDragStart = { offset ->
-                                    onInput(
-                                        SpaceBattleEngine.SbInput(
-                                            touching = true,
-                                            touchX = offset.x,
-                                            touchY = offset.y,
-                                        ),
-                                    )
-                                },
-                                onDrag = { change, _ ->
-                                    onInput(
-                                        SpaceBattleEngine.SbInput(
-                                            touching = true,
-                                            touchX = change.position.x,
-                                            touchY = change.position.y,
-                                        ),
-                                    )
-                                },
+                                onDragStart = { offset -> onInput(touch(offset.x, offset.y)) },
+                                onDrag = { change, _ -> onInput(touch(change.position.x, change.position.y)) },
                                 onDragEnd = { onInput(SpaceBattleEngine.SbInput()) },
                                 onDragCancel = { onInput(SpaceBattleEngine.SbInput()) },
                             )
@@ -855,11 +858,14 @@ private fun DrawScope.drawSpaceBattleScene(
     canvasW: Float,
     canvasH: Float,
 ) {
-    val scale = canvasW / SpaceBattleEngine.VIEW_W.toFloat()
-    val offsetX = state.panningOffset
+    // Fit by the smaller ratio so the full 272x480 view stays on screen; a
+    // width-only scale lets `oy` go negative on short/wide canvases.
+    val vp = SpaceBattleEngine.viewportFor(canvasW, canvasH)
+    val scale = vp.scale
+    val viewW = SpaceBattleEngine.VIEW_W * scale
     val viewH = SpaceBattleEngine.VIEW_H * scale
-    val oy = (canvasH - viewH) / 2f
-    drawRect(colors.background, Offset(0f, oy), Size(canvasW, viewH))
+    drawRect(colors.background)
+    drawRect(colors.background, Offset(vp.ox, vp.oy), Size(viewW, viewH))
 
     val world = if (state.mode == SpaceBattleEngine.GameMode.CAMPAIGN) {
         (SpaceBattleEngine.stage(state.stage).world % 5)
@@ -873,19 +879,19 @@ private fun DrawScope.drawSpaceBattleScene(
         3 -> DoradoAccent.ORANGE
         else -> DoradoAccent.PINK
     }
-    drawCircle(worldColor.primary.copy(alpha = 0.16f), canvasW * 0.36f, Offset(canvasW * 0.2f, oy + viewH * 0.24f))
+    drawCircle(worldColor.primary.copy(alpha = 0.16f), viewW * 0.36f, Offset(vp.ox + viewW * 0.2f, vp.oy + viewH * 0.24f))
 
     // Starfield with a slow vertical drift.
     val scroll = ((state.stageTimeMs / 60L) + state.distancePx.toLong() / 8L) % 480L
     for (i in 0 until 44) {
-        val sx = ((i * 173 + 41) % 480) / 480f * canvasW
+        val sx = vp.ox + ((i * 173 + 41) % 480) / 480f * viewW
         val sy = (((i * 97 + 13) % 480) + scroll) % 480L
         val alpha = if (i % 5 == 0) 0.55f else 0.28f
-        drawCircle(Color.White.copy(alpha = alpha), (1.1f + (i % 3) * 0.5f) * scale, Offset(sx, oy + sy * scale))
+        drawCircle(Color.White.copy(alpha = alpha), (1.1f + (i % 3) * 0.5f) * scale, Offset(sx, vp.oy + sy * scale))
     }
 
-    fun sx(worldX: Float): Float = (worldX - offsetX) * scale
-    fun sy(worldY: Float): Float = oy + worldY * scale
+    fun sx(worldX: Float): Float = vp.screenX(worldX, state.panningOffset)
+    fun sy(worldY: Float): Float = vp.screenY(worldY)
 
     if (state.mode == SpaceBattleEngine.GameMode.RACE) {
         val track = SpaceBattleEngine.race(state.race)
@@ -893,13 +899,17 @@ private fun DrawScope.drawSpaceBattleScene(
             val ahead = gate - state.distancePx
             if (ahead < 0f || ahead > 420f) continue
             val y = sy(120f + ahead * 0.7f)
-            drawRect(DoradoAccent.CYAN.bright.copy(alpha = 0.7f), Offset(0f, y), Size(canvasW, 4f * scale))
+            drawRect(DoradoAccent.CYAN.bright.copy(alpha = 0.7f), Offset(vp.ox, y), Size(viewW, 4f * scale))
         }
         val finishAhead = track.lengthPx - state.distancePx
         if (finishAhead in 0f..420f) {
             val y = sy(120f + finishAhead * 0.7f)
             for (x in 0 until 10) {
-                drawRect(if (x % 2 == 0) Color.White else colors.background, Offset(x * canvasW / 10f, y), Size(canvasW / 10f, 10f * scale))
+                drawRect(
+                    if (x % 2 == 0) Color.White else colors.background,
+                    Offset(vp.ox + x * viewW / 10f, y),
+                    Size(viewW / 10f, 10f * scale),
+                )
             }
         }
     }

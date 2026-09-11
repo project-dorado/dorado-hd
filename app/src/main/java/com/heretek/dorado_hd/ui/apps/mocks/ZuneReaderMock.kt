@@ -386,7 +386,12 @@ private fun TocScreen(toc: List<TocEntry>, onBack: () -> Unit, onSelect: (TocEnt
                         .clickable { onSelect(entry) },
                 ) {
                     Spacer(Modifier.width(((entry.level - 1).coerceAtLeast(0) * 16).dp))
-                    EdgeCropText(entry.title, DoradoTokens.TYPE_LIST.dp, color = if (entry.level <= 1) colors.textPrimary else colors.textSecondary)
+                    EdgeCropText(
+                        entry.title,
+                        DoradoTokens.TYPE_LIST.dp,
+                        color = if (entry.level <= 1) colors.textPrimary else colors.textSecondary,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
             }
         }
@@ -465,7 +470,7 @@ private fun ThemeScreen(theme: ReaderTheme, onBack: () -> Unit, onSelect: (Reade
                             .background(if (item == ReaderTheme.DARK) colors.background else colors.textPrimary),
                     )
                     Spacer(Modifier.width(12.dp))
-                    Column {
+                    Column(Modifier.weight(1f)) {
                         EdgeCropText(item.label, DoradoTokens.TYPE_LIST.dp, color = if (selected) colors.accent else colors.textPrimary)
                         EdgeCropText(if (selected) "selected" else "tap to use", DoradoTokens.TYPE_CAPTION.dp, color = colors.textSecondary)
                     }
@@ -530,7 +535,8 @@ private fun ActionLabel(label: String, color: Color, onClick: () -> Unit) {
         color = color,
         modifier = Modifier
             .clickable(onClick = onClick)
-            .padding(horizontal = 6.dp),
+            // 9sp text alone is ~15dp tall; pad to a 24dp minimum target.
+            .padding(horizontal = 6.dp, vertical = 6.dp),
     )
 }
 

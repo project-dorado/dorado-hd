@@ -222,6 +222,19 @@ object FingerpaintEngine {
         return commit(document, document.strokes + committed, bumpId = true)
     }
 
+    /**
+     * Commit a batch of live strokes in order. Used when the brush changes so
+     * the in-progress stroke is saved before the new tool takes over (A-29).
+     */
+    fun commitStrokes(
+        document: FingerpaintDocument,
+        strokes: Collection<FingerpaintStroke>,
+    ): FingerpaintDocument {
+        var current = document
+        for (stroke in strokes) current = addStroke(current, stroke)
+        return current
+    }
+
     fun eraseStrokes(strokes: List<FingerpaintStroke>, eraser: FingerpaintStroke): List<FingerpaintStroke> {
         val radius = eraser.width * 1.5f + 4f
         val radiusSq = radius * radius

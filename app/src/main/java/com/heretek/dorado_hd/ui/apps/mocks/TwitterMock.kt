@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -64,7 +65,7 @@ private fun TwAction(
         },
         modifier = Modifier
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 5.dp, vertical = 3.dp),
+            .padding(horizontal = 5.dp, vertical = 6.dp),
     )
 }
 
@@ -265,6 +266,7 @@ fun TwitterApp() {
     var searchQuery by remember { mutableStateOf("") }
     var myTweets by remember { mutableStateOf(emptyList<Tweet>()) }
     var localReplies by remember { mutableStateOf(emptyMap<Long, List<DmMessage>>()) }
+    var localThreads by remember { mutableStateOf(emptyList<DmThread>()) }
     var following by remember { mutableStateOf(true) }
     var toast by remember { mutableStateOf<String?>(null) }
 
@@ -306,16 +308,11 @@ fun TwitterApp() {
         if (state.target == ComposeTarget.DM) {
             val handle = state.recipient ?: return
             val body = dmTarget(draft)?.second.orEmpty()
-            val existing = TwitterSeed.dms.firstOrNull { it.handle.equals(handle, ignoreCase = true) }
-            if (existing != null) {
-                localReplies = localReplies + (
-                    existing.id to ((localReplies[existing.id] ?: emptyList()) +
-                        DmMessage("you", body, "now", mine = true))
-                    )
-            } else {
-                val id = (TwitterSeed.dms.maxOfOrNull { it.id } ?: 0L) + 1
-                localReplies = localReplies + (id to listOf(DmMessage("you", body, "now", mine = true)))
-            }
+            // Store/lookup by id everywhere: a new handle gets a real thread,
+            // so it appears in the DM list and opens by threadId (A-12).
+            val update = appendLocalDm(TwitterSeed.dms, localThreads, localReplies, handle, body)
+            localThreads = update.threads
+            localReplies = update.replies
             draft = ""
             screen = TwScreen.SHELL
             tab = TwTab.DMS
@@ -580,8 +577,8 @@ fun TwitterApp() {
                                     Row(Modifier.padding(vertical = 6.dp)) {
                                         TwPivots(listOf("inbox", "sent"), dmPivot) { dmPivot = it }
                                     }
-                                    TwitterSeed.dms.forEach { thread ->
-                                        val messages = thread.messages + (localReplies[thread.id] ?: emptyList())
+                                    allDmThreads(TwitterSeed.dms, localThreads).forEach { thread ->
+                                        val messages = threadMessages(thread, localReplies)
                                         val show = if (dmPivot == 0) {
                                             messages.any { !it.mine }
                                         } else {
@@ -623,6 +620,7 @@ fun TwitterApp() {
                                 .fillMaxWidth()
                                 .background(colors.elevated)
                                 .border(0.5.dp, colors.border)
+                                .navigationBarsPadding()
                                 .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 3.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -824,8 +822,8 @@ fun TwitterApp() {
                 }
 
                 TwScreen.THREAD -> {
-                    val thread = TwitterSeed.dms.firstOrNull { it.id == threadId }
-                    val messages = thread?.messages.orEmpty() + (threadId?.let { localReplies[it] } ?: emptyList())
+                    val thread = allDmThreads(TwitterSeed.dms, localThreads).firstOrNull { it.id == threadId }
+                    val messages = thread?.let { threadMessages(it, localReplies) }.orEmpty()
                     Column(Modifier.fillMaxSize()) {
                         Column(
                             Modifier
@@ -930,6 +928,8 @@ fun TwitterApp() {
                     Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
+                        // Reserve the shell bar so the toast never covers it (H-11).
+                        .padding(bottom = if (screen == TwScreen.SHELL) 42.dp else 0.dp)
                         .background(colors.elevated)
                         .border(0.5.dp, colors.border)
                         .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 5.dp),

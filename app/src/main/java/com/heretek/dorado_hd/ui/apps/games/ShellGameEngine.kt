@@ -90,6 +90,12 @@ object ShellGameEngine {
     /** Each shake adds Strength * 4, and AdjustCharge halves that. */
     const val SHAKE_CHARGE_SCALE = 4f
 
+    /**
+     * Touch fallback charge injected by one tap on a sensorless device: the
+     * same ladder as a stout shake, so the tier lamps remain reachable.
+     */
+    const val TAP_CHARGE = 60f
+
     /** Not-all-sitting drain: AdjustCharge(-5) => 2.5 units per 60 Hz frame. */
     const val DRAIN_PER_FRAME = 2.5f
     const val FRAME_MS = 1000f / 60f
@@ -151,6 +157,16 @@ object ShellGameEngine {
     /** Fresh sitting state with nothing charged. */
     fun idle(unlocked: Set<String> = emptySet(), seed: Int = 0): ShellState =
         ShellState(unlocked = unlocked, seed = seed)
+
+    /**
+     * Touch fallback for devices without an accelerometer: a tap on the
+     * SITTING table charges the boosters exactly as a shake would and resets
+     * the launch-calm timer. Ignored outside [ShellPhase.SITTING].
+     */
+    fun tapCharge(state: ShellState): ShellState {
+        if (state.phase != ShellPhase.SITTING) return state
+        return state.copy(charge = adjustCharge(state.charge, TAP_CHARGE), calmMs = 0L)
+    }
 
     /**
      * Returns to the sitting table after a reveal (or a manual reset), keeping

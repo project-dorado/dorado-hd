@@ -124,6 +124,18 @@ object FanPredictionEngine {
     const val OUTCOME_POINTS = 3
     const val EXACT_BONUS = 2
     const val MAX_NICKNAME = 20
+    const val MAX_SCORE_DIGITS = 2
+    const val MAX_SCORE = 99
+
+    /**
+     * Appends a keypad digit to a score field. Returns [value] unchanged once
+     * the field is full or the key is not a single digit.
+     */
+    fun appendScoreDigit(value: String, key: String): String {
+        if (key.length != 1 || !key[0].isDigit()) return value
+        if (value.length >= MAX_SCORE_DIGITS) return value
+        return value + key
+    }
 
     private const val DAY_MS = 24L * 60L * 60L * 1000L
     private const val HOUR_MS = 60L * 60L * 1000L
@@ -257,8 +269,8 @@ object FanPredictionEngine {
             event.pick
         }
         if (pick == FanPick.DRAW && !fixture.sport.hasDraw) return state.copy(banner = DRAW_BANNER)
-        if (home != null && (home < 0 || home > 9)) return state.copy(banner = "scores are 0 to 9")
-        if (away != null && (away < 0 || away > 9)) return state.copy(banner = "scores are 0 to 9")
+        if (home != null && (home < 0 || home > MAX_SCORE)) return state.copy(banner = "scores are 0 to $MAX_SCORE")
+        if (away != null && (away < 0 || away > MAX_SCORE)) return state.copy(banner = "scores are 0 to $MAX_SCORE")
         val prediction = FanPrediction(fixtureId = fixture.id, pick = pick, homeScore = home, awayScore = away)
         return state.copy(predictions = state.predictions + (fixture.id to prediction), banner = null)
     }

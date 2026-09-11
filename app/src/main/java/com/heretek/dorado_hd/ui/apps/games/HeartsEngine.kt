@@ -231,6 +231,17 @@ object HeartsEngine {
     }
 
     /**
+     * Pick/undo one card in the human pass picker without ever exceeding three
+     * distinct picks. The UI must call this against live selection state — a
+     * stale composition capture allowed duplicate picks (Hearts!PassPicker).
+     */
+    fun togglePassPick(picked: List<SolCard>, card: SolCard, maxPicks: Int = 3): List<SolCard> = when {
+        card in picked -> picked - card
+        picked.size < maxPicks -> picked + card
+        else -> picked
+    }
+
+    /**
      * Complete the passing phase: fill in AI picks for every seat that has not
      * recorded a pass, then move all picks simultaneously and hand the lead to
      * the 2-clubs holder.
@@ -460,6 +471,18 @@ object HeartsEngine {
         val seat = state.currentPlayer
         val pick = aiChoose(state, seat, level, rng) ?: return state
         return play(state, pick)
+    }
+
+    /**
+     * Watchdog fallback for [aiPlay]: if the current seat has no legal card,
+     * close an all-empty hand as done or hand the turn on, so an unchanged AI
+     * result cannot stall the trick loop forever.
+     */
+    fun forceAdvance(state: HeartsState, rng: Random = Random.Default): HeartsState {
+        if (state.done || state.gameOver || state.pendingPassFrom != null) return state
+        aiChoose(state, state.currentPlayer, HeartsLevel.EASY, rng)?.let { return play(state, it) }
+        if (heartsSeats.all { state.hands[it].orEmpty().isEmpty() }) return state.copy(done = true)
+        return state.copy(currentPlayer = next(state.currentPlayer))
     }
 
     /* --------------------------- persistence --------------------------- */

@@ -80,6 +80,9 @@ fun HairballApp() {
     var saved by remember { mutableStateOf<HairballState?>(null) }
     var paused by remember { mutableStateOf(false) }
     var recorded by remember { mutableStateOf(false) }
+    // Bumped on every new run: the frame loop keys on it so retry restarts a
+    // loop that had already exited on `lost`.
+    var runId by remember { mutableStateOf(0) }
     val scores by graph.games.top("hairball", 1).collectAsState(initial = emptyList())
     val best = scores.firstOrNull()?.score ?: 0
     val tilt by rememberTilt(enabled = screen == "game" && !paused)
@@ -91,7 +94,7 @@ fun HairballApp() {
         saved = graph.appState.get("hairball")?.let { HairballEngine.decode(it) }
     }
 
-    LaunchedEffect(screen, paused) {
+    LaunchedEffect(screen, paused, runId) {
         while (screen == "game" && !paused) {
             val current = game ?: break
             if (current.lost) break
@@ -129,6 +132,7 @@ fun HairballApp() {
         game = HairballEngine.newGame(System.currentTimeMillis().toInt())
         recorded = false
         paused = false
+        runId++
         screen = "game"
     }
 

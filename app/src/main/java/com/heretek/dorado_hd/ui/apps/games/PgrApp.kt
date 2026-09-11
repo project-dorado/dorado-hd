@@ -53,9 +53,12 @@ import com.heretek.dorado_hd.ui.apps.engine3d.SceneNode
 import com.heretek.dorado_hd.ui.apps.engine3d.TextureData
 import com.heretek.dorado_hd.ui.apps.engine3d.Vec3
 import com.heretek.dorado_hd.ui.apps.engine3d.nodeAt
+import com.heretek.dorado_hd.ui.apps.engine3d.rebuild
+import com.heretek.dorado_hd.ui.apps.engine3d.rememberIsResumed
 import com.heretek.dorado_hd.ui.apps.rememberTilt
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlin.math.PI
+import kotlin.math.atan2
 import kotlin.math.ceil
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -90,6 +93,7 @@ fun PgrApp() {
     val scene = remember { Scene3d() }
     val assets = remember { PgrAssets() }
     val engineSamples = remember { HashMap<Int, DoubleArray>() }
+    val resumed = rememberIsResumed()
 
     var screen by remember { mutableStateOf(PgrScreen.MENU) }
     var profile by remember { mutableStateOf(PgrEngine.PgrProfile()) }
@@ -162,8 +166,8 @@ fun PgrApp() {
     }
 
     // Fixed-step race loop driven by the frame clock.
-    LaunchedEffect(screen, paused) {
-        if (screen != PgrScreen.RACE || paused) return@LaunchedEffect
+    LaunchedEffect(screen, paused, resumed) {
+        if (screen != PgrScreen.RACE || paused || !resumed) return@LaunchedEffect
         var last = 0L
         var lastCountdown = -1
         var lastGear = -1
@@ -243,8 +247,9 @@ fun PgrApp() {
     }
 
     // Engine loop: one short banded sample per write; the audio stream paces it.
-    LaunchedEffect(screen, paused) {
-        if (screen != PgrScreen.RACE || paused || !soundOn) return@LaunchedEffect
+    // Tied to the RESUMED lifecycle so it cannot drone in the background (A-23).
+    LaunchedEffect(screen, paused, soundOn, resumed) {
+        if (screen != PgrScreen.RACE || paused || !soundOn || !resumed) return@LaunchedEffect
         while (true) {
             val current = race ?: break
             val player = current.racers.firstOrNull { it.isPlayer } ?: break
@@ -259,20 +264,21 @@ fun PgrApp() {
     DisposableEffect(race, trackVisual, paused) {
         val current = race
         val visual = trackVisual
-        scene.clear()
-        if (current != null && visual != null && screen == PgrScreen.RACE) {
-            val track = PgrEngine.PgrTracks.byId(current.trackId)
-            scene.backgroundColor = color4(track.def.city.skyArgb)
-            scene.fogDensity = track.def.city.fogDensity
-            scene.ambient = 0.42f
-            scene.lightDirection = Vec3(-0.35f, -1f, 0.25f)
-            scene.addAll(visual.staticNodes)
-            for (racer in current.racers) {
-                val def = PgrEngine.PgrCars.byId(racer.carId)
-                addCarNodes(scene, assets, racer, def)
+        scene.rebuild {
+            if (current != null && visual != null && screen == PgrScreen.RACE) {
+                val track = PgrEngine.PgrTracks.byId(current.trackId)
+                backgroundColor = color4(track.def.city.skyArgb)
+                fogDensity = track.def.city.fogDensity
+                ambient = 0.42f
+                lightDirection = Vec3(-0.35f, -1f, 0.25f)
+                addAll(visual.staticNodes)
+                for (racer in current.racers) {
+                    val def = PgrEngine.PgrCars.byId(racer.carId)
+                    addCarNodes(this, assets, racer, def)
+                }
+                val player = current.racers.firstOrNull { it.isPlayer } ?: current.racers.first()
+                camera = chaseCamera(player)
             }
-            val player = current.racers.firstOrNull { it.isPlayer } ?: current.racers.first()
-            scene.camera = chaseCamera(player)
         }
         onDispose { }
     }
@@ -1005,6 +1011,9 @@ private class PgrAssets {
     val cabin: MeshData = MeshFactory.box(1.35f, 0.34f, 1.8f)
     val wing: MeshData = MeshFactory.box(1.55f, 0.08f, 0.4f)
     val wheel: MeshData = MeshFactory.cylinder(0.34f, 0.28f, 10)
+
+    /** Brake-light bar, hoisted so no mesh is minted inside the per-frame rebuild. */
+    val brake: MeshData = MeshFactory.box(1.4f, 0.12f, 0.12f)
     val checker: TextureData = checkerTexture()
     private val bodies = HashMap<String, MeshData>()
     private val visuals = HashMap<String, PgrTrackVisual>()
@@ -1057,7 +1066,7 @@ private class PgrAssets {
                 unitBox,
                 Material3d(Color4(shade, shade * 1.03f, shade * 1.12f)),
                 Mat4.translation(Vec3(pos.x, height * 0.5f, pos.z)) *
-                    Mat4.rotationY(sample.forward.x) *
+                    Mat4.rotationY(pgrPropYaw(sample.forward)) *
                     Mat4.scale(Vec3(width, height, depth)),
             )
         }
@@ -1075,7 +1084,7 @@ private class PgrAssets {
                     unitBox,
                     Material3d(Color4(0.85f, 0.72f, 0.22f), unlit = true),
                     Mat4.translation(Vec3(pos.x, 2f, pos.z)) *
-                        Mat4.rotationY(kotlin.math.atan2(sample.forward.x, sample.forward.z)) *
+                        Mat4.rotationY(pgrPropYaw(sample.forward)) *
                         Mat4.scale(Vec3(0.28f, 4f, 0.28f)),
                 )
             }
@@ -1083,6 +1092,12 @@ private class PgrAssets {
         return nodes
     }
 }
+
+/**
+ * Yaw for a city prop from its track direction. A direction component is not
+ * an angle: `forward.x` ranges -1..1 while yaw needs atan2 (A-24).
+ */
+internal fun pgrPropYaw(forward: PgrEngine.PgrVec2): Float = atan2(forward.x, forward.z)
 
 private fun ribbonMesh(track: PgrEngine.PgrTrack, inner: Float, outer: Float, y: Float): MeshData {
     val n = track.count
@@ -1165,7 +1180,7 @@ private fun addCarNodes(scene: Scene3d, assets: PgrAssets, racer: PgrEngine.PgrR
     val brakePos = car.position + forward * (-2.1f)
     scene.add(
         nodeAt(
-            MeshFactory.box(1.4f, 0.12f, 0.12f),
+            assets.brake,
             brakePos.x,
             0.5f,
             brakePos.z,

@@ -14,6 +14,7 @@ import kotlin.math.sqrt
  */
 const val CASTLES_WORLD_W = 960f
 const val CASTLES_VIEW_W = 480f
+const val CASTLES_VIEW_H = 200f
 const val CASTLES_GROUND_Y = 195f
 const val CASTLES_HUMAN_GATE = 180f
 const val CASTLES_ENEMY_GATE = 780f
@@ -479,6 +480,17 @@ object CastlesEngine {
             goldAcquired = state.goldAcquired + value,
             events = listOf(CastlesEvent.COIN),
         )
+    }
+
+    /**
+     * Maps a battle-canvas x to a world x for the live camera. The canvas
+     * letterboxes the 480x200 view, so the scale/offset must be recomputed
+     * from the current camera instead of a projection captured on a pan.
+     */
+    fun screenToWorldX(screenX: Float, viewWidth: Float, viewHeight: Float, camera: Float): Float {
+        val scale = min(viewWidth / CASTLES_VIEW_W, viewHeight / CASTLES_VIEW_H)
+        val ox = (viewWidth - CASTLES_VIEW_W * scale) / 2f
+        return camera + (screenX - ox) / scale
     }
 
     // ------------------------------------------------------------------ step --

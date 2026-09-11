@@ -205,4 +205,19 @@ class ShellGameTest {
         }
         assertNull(fired)
     }
+
+    @Test
+    fun `tap charge is a sensorless fallback that can launch`() {
+        var state = ShellGameEngine.idle(seed = 4)
+        state = ShellGameEngine.tapCharge(state)
+        assertEquals(ShellGameEngine.TAP_CHARGE / 2f, state.charge, 0.001f)
+        assertEquals(0L, state.calmMs)
+        state = ShellGameEngine.step(state, 399)
+        assertEquals(ShellPhase.SITTING, state.phase)
+        state = ShellGameEngine.step(state, 2)
+        assertEquals(ShellPhase.LAUNCH, state.phase)
+
+        val ignored = ShellGameEngine.tapCharge(state)
+        assertSame(state, ignored)
+    }
 }

@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
@@ -138,7 +140,9 @@ private fun CityPagerScreen(
     }
 
     DetailScaffold(title = "weather") {
-        Column(Modifier.fillMaxSize()) {
+        // Reserve the system nav bar inside the app: the last forecast row and
+        // the no-city card used to sit under it (V-08).
+        Column(Modifier.fillMaxSize().navigationBarsPadding()) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -198,7 +202,9 @@ private fun NoCityMessage(onOpenSettings: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier
-                .width(280.dp)
+                .padding(horizontal = DoradoTokens.EDGE.dp)
+                .widthIn(max = 280.dp)
+                .fillMaxWidth()
                 .background(colors.tile)
                 .padding(DoradoTokens.EDGE.dp),
         ) {
@@ -454,7 +460,8 @@ private fun WxText(
     color: Color,
     onClick: (() -> Unit)? = null,
 ) {
-    val base = Modifier.padding(vertical = 2.dp)
+    // Clickable rows get a larger vertical pad so the touch target clears 24dp.
+    val base = Modifier.padding(vertical = if (onClick != null) 5.dp else 2.dp)
     EdgeCropText(
         text = text,
         fontSize = size.value.dp,

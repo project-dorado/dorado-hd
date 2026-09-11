@@ -3,6 +3,7 @@ package com.heretek.dorado_hd.ui.apps.games
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -168,7 +169,7 @@ fun FanPredictionApp() {
                 onPick = { draftPick = it; playCue("click") },
                 onKey = { key ->
                     val value = if (activeField == 0) homeInput else awayInput
-                    val next = if (value.length < 1) key else key
+                    val next = FanPredictionEngine.appendScoreDigit(value, key)
                     if (activeField == 0) homeInput = next else awayInput = next
                     playCue("click")
                 },
@@ -300,7 +301,7 @@ private fun FanSportsScreen(
                         )
                     }
                     Spacer(Modifier.width(8.dp))
-                    Column {
+                    Column(Modifier.weight(1f)) {
                         BasicText(
                             text = entry.label,
                             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textPrimary),
@@ -309,16 +310,15 @@ private fun FanSportsScreen(
                             text = "$upcoming upcoming · ${matches.size} fixtures",
                             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST_SECONDARY.sp, color = colors.textSecondary),
                         )
+                        BasicText(
+                            text = if (state.profile.favorites[entry] != null) {
+                                FanTeams.byId(state.profile.favorites[entry]!!)?.name ?: "favourite set"
+                            } else {
+                                "no favourite"
+                            },
+                            style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST_SECONDARY.sp, color = colors.textInactive),
+                        )
                     }
-                    Spacer(Modifier.weight(1f))
-                    BasicText(
-                        text = if (state.profile.favorites[entry] != null) {
-                            FanTeams.byId(state.profile.favorites[entry]!!)?.name ?: "favourite set"
-                        } else {
-                            "no favourite"
-                        },
-                        style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST_SECONDARY.sp, color = colors.textInactive),
-                    )
                 }
                 Spacer(Modifier.height(4.dp))
             }
@@ -339,7 +339,12 @@ private fun FanSportsScreen(
                 )
             }
             Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 FanButton("refresh", onRefresh)
                 FanButton("standings", onStandings)
                 FanButton("settings", onSettings)
@@ -374,7 +379,12 @@ private fun FanGamesScreen(
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.accentBright),
             )
             Spacer(Modifier.height(6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 FanButton("standings", onStandings)
                 FanButton("favourite team", onFavorite)
                 FanButton("settings", onSettings)
@@ -383,32 +393,33 @@ private fun FanGamesScreen(
             fixtures.forEach { fixture ->
                 val prediction = state.predictions[fixture.id]
                 val locked = !FanPredictionEngine.canPredict(state, fixture)
-                Row(
+                Column(
                     Modifier
                         .fillMaxWidth()
                         .background(if (prediction != null) colors.tilePressed else colors.tile)
                         .border(0.5.dp, if (prediction != null) colors.accent else colors.border)
                         .pointerInput(fixture.id, locked) { detectTapGestures(onTap = { onFixture(fixture) }) }
                         .padding(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column(Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            BasicText(
-                                text = FanTeams.byId(fixture.homeId)?.name ?: "?",
-                                style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textPrimary),
-                                modifier = Modifier.width(120.dp),
-                            )
-                            BasicText(
-                                text = outcomeLabel(fixture),
-                                style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.accent),
-                            )
-                            Spacer(Modifier.weight(1f))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        BasicText(
+                            text = FanTeams.byId(fixture.homeId)?.name ?: "?",
+                            style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textPrimary),
+                            modifier = Modifier.weight(1f),
+                        )
+                        BasicText(
+                            text = outcomeLabel(fixture),
+                            style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.accent),
+                        )
+                        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
                             BasicText(
                                 text = FanTeams.byId(fixture.awayId)?.name ?: "?",
                                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textPrimary),
                             )
                         }
+                    }
+                    Spacer(Modifier.height(3.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         BasicText(
                             text = when {
                                 fixture.status == FixtureStatus.FINAL && prediction != null ->
@@ -419,20 +430,21 @@ private fun FanGamesScreen(
                                 else -> "${kickoffLabel(fixture.kickoffMs)} · (tap to predict)"
                             },
                             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST_SECONDARY.sp, color = colors.textSecondary),
+                            modifier = Modifier.weight(1f),
                         )
-                    }
-                    Spacer(Modifier.width(6.dp))
-                    if (!locked) {
-                        FanPickButton("h", prediction == null || prediction.pick == FanPick.HOME) { onQuickPick(fixture, FanPick.HOME) }
-                        if (sport.hasDraw) {
-                            FanPickButton("d", prediction?.pick == FanPick.DRAW) { onQuickPick(fixture, FanPick.DRAW) }
+                        Spacer(Modifier.width(6.dp))
+                        if (!locked) {
+                            FanPickButton("h", prediction == null || prediction.pick == FanPick.HOME) { onQuickPick(fixture, FanPick.HOME) }
+                            if (sport.hasDraw) {
+                                FanPickButton("d", prediction?.pick == FanPick.DRAW) { onQuickPick(fixture, FanPick.DRAW) }
+                            }
+                            FanPickButton("a", prediction?.pick == FanPick.AWAY) { onQuickPick(fixture, FanPick.AWAY) }
+                        } else {
+                            BasicText(
+                                text = "locked",
+                                style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textInactive),
+                            )
                         }
-                        FanPickButton("a", prediction?.pick == FanPick.AWAY) { onQuickPick(fixture, FanPick.AWAY) }
-                    } else {
-                        BasicText(
-                            text = "locked",
-                            style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textInactive),
-                        )
                     }
                 }
                 Spacer(Modifier.height(4.dp))
@@ -564,7 +576,7 @@ private fun FanKeypad(onKey: (String) -> Unit, onDel: () -> Unit) {
 private fun FanKey(label: String, colors: com.heretek.dorado_hd.design.DoradoColors, onClick: () -> Unit) {
     Box(
         Modifier
-            .size(width = 30.dp, height = 24.dp)
+            .size(width = 34.dp, height = 28.dp)
             .background(colors.tile)
             .border(0.5.dp, colors.border)
             .pointerInput(label) { detectTapGestures(onTap = { onClick() }) },
@@ -742,7 +754,12 @@ private fun FanSettingsScreen(
             }
             Spacer(Modifier.height(6.dp))
             for (rowStart in 0 until 26 step 9) {
-                Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
                     for (i in rowStart until minOf(rowStart + 9, 26)) {
                         val ch = ('a' + i)
                         FanKey(ch.toString(), colors) { onKey(ch.toString()) }
@@ -750,7 +767,10 @@ private fun FanSettingsScreen(
                 }
                 Spacer(Modifier.height(3.dp))
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+            Row(
+                Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
                 FanKey("space", colors) { onSpace() }
                 FanKey("del", colors) { onDel() }
             }

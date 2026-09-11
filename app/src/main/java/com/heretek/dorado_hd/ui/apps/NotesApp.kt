@@ -458,19 +458,22 @@ fun NotesApp() {
                         color = colors.textPrimary,
                     ),
                     cursorBrush = SolidColor(colors.accent),
+                    decorationBox = { inner ->
+                        Box(Modifier.padding(6.dp)) {
+                            if (query.isEmpty()) {
+                                EdgeCropText(
+                                    text = "search",
+                                    fontSize = DoradoTokens.TYPE_CAPTION.dp,
+                                    color = colors.textInactive,
+                                )
+                            }
+                            inner()
+                        }
+                    },
                     modifier = Modifier
                         .weight(1f)
-                        .background(colors.elevated)
-                        .padding(6.dp),
+                        .background(colors.elevated),
                 )
-                if (query.isEmpty()) {
-                    EdgeCropText(
-                        text = "search",
-                        fontSize = DoradoTokens.TYPE_CAPTION.dp,
-                        color = colors.textInactive,
-                        modifier = Modifier.padding(start = 6.dp),
-                    )
-                }
                 Spacer(Modifier.width(8.dp))
                 EdgeCropText(
                     text = "+",

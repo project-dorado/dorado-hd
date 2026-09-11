@@ -260,6 +260,23 @@ object BbqBattleEngine {
         )
     }
 
+    /** Waves that count as a completed picnic defence. */
+    const val WIN_WAVES = 30
+
+    /**
+     * Stable gesture-input identity for a run. The engine rebuilds towers and
+     * creeps on every step, so pointer-input handlers must key on this instead
+     * of a collection instance or they restart every frame and drop taps.
+     */
+    fun runToken(state: BbqBattleState): Int = state.seed
+
+    /** End-panel headline for a finished or paused run. */
+    fun outcomeLabel(state: BbqBattleState): String = when {
+        !state.over -> "paused"
+        state.completedWaves >= WIN_WAVES -> "victory · $WIN_WAVES waves defended"
+        else -> "food eaten · game over"
+    }
+
     // ---------------------------------------------------------------- route --
 
     fun inGrid(x: Int, y: Int): Boolean = x in 0 until BBQ_GRID_W && y in 0 until BBQ_GRID_H

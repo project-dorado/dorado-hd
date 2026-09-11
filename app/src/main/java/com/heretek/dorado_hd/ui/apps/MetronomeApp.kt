@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -20,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -231,7 +234,12 @@ fun MetronomeApp() {
     }
 
     DetailScaffold(title = "metronome") {
-        Column(Modifier.fillMaxWidth().padding(DoradoTokens.EDGE.dp)) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(DoradoTokens.EDGE.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 EdgeCropText(
                     text = "${metro.bpm} bpm",
@@ -334,11 +342,14 @@ private fun MetronomeDial(
     onToggle: () -> Unit,
 ) {
     val colors = LocalDoradoColors.current
+    val latestOnBpm = rememberUpdatedState(onBpm)
     Canvas(
         modifier = Modifier
             .fillMaxWidth()
             .height(170.dp)
-            .pointerInput(bpm) {
+            // Keyed on Unit so the gesture coroutine survives bpm changes;
+            // keying on bpm cancelled the drag after a single step.
+            .pointerInput(Unit) {
                 detectDragGestures { change, _ ->
                     val cx = size.width / 2f
                     val cy = size.height / 2f
@@ -346,7 +357,7 @@ private fun MetronomeDial(
                         (cy - change.position.y).toDouble(),
                         (cx - change.position.x).toDouble(),
                     )
-                    MetronomeEngine.bpmForDialAngle(angle)?.let(onBpm)
+                    MetronomeEngine.bpmForDialAngle(angle)?.let(latestOnBpm.value)
                 }
             }
             .pointerInput(Unit) {

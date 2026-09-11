@@ -28,6 +28,7 @@ data class SudokuGame(
     val history: List<SudokuGame> = emptyList(),
     val lastHintCell: Int = -1,
     val solved: Boolean = false,
+    val elapsedSeconds: Int = 0,
 )
 
 object SudokuEngine {
@@ -436,6 +437,7 @@ object SudokuEngine {
             flat(g.board.solution),
             g.lastHintCell.toString(),
             if (g.solved) "1" else "0",
+            g.elapsedSeconds.toString(),
         ).joinToString(";")
     }
 
@@ -476,6 +478,7 @@ object SudokuEngine {
                 notes = notes,
                 lastHintCell = f[8].toInt(),
                 solved = f[9] == "1",
+                elapsedSeconds = f.getOrNull(10)?.toIntOrNull()?.coerceAtLeast(0) ?: 0,
             )
         } catch (_: Exception) {
             null

@@ -1,5 +1,7 @@
 package com.heretek.dorado_hd.ui.apps.games
 
+import kotlin.math.min
+
 /**
  * Space Battle 2: a script-driven vertical shoot-'em-up with a racing mode and
  * a 4x10 part customization layer.
@@ -14,6 +16,27 @@ object SpaceBattleEngine {
     const val VIEW_H = 480
     const val PLAY_AREA_DEFAULT = 400f
     const val TICK_US = 16_667L
+
+    /**
+     * Letterboxed mapping between the logical 272x480 play view and the
+     * actual canvas. Fitting by a single min-ratio keeps the whole view on
+     * screen; fitting by width alone can push the top of the view negative.
+     */
+    data class SbViewport(val scale: Float, val ox: Float, val oy: Float) {
+        fun screenX(worldX: Float, panningOffset: Float): Float = ox + (worldX - panningOffset) * scale
+        fun screenY(worldY: Float): Float = oy + worldY * scale
+        fun viewX(screenX: Float): Float = (screenX - ox) / scale
+        fun viewY(screenY: Float): Float = (screenY - oy) / scale
+    }
+
+    fun viewportFor(canvasWidth: Float, canvasHeight: Float): SbViewport {
+        val scale = min(canvasWidth / VIEW_W, canvasHeight / VIEW_H)
+        return SbViewport(
+            scale = scale,
+            ox = (canvasWidth - VIEW_W * scale) / 2f,
+            oy = (canvasHeight - VIEW_H * scale) / 2f,
+        )
+    }
 
     // Ship
     const val START_LIVES = 3

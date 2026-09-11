@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -46,6 +48,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.heretek.dorado_hd.design.DoradoAccent
@@ -184,10 +187,10 @@ fun ShellGameApp() {
                         text = "trophies ${shell.unlocked.size}/${ShellGameEngine.TROPHIES.size}",
                         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
                     )
-                    Spacer(Modifier.weight(1f))
+                    Spacer(Modifier.width(8.dp))
                     BasicText(
                         text = when (shell.phase) {
-                            ShellPhase.SITTING -> "shake to charge"
+                            ShellPhase.SITTING -> "shake or tap to charge"
                             ShellPhase.LAUNCH -> "get ready"
                             ShellPhase.FLYING -> "watch the flight"
                             ShellPhase.CHOOSE -> "pick a robot"
@@ -195,6 +198,9 @@ fun ShellGameApp() {
                             ShellPhase.FAILURE -> "empty"
                         },
                         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
                     )
                     Spacer(Modifier.width(8.dp))
                     EdgeText("pause", colors.textPrimary) { paused = true }
@@ -213,8 +219,11 @@ fun ShellGameApp() {
                                     val x = view.invX(offset.x)
                                     val y = view.invY(offset.y)
                                     val robot = shellRobotAt(x, y)
-                                    if (shell.phase == ShellPhase.CHOOSE && robot != null) {
-                                        shell = ShellGameEngine.choose(shell, robot)
+                                    when {
+                                        shell.phase == ShellPhase.CHOOSE && robot != null ->
+                                            shell = ShellGameEngine.choose(shell, robot)
+                                        shell.phase == ShellPhase.SITTING ->
+                                            shell = ShellGameEngine.tapCharge(shell)
                                     }
                                 }
                             }
@@ -345,12 +354,18 @@ private fun ShellPause(
                 text = "volume",
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 listOf("off", "low", "medium", "high").forEachIndexed { index, label ->
                     EdgeText(label, if (volume == index) colors.accent else colors.textSecondary) { onVolume(index) }
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 EdgeText("resume", colors.textPrimary) { onResume() }
                 EdgeText("about", colors.accent) { onAbout() }
                 EdgeText("reset", colors.textPrimary) { onReset() }

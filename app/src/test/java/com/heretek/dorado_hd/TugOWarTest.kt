@@ -166,10 +166,19 @@ class TugOWarTest {
 
     @Test
     fun `shake threshold matches the sum of axis deltas`() {
-        assertTrue(TugOWarEngine.isShake(0.2, 0.2, 0.2))
         assertFalse(TugOWarEngine.isShake(0.1, 0.1, 0.1))
-        assertTrue(TugOWarEngine.isShakeFromTilt(20.0, 15.0))
-        assertFalse(TugOWarEngine.isShakeFromTilt(10.0, 10.0))
+        assertTrue(TugOWarEngine.isShake(0.6, 0.0, 0.0))
+        assertEquals(1.2, TugOWarEngine.shakeMagnitude(0.5, 0.4, 0.3), 1e-9)
+    }
+
+    @Test
+    fun `sensorless tap fallback pulls the rope`() {
+        var state = TugOWarEngine.newMatch(TugInputMode.SHAKE, hotseat = false)
+        state = TugOWarEngine.pull(state, TugSide.PLAYER, 0L)
+        state = TugOWarEngine.pull(state, TugSide.PLAYER, 100L)
+        val before = state.ropeY
+        state = TugOWarEngine.step(state, 500L)
+        assertTrue("a tap pull must advance the rope", state.ropeY > before)
     }
 
     @Test

@@ -311,6 +311,13 @@ object BeesEngine {
         )
     }
 
+    /**
+     * Stable gesture-input identity for a run. [step] rebuilds the node list
+     * every tick, so pointer handlers must key on this token or they restart
+     * each frame and drop taps.
+     */
+    fun runToken(state: BeesState): Int = state.seed
+
     /** Persisted per-theme shop purchases. */
     data class BeesUpgrades(
         val unlocked: Set<BeesKind> = setOf(BeesKind.NORMAL, BeesKind.POLLINATOR),

@@ -26,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -90,6 +91,7 @@ fun PenaltyApp() {
     }
 
     var screen by remember { mutableStateOf("menu") }
+    val latestScreen = rememberUpdatedState(screen)
     var tournament by remember { mutableStateOf<TournamentState?>(null) }
     var saved by remember { mutableStateOf<TournamentState?>(null) }
     var mad by remember { mutableStateOf<MadMinuteState?>(null) }
@@ -109,6 +111,7 @@ fun PenaltyApp() {
     var sessionBestStreak by remember { mutableStateOf(0) }
     var madRecorded by remember { mutableStateOf(false) }
     var tournamentRecorded by remember { mutableStateOf(false) }
+    var loaded by remember { mutableStateOf(false) }
 
     val scores by graph.games.top("penalty", 12).collectAsState(initial = emptyList())
     val bestMad = maxOf(sessionBestMad, scores.filter { it.meta == "mad minute" }.maxOfOrNull { it.score } ?: 0)
@@ -124,9 +127,12 @@ fun PenaltyApp() {
         sessionBestStreak = graph.appState.get("penalty-best-streak")?.toIntOrNull() ?: 0
         soundOn = graph.appState.get("penalty-sound") != "0"
         tutorialSeen = graph.appState.get("penalty-tutorial") == "1"
+        loaded = true
     }
-    LaunchedEffect(soundOn) {
-        graph.appState.put("penalty-sound", if (soundOn) "1" else "0")
+    // Cold-start gate: never write the option defaults before the stored
+    // profile has loaded.
+    LaunchedEffect(soundOn, loaded) {
+        if (loaded) graph.appState.put("penalty-sound", if (soundOn) "1" else "0")
     }
     LaunchedEffect(tournament) {
         val current = tournament ?: return@LaunchedEffect
@@ -143,18 +149,33 @@ fun PenaltyApp() {
         }
     }
 
-    // Ball playback: advance the sampled trajectory one frame at a time.
+    // Ball playback: advance the sampled trajectory one frame at a time. Bail
+    // out if the player leaves the screen that owns the shot, or the animation
+    // (and its pending state) would keep running off-screen.
     LaunchedEffect(pending) {
         val shot = pending ?: return@LaunchedEffect
+        val host = when (shot.route) {
+            PendingRoute.MATCH -> "match"
+            PendingRoute.PRACTICE -> "tutorial"
+            PendingRoute.VIEW -> null
+        }
         animFrame = 0
         var last = 0L
         while (animFrame < shot.trajectory.size - 1) {
+            if (host != null && latestScreen.value != host) {
+                pending = null
+                return@LaunchedEffect
+            }
             withFrameNanos { now ->
                 if (last == 0L || now - last >= 15_000_000L) {
                     last = now
                     animFrame++
                 }
             }
+        }
+        if (host != null && latestScreen.value != host) {
+            pending = null
+            return@LaunchedEffect
         }
         lastOutcome = shot.outcome
         when (shot.outcome) {
@@ -178,7 +199,7 @@ fun PenaltyApp() {
 
             PendingRoute.MATCH -> {
                 val current = tournament
-                if (current != null && screen == "match") {
+                if (current != null && latestScreen.value == "match") {
                     tournament = current.copy(
                         match = PenaltyEngine.recordShot(current.match, shot.outcome),
                         rngState = shot.rng,
@@ -296,8 +317,8 @@ fun PenaltyApp() {
             playCue(if (current.status == TournamentStatus.WON) "win" else "lose")
         }
     }
-    LaunchedEffect(tutorialSeen) {
-        if (tutorialSeen) graph.appState.put("penalty-tutorial", "1")
+    LaunchedEffect(tutorialSeen, loaded) {
+        if (loaded && tutorialSeen) graph.appState.put("penalty-tutorial", "1")
     }
 
     fun startTournament(teamId: Int) {

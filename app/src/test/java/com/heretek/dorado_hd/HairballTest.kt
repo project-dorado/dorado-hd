@@ -18,6 +18,7 @@ import com.heretek.dorado_hd.ui.apps.games.HairballRandom
 import com.heretek.dorado_hd.ui.apps.games.HairballRow
 import com.heretek.dorado_hd.ui.apps.games.HairballState
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -209,5 +210,30 @@ class HairballTest {
         assertEquals(state.rows.first().slots, decoded.rows.first().slots)
         assertEquals(state.rows.first().leftToRight, decoded.rows.first().leftToRight)
         assertNull(HairballEngine.decode("nope"))
+    }
+
+    @Test
+    fun `a fresh run after a loss steps again`() {
+        val over = HairballEngine.step(
+            HairballState(
+                playerX = 136f,
+                playerY = -34f,
+                rows = emptyList(),
+                speed = HAIRBALL_SPEED_BASE,
+                elapsedMs = 0L,
+                score = 12,
+                seed = 1,
+                nextRowLeftToRight = false,
+            ),
+            frame(),
+        )
+        assertTrue(over.lost)
+        val frozen = HairballEngine.step(over, frame())
+        assertEquals(over.score, frozen.score)
+
+        val fresh = HairballEngine.newGame(2)
+        val next = HairballEngine.step(fresh, frame())
+        assertFalse(next.lost)
+        assertEquals(1, next.score)
     }
 }

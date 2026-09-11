@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -25,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -72,21 +75,25 @@ fun DecoderRingApp() {
     var notice by remember { mutableStateOf("") }
     var zoom by remember { mutableStateOf(1f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
+    var loaded by remember { mutableStateOf(false) }
     val scores by graph.games.top("decoder-ring", 5).collectAsState(initial = emptyList())
 
     LaunchedEffect(Unit) {
         progress = graph.appState.get("decoder-ring.progress")?.let { DecoderRingEngine.decodeProgress(it) }
             ?: DecoderRingEngine.Progress()
         saved = graph.appState.get("decoder-ring")?.let { DecoderRingEngine.decode(it) }
+        loaded = true
     }
 
-    LaunchedEffect(progress) {
-        graph.appState.put("decoder-ring.progress", DecoderRingEngine.encodeProgress(progress))
+    // Gate both writers on the load so cold-start defaults cannot clobber the
+    // stored progress or the saved puzzle before it has been read back.
+    LaunchedEffect(progress, loaded) {
+        if (loaded) graph.appState.put("decoder-ring.progress", DecoderRingEngine.encodeProgress(progress))
     }
 
-    LaunchedEffect(state, screen, paused) {
+    LaunchedEffect(state, screen, paused, loaded) {
         val current = state ?: return@LaunchedEffect
-        if (screen == "game" && !current.won && !paused) {
+        if (loaded && screen == "game" && !current.won && !paused) {
             graph.appState.put("decoder-ring", DecoderRingEngine.encode(current))
         }
     }
@@ -155,6 +162,7 @@ fun DecoderRingApp() {
 
     val current = state ?: return
     val puzzle = DecoderRingEngine.puzzle(current.puzzleIndex)
+    val latestState = rememberUpdatedState(current)
     DetailScaffold(title = "decoder ring", onBack = { screen = "menu"; paused = false }) {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -170,37 +178,42 @@ fun DecoderRingApp() {
             }
             Spacer(Modifier.height(3.dp))
             BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
-                val viewW = constraints.maxWidth.toFloat()
-                val viewH = constraints.maxHeight.toFloat()
                 Canvas(
                     Modifier
                         .fillMaxSize()
-                        .pointerInput(current, zoom) {
-                            detectTransformGestures { _, panChange, zoomChange, _ ->
-                                pan += panChange
-                                zoom = DecoderRingEngine.clampZoom((zoom * zoomChange).coerceIn(1f, 1.8f))
+                        .pointerInput(current.puzzleIndex, paused) {
+                            if (!paused) {
+                                detectTransformGestures { _, panChange, zoomChange, _ ->
+                                    pan += panChange
+                                    zoom = DecoderRingEngine.clampZoom((zoom * zoomChange).coerceIn(1f, 1.8f))
+                                }
                             }
                         }
-                        .pointerInput(current) {
-                            detectTapGestures(
-                                onTap = { offset ->
-                                    val hit = decoderHitTest(offset, viewW, viewH, zoom, pan, puzzle)
-                                    if (hit >= 0) {
-                                        val existing = current.mapping[hit]
-                                        if (existing != null && hit !in current.stone) {
-                                            state = DecoderRingEngine.clear(current, hit)
-                                            bank.play("back")
-                                        } else {
-                                            state = DecoderRingEngine.highlight(current, hit)
-                                            bank.play("tick")
+                        .pointerInput(current.puzzleIndex, paused) {
+                            if (!paused) {
+                                detectTapGestures(
+                                    onTap = { offset ->
+                                        val snapshot = latestState.value ?: return@detectTapGestures
+                                        val width = size.width.toFloat()
+                                        val height = size.height.toFloat()
+                                        val hit = decoderHitTest(offset, width, height, zoom, pan, puzzle)
+                                        if (hit >= 0) {
+                                            val existing = snapshot.mapping[hit]
+                                            if (existing != null && hit !in snapshot.stone) {
+                                                state = DecoderRingEngine.clear(snapshot, hit)
+                                                bank.play("back")
+                                            } else {
+                                                state = DecoderRingEngine.highlight(snapshot, hit)
+                                                bank.play("tick")
+                                            }
                                         }
-                                    }
-                                },
-                                onDoubleTap = {
-                                    zoom = if (zoom > 1.3f) 1f else 1.8f
-                                    pan = Offset.Zero
-                                },
-                            )
+                                    },
+                                    onDoubleTap = {
+                                        zoom = if (zoom > 1.3f) 1f else 1.8f
+                                        pan = Offset.Zero
+                                    },
+                                )
+                            }
                         },
                 ) {
                     drawDecoderBoard(puzzle, current, colors, zoom, pan)
@@ -210,6 +223,7 @@ fun DecoderRingApp() {
             DecoderRack(
                 state = current,
                 selected = letter,
+                enabled = !paused,
                 onPick = { picked ->
                     letter = if (letter == picked) null else picked
                     val highlight = current.highlight
@@ -222,21 +236,21 @@ fun DecoderRingApp() {
             )
             Spacer(Modifier.height(3.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
-                DecoderButton("check", Modifier.weight(1f)) {
+                DecoderButton("check", Modifier.weight(1f), enabled = !paused) {
                     state = DecoderRingEngine.toggleCheck(current)
                     bank.play("tick")
                 }
                 DecoderButton(
                     "reveal",
                     Modifier.weight(1f),
-                    enabled = current.highlight > 0,
+                    enabled = !paused && current.highlight > 0,
                 ) {
                     val before = current.mapping[current.highlight]
                     state = DecoderRingEngine.reveal(current)
                     if (state?.mapping?.get(current.highlight) != before) bank.play("toss")
                 }
-                DecoderButton("help", Modifier.weight(1f)) { notice = "tap a symbol, then tap a letter to map every matching tile" }
-                DecoderButton("pause", Modifier.weight(1f)) { paused = true }
+                DecoderButton("help", Modifier.weight(1f), enabled = !paused) { notice = "tap a symbol, then tap a letter to map every matching tile" }
+                DecoderButton("pause", Modifier.weight(1f), enabled = !paused) { paused = true }
             }
             if (notice.isNotEmpty()) {
                 Spacer(Modifier.height(3.dp))
@@ -259,7 +273,12 @@ fun DecoderRingApp() {
                         style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
                     )
                     Spacer(Modifier.height(4.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
                         if (paused && !current.won) {
                             DecoderButton("resume") { paused = false }
                             DecoderButton("restart") { startPuzzle(current.puzzleIndex) }
@@ -370,6 +389,7 @@ private fun DecoderMenu(
 private fun DecoderRack(
     state: DecoderRingEngine.State,
     selected: Char?,
+    enabled: Boolean,
     onPick: (Char) -> Unit,
 ) {
     val colors = LocalDoradoColors.current
@@ -380,29 +400,30 @@ private fun DecoderRack(
             typeface = android.graphics.Typeface.DEFAULT_BOLD
         }
     }
+    val columns = 9
+    val rows = (DecoderRingEngine.NUM_LETTERS + columns - 1) / columns
     Canvas(
+        // 3 rows of at least 24 dp keeps every rack cell a legal tap target.
         Modifier
             .fillMaxWidth()
-            .height(62.dp)
-            .pointerInput(state.mapping, selected) {
-                detectTapGestures { offset ->
-                    val tiles = DecoderRingEngine.NUM_LETTERS
-                    val columns = 9
-                    val rows = (tiles + columns - 1) / columns
-                    val cellW = size.width.toFloat() / columns
-                    val cellH = size.height.toFloat() / rows
-                    val col = (offset.x / cellW).toInt().coerceIn(0, columns - 1)
-                    val row = (offset.y / cellH).toInt().coerceIn(0, rows - 1)
-                    val index = row * columns + col
-                    if (index in 0 until tiles) {
-                        val ch = if (index == 0) ' ' else ('A' + index - 1)
-                        if (ch != ' ') onPick(ch)
+            .height((rows * 24).dp)
+            .pointerInput(state.mapping, selected, enabled) {
+                if (enabled) {
+                    detectTapGestures { offset ->
+                        val tiles = DecoderRingEngine.NUM_LETTERS
+                        val cellW = size.width.toFloat() / columns
+                        val cellH = size.height.toFloat() / rows
+                        val col = (offset.x / cellW).toInt().coerceIn(0, columns - 1)
+                        val row = (offset.y / cellH).toInt().coerceIn(0, rows - 1)
+                        val index = row * columns + col
+                        if (index in 0 until tiles) {
+                            val ch = if (index == 0) ' ' else ('A' + index - 1)
+                            if (ch != ' ') onPick(ch)
+                        }
                     }
                 }
             },
     ) {
-        val columns = 9
-        val rows = (DecoderRingEngine.NUM_LETTERS + columns - 1) / columns
         val cellW = size.width / columns
         val cellH = size.height / rows
         val used = state.usedLetters()

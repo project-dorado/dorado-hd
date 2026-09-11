@@ -1033,7 +1033,9 @@ object PokerTournamentEngine {
 
     fun canEnter(state: PokerTournamentState, index: Int): Boolean {
         val event = state.events.getOrNull(index) ?: return false
-        return !state.completed.contains(index) && state.bankroll >= event.buyIn
+        return !state.completed.contains(index) &&
+            state.activeEvent != index &&
+            state.bankroll >= event.buyIn
     }
 
     fun enter(state: PokerTournamentState, index: Int): PokerTournamentState {
@@ -1043,6 +1045,22 @@ object PokerTournamentEngine {
             bankroll = state.bankroll - event.buyIn,
             activeEvent = index,
             history = state.history + "entered ${eventLabel(event)}",
+        )
+    }
+
+    /**
+     * Leave an event mid-run: refund the buy-in and clear the active event so
+     * backing out can never permanently lock the ladder (A-10). Safe to call
+     * with no active event (returns the state unchanged).
+     */
+    fun abandon(state: PokerTournamentState): PokerTournamentState {
+        val index = state.activeEvent
+        if (index < 0) return state
+        val event = state.events.getOrNull(index) ?: return state
+        return state.copy(
+            bankroll = state.bankroll + event.buyIn,
+            activeEvent = -1,
+            history = state.history + "left ${eventLabel(event)} — buy-in refunded",
         )
     }
 

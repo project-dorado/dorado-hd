@@ -123,6 +123,49 @@ data class DmThread(
     fun preview(): String = messages.lastOrNull()?.text ?: ""
 }
 
+/** Outcome of appending an outgoing DM to the offline store. */
+data class LocalDmUpdate(
+    val threads: List<DmThread>,
+    val replies: Map<Long, List<DmMessage>>,
+)
+
+/**
+ * Appends an outgoing message. Threads are matched by handle across the seed
+ * and local lists; a brand-new handle gets its own thread id so the DM list
+ * and thread view can look it up by id everywhere (A-12).
+ */
+fun appendLocalDm(
+    seedThreads: List<DmThread>,
+    localThreads: List<DmThread>,
+    replies: Map<Long, List<DmMessage>>,
+    handle: String,
+    body: String,
+    age: String = "now",
+): LocalDmUpdate {
+    val normalized = handle.trim().let { if (it.startsWith("@")) it else "@$it" }
+    val existing = (seedThreads + localThreads)
+        .firstOrNull { it.handle.equals(normalized, ignoreCase = true) }
+    val message = DmMessage("you", body, age, mine = true)
+    return if (existing != null) {
+        LocalDmUpdate(
+            threads = localThreads,
+            replies = replies + (existing.id to ((replies[existing.id] ?: emptyList()) + message)),
+        )
+    } else {
+        val id = ((seedThreads + localThreads).maxOfOrNull { it.id } ?: 0L) + 1
+        val thread = DmThread(id = id, with = normalized.trimStart('@'), handle = normalized)
+        LocalDmUpdate(localThreads + thread, replies + (id to listOf(message)))
+    }
+}
+
+/** Every DM thread, seed first, then locally created ones. */
+fun allDmThreads(seedThreads: List<DmThread>, localThreads: List<DmThread>): List<DmThread> =
+    seedThreads + localThreads
+
+/** Full message list for [thread], including locally appended replies by id. */
+fun threadMessages(thread: DmThread, replies: Map<Long, List<DmMessage>>): List<DmMessage> =
+    thread.messages + (replies[thread.id] ?: emptyList())
+
 object TwitterCodec {
 
     fun encodeIds(ids: Set<Long>): String = ids.sorted().joinToString(",")

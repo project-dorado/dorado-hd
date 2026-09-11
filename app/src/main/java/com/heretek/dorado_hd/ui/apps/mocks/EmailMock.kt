@@ -7,6 +7,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -80,7 +81,8 @@ private fun EmailAction(
         },
         modifier = Modifier
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 5.dp, vertical = 3.dp),
+            // Keep a >=24dp touch target for 11sp action labels.
+            .padding(horizontal = 5.dp, vertical = 6.dp),
     )
 }
 
@@ -591,7 +593,16 @@ fun EmailApp() {
                             EmailPivots(MailPivot.entries.map { it.label }, pivot.ordinal) {
                                 pivot = MailPivot.entries[it]
                             }
-                            Spacer(Modifier.weight(1f))
+                        }
+                        // Actions live on their own line: four of them plus the
+                        // pivots overflowed the adaptive width (V-02 class).
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = DoradoTokens.EDGE.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
                             if (selectMode) {
                                 EmailAction("read") {
                                     readState = Mailbox.markRead(selected, readState)
@@ -633,6 +644,12 @@ fun EmailApp() {
                                     "nothing in this view",
                                     DoradoTokens.TYPE_LIST.dp,
                                     color = colors.textSecondary,
+                                )
+                                Spacer(Modifier.height(3.dp))
+                                EdgeCropText(
+                                    "try another folder or pivot — the seeded mailbox has sample mail.",
+                                    DoradoTokens.TYPE_CAPTION.dp,
+                                    color = colors.textInactive,
                                 )
                             }
                             list.forEach { mail ->
@@ -716,9 +733,9 @@ fun EmailApp() {
                             Spacer(Modifier.height(8.dp))
                             MockBody(mail.body)
                             Spacer(Modifier.height(10.dp))
-                            Row(
+                            FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
                             ) {
                                 EmailAction("reply", accent = true) { startCompose(EmailComposeMode.REPLY, mail) }
                                 EmailAction("reply all") { startCompose(EmailComposeMode.REPLY_ALL, mail) }
@@ -732,9 +749,9 @@ fun EmailApp() {
                                     screen = EmailScreen.LIST
                                 }
                             }
-                            Row(
+                            FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
                                 modifier = Modifier.padding(top = 6.dp),
                             ) {
                                 val index = list.indexOfFirst { it.id == mail.id }

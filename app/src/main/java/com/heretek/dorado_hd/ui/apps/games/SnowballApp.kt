@@ -3,6 +3,7 @@ package com.heretek.dorado_hd.ui.apps.games
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,6 +51,7 @@ import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
+import kotlinx.coroutines.delay
 
 private const val SNOW_COUNTDOWN_TOTAL_MS = 500L + 3 * 800L
 
@@ -75,26 +77,45 @@ fun SnowballApp() {
     var recorded by remember { mutableStateOf(false) }
     var lastScore by remember { mutableStateOf(0) }
     var menuMessage by remember { mutableStateOf("") }
+    var loaded by remember { mutableStateOf(false) }
+    var runId by remember { mutableStateOf(0) }
+    var touchVector by remember { mutableStateOf(Offset.Zero) }
     val scores by graph.games.top("snowball", 5).collectAsState(initial = emptyList())
 
     LaunchedEffect(Unit) {
         progress = graph.appState.get("snowball")?.let { SnowballEngine.decodeProgress(it) } ?: SnowProgress()
         savedRun = graph.appState.get("snowball-run")?.let { SnowballEngine.decode(it) }
+        loaded = true
     }
-    LaunchedEffect(progress) {
+    LaunchedEffect(progress, loaded) {
+        if (!loaded) return@LaunchedEffect
         graph.appState.put("snowball", SnowballEngine.encodeProgress(progress))
     }
-    LaunchedEffect(game) {
-        val current = game
-        if (current != null && current.status == SnowStatus.PLAYING) {
-            graph.appState.put("snowball-run", SnowballEngine.encode(current))
-        } else {
+    // Run snapshots are periodic: keying on the 60 Hz game state wrote the
+    // whole run (cell grid included) every frame. Leave the stored run alone
+    // while there is no in-memory game (that null used to clobber the load).
+    LaunchedEffect(screen, paused, runId, loaded) {
+        if (!loaded || screen != "game" || paused) return@LaunchedEffect
+        while (true) {
+            delay(1000)
+            val current = game ?: break
+            if (current.status == SnowStatus.PLAYING) {
+                graph.appState.put("snowball-run", SnowballEngine.encode(current))
+            } else {
+                break
+            }
+        }
+    }
+    LaunchedEffect(game?.status, loaded) {
+        if (!loaded) return@LaunchedEffect
+        if (game?.status == SnowStatus.WON || game?.status == SnowStatus.LOST) {
             graph.appState.clear("snowball-run")
         }
     }
 
     val playing = screen == "game" && game?.status == SnowStatus.PLAYING && !paused && countdownMs <= 0L
     val tilt = rememberTilt(enabled = playing, smoothing = 0.8f)
+    val sensorAvailable = tilt.value.available
 
     LaunchedEffect(screen, paused) {
         if (screen != "game" || paused) return@LaunchedEffect
@@ -115,8 +136,18 @@ fun SnowballApp() {
                     } else {
                         val current = game ?: return@withFrameNanos
                         val t = tilt.value
-                        val ax = if (t.available) -sin(t.pitchDeg * PI / 180.0) else 0.0
-                        val ay = if (t.available) sin(t.rollDeg * PI / 180.0) else 0.0
+                        // Sensorless fallback: the drag vector stands in for
+                        // tilt and decays so a nudge is a nudge, not a burn.
+                        val ax: Double
+                        val ay: Double
+                        if (t.available) {
+                            ax = -sin(t.pitchDeg * PI / 180.0)
+                            ay = sin(t.rollDeg * PI / 180.0)
+                        } else {
+                            ax = touchVector.x.toDouble()
+                            ay = touchVector.y.toDouble()
+                            touchVector = touchVector * 0.9f
+                        }
                         val next = SnowballEngine.step(current, dt, ax, ay)
                         if (next.score > lastScore) bank.play(if (current.mode == SnowMode.CAMPAIGN) "score" else "coin")
                         lastScore = next.score
@@ -166,6 +197,7 @@ fun SnowballApp() {
         paused = false
         recorded = false
         lastScore = 0
+        runId++
         screen = "game"
     }
 
@@ -176,6 +208,7 @@ fun SnowballApp() {
         paused = false
         recorded = false
         lastScore = 0
+        runId++
         screen = "game"
     }
 
@@ -206,6 +239,7 @@ fun SnowballApp() {
                 paused = true
                 recorded = false
                 lastScore = run.score
+                runId++
                 screen = "game"
             },
             onScores = { screen = "scores" },
@@ -259,6 +293,17 @@ fun SnowballApp() {
                         .fillMaxSize()
                         .pointerInput(Unit) {
                             detectTapGestures { togglePause() }
+                        }
+                        .pointerInput(sensorAvailable) {
+                            if (!sensorAvailable) {
+                                detectDragGestures { change, amount ->
+                                    change.consume()
+                                    touchVector = Offset(
+                                        (touchVector.x + amount.x / 160f).coerceIn(-1f, 1f),
+                                        (touchVector.y + amount.y / 160f).coerceIn(-1f, 1f),
+                                    )
+                                }
+                            }
                         },
                 ) {
                     drawSnowScene(current, colors)
@@ -268,9 +313,9 @@ fun SnowballApp() {
                         SnowOverlay(
                             title = if (current.mode == SnowMode.CAMPAIGN) "campaign" else "survival",
                             subtitle = if (current.mode == SnowMode.CAMPAIGN) {
-                                "tilt to roll. collect the number coins from high to low."
+                                "tilt or drag to roll. collect the number coins from high to low."
                             } else {
-                                "tilt to roll. grab stars before the ice opens up."
+                                "tilt or drag to roll. grab stars before the ice opens up."
                             },
                             actions = listOf(
                                 "got it" to {
@@ -301,8 +346,15 @@ fun SnowballApp() {
                         )
                     }
 
-                    current.status == SnowStatus.PLAYING && !tilt.value.available && current.mode == SnowMode.CAMPAIGN -> {
-                        // No accelerometer: allow tap-to-nudge as a fallback via pause menu only.
+                    current.status == SnowStatus.PLAYING && countdownMs <= 0L && !sensorAvailable -> {
+                        BasicText(
+                            text = "drag to roll",
+                            style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textInactive),
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(10.dp)
+                                .background(colors.background),
+                        )
                     }
 
                     current.status == SnowStatus.WON || current.status == SnowStatus.LOST -> {
@@ -479,7 +531,7 @@ private fun SnowMenu(
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
             )
             BasicText(
-                text = "tilt to roll. the ice fades under you and comes back.",
+                text = "tilt or drag to roll. the ice fades under you and comes back.",
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textInactive),
             )
             if (campaignSeen && !survivalSeen) {

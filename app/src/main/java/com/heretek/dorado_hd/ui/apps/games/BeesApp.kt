@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -24,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,6 +73,7 @@ fun BeesApp() {
     var screen by remember { mutableStateOf("menu") }
     var progress by remember { mutableStateOf(BeesEngine.BeesProgress()) }
     var game by remember { mutableStateOf<BeesState?>(null) }
+    val latestGame = rememberUpdatedState(game)
     var saved by remember { mutableStateOf<BeesState?>(null) }
     var paused by remember { mutableStateOf(false) }
     var sound by remember { mutableStateOf(true) }
@@ -96,9 +100,15 @@ fun BeesApp() {
         graph.appState.put("$BEES_SAVE_KEY.progress", BeesEngine.encodeProgress(progress))
     }
 
-    LaunchedEffect(game?.elapsedMs?.div(4_000)) {
-        val current = game ?: return@LaunchedEffect
-        if (!current.over) graph.appState.put("$BEES_SAVE_KEY.game", BeesEngine.encode(current))
+    // Periodic autosave: the run ticks every 16 ms, so a keyed debounce never
+    // settles. Snapshot on a fixed cadence and on pause/exit.
+    LaunchedEffect(screen, paused) {
+        if (screen != "game" || paused) return@LaunchedEffect
+        while (true) {
+            delay(2_000)
+            val current = game ?: continue
+            if (!current.over) graph.appState.put("$BEES_SAVE_KEY.game", BeesEngine.encode(current))
+        }
     }
 
     LaunchedEffect(screen, paused) {
@@ -144,17 +154,24 @@ fun BeesApp() {
     }
 
     fun startLevel(id: Int, mode: BeesMode) {
-        game = BeesEngine.newGame(id, mode, System.currentTimeMillis().toInt(), progress.upgrades)
+        val fresh = BeesEngine.newGame(id, mode, System.currentTimeMillis().toInt(), progress.upgrades)
+        game = fresh
         saved = null
         recorded = false
         paused = false
         selectedBee = null
         screen = "game"
+        scope.launch { graph.appState.put("$BEES_SAVE_KEY.game", BeesEngine.encode(fresh)) }
     }
 
     fun applyGame(transform: (BeesState) -> BeesState) {
         val snapshot = game ?: return
         game = transform(snapshot)
+    }
+
+    fun persistSnapshot() {
+        val current = game ?: return
+        if (!current.over) scope.launch { graph.appState.put("$BEES_SAVE_KEY.game", BeesEngine.encode(current)) }
     }
 
     fun resume() {
@@ -215,7 +232,7 @@ fun BeesApp() {
     }
 
     val current = game ?: return
-    DetailScaffold(title = "bees", onBack = { paused = true }) {
+    DetailScaffold(title = "bees", onBack = { persistSnapshot(); paused = true }) {
         Box(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
             Column(Modifier.fillMaxSize()) {
                 BeesHud(current, progress)
@@ -225,11 +242,12 @@ fun BeesApp() {
                     Canvas(
                         modifier = Modifier
                             .fillMaxSize()
-                            .pointerInput(current.nodes, paused, selectedBee) {
+                            .pointerInput(BeesEngine.runToken(current), paused) {
                                 detectTapGestures { offset ->
                                     if (paused) return@detectTapGestures
-                                    val snapshot = game ?: return@detectTapGestures
-                                    val (wx, wy) = view.toWorld(offset.x, offset.y)
+                                    val snapshot = latestGame.value ?: return@detectTapGestures
+                                    val liveView = beesView(size.width.toFloat(), size.height.toFloat())
+                                    val (wx, wy) = liveView.toWorld(offset.x, offset.y)
                                     val node = snapshot.nodes.minByOrNull { candidate ->
                                         val dx = candidate.x - wx
                                         val dy = candidate.y - wy
@@ -261,7 +279,7 @@ fun BeesApp() {
                         applyGame { BeesEngine.moveBees(it) }
                         play("select")
                     }
-                    BeesButton("pause", true, Modifier.weight(1f)) { paused = true }
+                    BeesButton("pause", true, Modifier.weight(1f)) { persistSnapshot(); paused = true }
                 }
             }
 
@@ -271,7 +289,7 @@ fun BeesApp() {
                     paused = paused,
                     onResume = { paused = false },
                     onRetry = { startLevel(current.levelId, current.mode) },
-                    onMap = { game = null; screen = "map" },
+                    onMap = { persistSnapshot(); game = null; screen = "map" },
                 )
             }
         }
@@ -282,7 +300,12 @@ fun BeesApp() {
 private fun BeesHud(current: BeesState, progress: BeesEngine.BeesProgress) {
     val colors = LocalDoradoColors.current
     val remaining = (BEES_TIME_LIMIT_MS - current.elapsedMs).coerceAtLeast(0L)
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+    ) {
         BasicText(
             text = "score ${current.score}",
             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
@@ -292,7 +315,7 @@ private fun BeesHud(current: BeesState, progress: BeesEngine.BeesProgress) {
             text = "streak ${current.streak} · bees ${current.bees.size}",
             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textPrimary),
         )
-        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.width(12.dp))
         BasicText(
             text = "%d:%02d".format(remaining / 60_000, (remaining / 1_000) % 60),
             style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = if (remaining < 30_000) colors.accentBright else colors.textSecondary),
@@ -383,7 +406,12 @@ private fun BeesEndPanel(
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textPrimary),
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 if (paused && !current.over) {
                     BeesButton("resume", true, Modifier.width(90.dp)) { onResume() }
                 }

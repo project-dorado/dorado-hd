@@ -281,4 +281,17 @@ class GooSplatTest {
         assertEquals(state.jellies.size, decoded.jellies.size)
         assertNull(GooSplatEngine.decode("junk"))
     }
+
+    @Test
+    fun `a fresh run after a game over steps again`() {
+        val over = stateWith().copy(over = true)
+        val frozen = GooSplatEngine.step(over, 33L)
+        assertTrue(frozen.over)
+        assertEquals(over.elapsedMs, frozen.elapsedMs)
+
+        val fresh = GooSplatEngine.newGame(77)
+        val next = GooSplatEngine.step(fresh, 33L)
+        assertFalse(next.over)
+        assertTrue("a restarted run must advance", next.elapsedMs > fresh.elapsedMs)
+    }
 }

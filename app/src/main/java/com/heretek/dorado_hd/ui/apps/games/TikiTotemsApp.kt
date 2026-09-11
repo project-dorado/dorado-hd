@@ -4,6 +4,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -316,7 +318,12 @@ private fun TikiPacksScreen(
 ) {
     val colors = LocalDoradoColors.current
     DetailScaffold(title = "tiki totems · packs", onBack = onBack) {
-        Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(DoradoTokens.EDGE.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
             TikiPacks.ALL.forEachIndexed { index, pack ->
                 val entry = progress.pack(index)
                 val solved = entry.stars.size
@@ -344,7 +351,12 @@ private fun TikiLevelsScreen(
     val pack = TikiPacks.pack(packIndex)
     val entry = progress.pack(packIndex)
     DetailScaffold(title = "tiki totems · ${pack.label}", onBack = onBack) {
-        Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(DoradoTokens.EDGE.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
             pack.levels.forEach { level ->
                 val unlocked = entry.isUnlocked(level.levelIndex)
                 val stars = entry.stars(level.levelIndex)

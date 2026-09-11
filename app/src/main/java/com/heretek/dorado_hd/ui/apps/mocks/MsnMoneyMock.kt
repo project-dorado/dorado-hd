@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
@@ -179,13 +182,7 @@ private fun SectionScreen(
                     .padding(horizontal = DoradoTokens.EDGE.dp),
             ) {
                 EdgeCropText(section.label, DoradoTokens.TYPE_NOW_META.dp, color = colors.accent)
-                Spacer(Modifier.width(10.dp))
-                EdgeCropText(
-                    text = "archived 2012 — no live quotes · simulated feed",
-                    fontSize = DoradoTokens.TYPE_CAPTION.dp,
-                    color = colors.textInactive,
-                    modifier = Modifier.weight(1f),
-                )
+                Spacer(Modifier.weight(1f))
                 if (section == MoneySection.WATCHLIST) {
                     EdgeCropText(
                         text = "manage",
@@ -193,7 +190,7 @@ private fun SectionScreen(
                         color = colors.textPrimary,
                         modifier = Modifier
                             .clickable(onClick = onOpenManager)
-                            .padding(horizontal = 6.dp),
+                            .padding(horizontal = 6.dp, vertical = 5.dp),
                     )
                 }
                 EdgeCropText(
@@ -202,7 +199,7 @@ private fun SectionScreen(
                     color = colors.textPrimary,
                     modifier = Modifier
                         .clickable(onClick = onOpenInfo)
-                        .padding(horizontal = 6.dp),
+                        .padding(horizontal = 6.dp, vertical = 5.dp),
                 )
                 EdgeCropText(
                     text = "refresh",
@@ -210,9 +207,17 @@ private fun SectionScreen(
                     color = colors.accent,
                     modifier = Modifier
                         .clickable(onClick = onRefresh)
-                        .padding(horizontal = 6.dp),
+                        .padding(horizontal = 6.dp, vertical = 5.dp),
                 )
             }
+            // The long archive caption gets its own line so it can no longer
+            // push the header actions past the right edge (V-05).
+            EdgeCropText(
+                text = "archived 2012 — no live quotes · simulated feed",
+                fontSize = DoradoTokens.TYPE_CAPTION.dp,
+                color = colors.textInactive,
+                modifier = Modifier.padding(horizontal = DoradoTokens.EDGE.dp),
+            )
 
             Box(Modifier.weight(1f)) {
                 when (section) {
@@ -229,19 +234,23 @@ private fun SectionScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .navigationBarsPadding()
                     .height(DoradoTokens.CROSSBAR_HEIGHT.dp),
             ) {
                 MoneySection.entries.forEach { item ->
                     Box(
                         Modifier
-                            .weight(1f)
-                            .fillMaxSize()
+                            // Label-proportional weights, so "currencies" gets more
+                            // room than "markets" instead of every tab jamming (V-05).
+                            .weight(item.label.length.toFloat())
+                            .fillMaxHeight()
+                            .clipToBounds()
                             .clickable { onSection(item) },
                         contentAlignment = Alignment.Center,
                     ) {
                         EdgeCropText(
                             text = item.label,
-                            fontSize = DoradoTokens.TYPE_CROSSBAR.dp,
+                            fontSize = DoradoTokens.TYPE_LIST_SECONDARY.dp,
                             color = if (item == section) colors.textPrimary else colors.textInactive,
                         )
                     }

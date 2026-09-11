@@ -9,6 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -465,7 +466,11 @@ fun ShuffleByAlbumApp() {
                         }
                     }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                ) {
                     EdgeCropText(
                         text = "◀◀",
                         fontSize = DoradoTokens.TYPE_LIST.dp,
@@ -504,13 +509,20 @@ fun ShuffleByAlbumApp() {
                 }
                 val upcoming = ShuffleEngine.upcoming(current, 5)
                 EdgeCropText(text = "up next", fontSize = DoradoTokens.TYPE_CAPTION.dp, color = colors.textSecondary)
-                upcoming.forEach { next ->
-                    EdgeCropText(
-                        text = "${next.title} — ${next.artist}",
-                        fontSize = DoradoTokens.TYPE_LIST.dp,
-                        color = colors.textSecondary,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    upcoming.forEach { next ->
+                        EdgeCropText(
+                            text = "${next.title} — ${next.artist}",
+                            fontSize = DoradoTokens.TYPE_LIST.dp,
+                            color = colors.textSecondary,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
             }
 

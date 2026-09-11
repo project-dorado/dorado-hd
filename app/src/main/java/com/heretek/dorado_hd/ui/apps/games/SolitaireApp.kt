@@ -144,16 +144,16 @@ fun SolitaireApp() {
     }
 
     val over = remember(state) { !state.won && SolitaireEngine.isGameOver(state) }
-    if (loaded && (state.won || over) && !recorded) {
+    // Record from an effect with a once-guard: recording during composition
+    // re-fired after undo reset the flag and double-counted game-over rows.
+    LaunchedEffect(loaded, state.won, over) {
+        if (!loaded || recorded || !(state.won || over)) return@LaunchedEffect
         recorded = true
         running = false
         val mode = state.scoring.name.lowercase()
         val result = if (state.won) "win" else "loss"
-        val moves = state.moves
-        LaunchedEffect(Unit) {
-            graph.games.record("solitaire", state.score, "$mode|$result|$elapsed|$moves")
-            if (result == "loss") bank.play("lose")
-        }
+        graph.games.record("solitaire", state.score, "$mode|$result|$elapsed|${state.moves}")
+        if (result == "loss") bank.play("lose")
     }
 
     val stats = remember(scores) {
@@ -275,16 +275,22 @@ fun SolitaireApp() {
                 verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    BasicText(
-                        text = "score ${state.score}",
-                        style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    BasicText(
-                        text = "%d:%02d · %s · %s".format(elapsed / 60, elapsed % 60, if (state.deal == SolDealType.ONE) "1-card" else "3-card", state.scoring.name.lowercase()),
-                        style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
-                    )
-                    Spacer(Modifier.weight(1f))
+                    // Score/time live in a weighted column so the action labels
+                    // keep their intrinsic width and never break mid-word.
+                    Column(Modifier.weight(1f)) {
+                        BasicText(
+                            text = "score ${state.score}",
+                            style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                        BasicText(
+                            text = "%d:%02d · %s · %s".format(elapsed / 60, elapsed % 60, if (state.deal == SolDealType.ONE) "1-card" else "3-card", state.scoring.name.lowercase()),
+                            style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+                    }
                     EdgeText("undo", if (state.history.isEmpty()) colors.textInactive else colors.textPrimary) {
                         val next = SolitaireEngine.undo(state)
                         if (next !== state) {

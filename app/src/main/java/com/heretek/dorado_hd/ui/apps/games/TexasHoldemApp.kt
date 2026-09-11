@@ -58,6 +58,16 @@ fun TexasHoldemApp() {
     var inHand by remember { mutableStateOf(false) }
     var raiseTo by remember { mutableStateOf(0) }
 
+    fun persist() {
+        scope.launch {
+            graph.appState.put(
+                "texasholdem",
+                "difficulty=${difficulty.name.lowercase()};bankroll=${tournament.bankroll};" +
+                    "completed=${tournament.completed.joinToString(",")};active=${tournament.activeEvent}",
+            )
+        }
+    }
+
     LaunchedEffect(Unit) {
         graph.appState.get("texasholdem")?.let { blob ->
             blob.split(';').mapNotNull { it.split('=').takeIf { p -> p.size == 2 } }
@@ -69,16 +79,14 @@ fun TexasHoldemApp() {
                     if (bankroll != null) {
                         tournament = PokerTournamentEngine.newTournament(bankroll).copy(completed = completed)
                     }
+                    // A persisted active event means the process died mid-run:
+                    // refund the buy-in rather than leaving the ladder short.
+                    val active = map["active"]?.toIntOrNull() ?: -1
+                    if (active >= 0) {
+                        tournament = PokerTournamentEngine.abandon(tournament.copy(activeEvent = active))
+                        persist()
+                    }
                 }
-        }
-    }
-
-    fun persist() {
-        scope.launch {
-            graph.appState.put(
-                "texasholdem",
-                "difficulty=${difficulty.name.lowercase()};bankroll=${tournament.bankroll};completed=${tournament.completed.joinToString(",")}",
-            )
         }
     }
 
@@ -93,7 +101,9 @@ fun TexasHoldemApp() {
     }
 
     fun dealEvent(event: PokerTournamentEvent) {
-        tournament = PokerTournamentEngine.enter(tournament, event.index)
+        val entered = PokerTournamentEngine.enter(tournament, event.index)
+        if (entered.activeEvent != event.index) return
+        tournament = entered
         activeEvent = event
         table = PokerTableEngine.startHand(
             PokerTableEngine.newTable(event.difficulty, startingStack = event.startingChips),
@@ -174,7 +184,17 @@ fun TexasHoldemApp() {
                             table = PokerTableEngine.startHand(table, Random.Default)
                         }
                     },
-                    onLeave = { bank.play("back"); inHand = false },
+                    onLeave = {
+                        bank.play("back")
+                        // Backing out of a tournament refunds the buy-in so the
+                        // ladder can never become permanently unaffordable.
+                        if (activeEvent != null) {
+                            tournament = PokerTournamentEngine.abandon(tournament)
+                            activeEvent = null
+                        }
+                        inHand = false
+                        persist()
+                    },
                 )
             }
         }

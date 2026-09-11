@@ -86,6 +86,9 @@ fun GooSplatApp() {
     var saved by remember { mutableStateOf<GooSplatState?>(null) }
     var paused by remember { mutableStateOf(false) }
     var recorded by remember { mutableStateOf(false) }
+    // Bumped on every new run: the frame loop keys on it so "play again"
+    // restarts a loop that had already exited on `over`.
+    var runId by remember { mutableStateOf(0) }
     var pepperFlashMs by remember { mutableStateOf(-1_000L) }
     val pendingTaps = remember { mutableStateListOf<BugTap>() }
     val scores by graph.games.top("goo-splat", 1).collectAsState(initial = emptyList())
@@ -96,7 +99,7 @@ fun GooSplatApp() {
         saved = graph.appState.get("goo-splat")?.let { GooSplatEngine.decode(it) }
     }
 
-    LaunchedEffect(screen, paused) {
+    LaunchedEffect(screen, paused, runId) {
         while (screen == "game" && !paused) {
             val current = game ?: break
             if (current.over) break
@@ -150,6 +153,7 @@ fun GooSplatApp() {
         paused = false
         pendingTaps.clear()
         pepperFlashMs = -1_000L
+        runId++
         screen = "game"
     }
 
@@ -342,6 +346,8 @@ fun GooSplatApp() {
                                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.accentBright),
                                 )
                             }
+                            GooSplatButton("play again") { startNew() }
+                            Spacer(Modifier.height(4.dp))
                             GooSplatButton("main menu") {
                                 game = null
                                 screen = "menu"

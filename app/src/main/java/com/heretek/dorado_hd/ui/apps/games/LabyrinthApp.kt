@@ -579,8 +579,6 @@ private fun LabMenu(
                 .padding(DoradoTokens.EDGE.dp)
                 .verticalScroll(rememberScrollState()),
         ) {
-            EdgeCropText(text = "labyrinth", fontSize = DoradoTokens.TYPE_HEADER_CROPPED.dp, color = colors.accent)
-            Spacer(Modifier.height(10.dp))
             LabButton("play", Modifier.fillMaxWidth(), onClick = onPlay)
             Spacer(Modifier.height(6.dp))
             LabButton("options", Modifier.fillMaxWidth(), onClick = onOptions)
@@ -756,8 +754,6 @@ private fun LabAbout(colors: DoradoColors, onBack: () -> Unit) {
                 .padding(DoradoTokens.EDGE.dp)
                 .verticalScroll(rememberScrollState()),
         ) {
-            EdgeCropText(text = "labyrinth", fontSize = DoradoTokens.TYPE_HEADER_CROPPED.dp, color = colors.accent)
-            Spacer(Modifier.height(10.dp))
             BasicText(
                 text = "five acts, ${LabyrinthEngine.LEVEL_COUNT} original mazes. every maze is generated from an authored seed; no device level data or art is used.",
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textSecondary),

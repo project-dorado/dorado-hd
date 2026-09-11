@@ -360,7 +360,13 @@ object RnJEngine {
         if (state.finished || dtMs <= 0L) return state
         if (state.deadMs > 0L) {
             val remaining = state.deadMs - dtMs
-            return if (remaining > 0L) state.copy(deadMs = remaining) else respawn(state)
+            // Events are consumed exactly once: clearing them here stops the
+            // death cue replaying on every countdown frame.
+            return if (remaining > 0L) {
+                state.copy(deadMs = remaining, events = emptyList())
+            } else {
+                respawn(state)
+            }
         }
 
         var work = state.copy(boostCooldownMs = (state.boostCooldownMs - dtMs).coerceAtLeast(0L), events = emptyList())
@@ -696,6 +702,6 @@ object RnJEngine {
         switchA = false,
         switchB = false,
         deadMs = 0L,
-        events = state.events + RnJEvent.DEAD,
+        events = emptyList(),
     )
 }

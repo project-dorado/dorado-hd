@@ -151,16 +151,16 @@ private fun ProfileTab() {
                 EdgeCropText("you", DoradoTokens.TYPE_NOW_META.dp, color = colors.accent)
             }
             Spacer(Modifier.width(12.dp))
-            Column {
+            Column(Modifier.weight(1f)) {
                 EdgeCropText("you", DoradoTokens.TYPE_NOW_TITLE.dp, color = colors.textPrimary)
                 EdgeCropText("member since september 2009 · profile archived", DoradoTokens.TYPE_CAPTION.dp, color = colors.textSecondary)
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-            SocialStat("plays", "4,812")
-            SocialStat("hearts", "137")
-            SocialStat("badges", "9")
-            SocialStat("friends", "42")
+        Row(Modifier.fillMaxWidth()) {
+            SocialStat("plays", "4,812", Modifier.weight(1f))
+            SocialStat("hearts", "137", Modifier.weight(1f))
+            SocialStat("badges", "9", Modifier.weight(1f))
+            SocialStat("friends", "42", Modifier.weight(1f))
         }
         BasicText(
             text = "zune social kept a running record of what you played and loved. the service is gone; these figures are a local memorial simulation.",
@@ -175,9 +175,9 @@ private fun ProfileTab() {
 }
 
 @Composable
-private fun SocialStat(label: String, value: String) {
+private fun SocialStat(label: String, value: String, modifier: Modifier = Modifier) {
     val colors = LocalDoradoColors.current
-    Column {
+    Column(modifier) {
         EdgeCropText(value, DoradoTokens.TYPE_NOW_TITLE.dp, color = colors.textPrimary)
         EdgeCropText(label, DoradoTokens.TYPE_CAPTION.dp, color = colors.textInactive)
     }

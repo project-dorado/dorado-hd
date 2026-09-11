@@ -51,6 +51,8 @@ import com.heretek.dorado_hd.ui.apps.engine3d.Scene3d
 import com.heretek.dorado_hd.ui.apps.engine3d.Scene3dView
 import com.heretek.dorado_hd.ui.apps.engine3d.Vec3
 import com.heretek.dorado_hd.ui.apps.engine3d.nodeAt
+import com.heretek.dorado_hd.ui.apps.engine3d.rebuild
+import com.heretek.dorado_hd.ui.apps.engine3d.rememberIsResumed
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlin.math.PI
 import kotlin.math.abs
@@ -102,6 +104,10 @@ fun BowlingApp() {
     var timing by remember { mutableStateOf(0f) }
     var timingDir by remember { mutableStateOf(1f) }
 
+    // Physics and timing are wall-clock loops; gate them on the lifecycle so
+    // they do not keep simulating while the app is backgrounded (A-28).
+    val resumed = rememberIsResumed()
+
     val history by graph.games.top("lucky-lanes-bowling", 12).collectAsState(initial = emptyList())
 
     fun play(name: String) {
@@ -130,15 +136,22 @@ fun BowlingApp() {
             graph.appState.clear("lucky-lanes.save")
             saved = null
         } else {
-            val save = BowlingSave(current.card, current.standing)
+            val save = BowlingSave(
+                card = current.card,
+                standing = current.standing,
+                lane = current.lane,
+                ball = current.ball,
+                rival = current.rival,
+                seed = current.seed,
+            )
             graph.appState.put("lucky-lanes.save", BowlingEngine.encodeSave(save))
             saved = save
         }
     }
 
     // Fixed sub-step physics loop; 16 ms of wall time maps to 16 ms of sim time.
-    LaunchedEffect(screen, paused, match?.phase) {
-        if (screen != BowlingScreen.GAME || paused) return@LaunchedEffect
+    LaunchedEffect(screen, paused, match?.phase, resumed) {
+        if (screen != BowlingScreen.GAME || paused || !resumed) return@LaunchedEffect
         if (match?.phase != BowlingPhase.ROLLING) return@LaunchedEffect
         while (true) {
             delay(16)
@@ -153,8 +166,8 @@ fun BowlingApp() {
     }
 
     // Let the rack settle on screen, then hand the player the next ball.
-    LaunchedEffect(screen, paused, match?.phase) {
-        if (screen != BowlingScreen.GAME || paused) return@LaunchedEffect
+    LaunchedEffect(screen, paused, match?.phase, resumed) {
+        if (screen != BowlingScreen.GAME || paused || !resumed) return@LaunchedEffect
         if (match?.phase != BowlingPhase.SETTLED) return@LaunchedEffect
         delay(1000)
         val current = match ?: return@LaunchedEffect
@@ -162,8 +175,8 @@ fun BowlingApp() {
     }
 
     // The timing/accuracy needle sweeps while the player holds the ball.
-    LaunchedEffect(screen, paused, match?.phase) {
-        if (screen != BowlingScreen.GAME || paused) return@LaunchedEffect
+    LaunchedEffect(screen, paused, match?.phase, resumed) {
+        if (screen != BowlingScreen.GAME || paused || !resumed) return@LaunchedEffect
         if (match?.phase != BowlingPhase.READY) return@LaunchedEffect
         while (true) {
             delay(16)
@@ -203,8 +216,12 @@ fun BowlingApp() {
 
     fun resumeGame() {
         val save = saved ?: return
+        // Restore the full setup, not the current picker defaults (A-28).
+        lane = save.lane
+        ball = save.ball
+        rival = save.rival
         match = BowlingEngine.resumeMatch(
-            save.card, save.standing, lane, ball, rival, seed = System.currentTimeMillis().toInt(),
+            save.card, save.standing, save.lane, save.ball, save.rival, seed = save.seed,
         )
         recorded = save.card.finished
         paused = false
@@ -275,7 +292,7 @@ fun BowlingApp() {
                 )
             } else {
                 DisposableEffect(current, aim, paused) {
-                    stage.render(scene, current, aim, paused)
+                    scene.rebuild { stage.render(this, current, aim, paused) }
                     onDispose { }
                 }
                 BowlingGameScreen(
@@ -714,7 +731,7 @@ private fun BowlingChip(label: String, selected: Boolean, onClick: () -> Unit) {
         Modifier
             .background(if (selected) colors.accent else colors.tile)
             .pointerInput(label, selected) { detectTapGestures(onTap = { onClick() }) }
-            .padding(horizontal = 6.dp, vertical = 3.dp),
+            .padding(horizontal = 6.dp, vertical = 6.dp),
     ) {
         BasicText(
             text = label,

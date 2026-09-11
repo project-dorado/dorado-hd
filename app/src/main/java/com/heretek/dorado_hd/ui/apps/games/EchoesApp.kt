@@ -253,7 +253,9 @@ fun EchoesApp() {
                     Canvas(
                         Modifier
                             .fillMaxSize()
-                            .pointerInput(paused, current.status, current.countdownMs) {
+                            // Keyed only on pause/status: the countdown ticks every
+                            // frame and used to cancel in-progress drags (A-25).
+                            .pointerInput(paused, current.status) {
                                 detectDragGestures(
                                     onDragStart = { offset ->
                                         stickOrigin = offset

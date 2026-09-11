@@ -65,6 +65,10 @@ internal fun EdgeText(text: String, color: Color, onClick: () -> Unit) {
             fontSize = DoradoTokens.TYPE_LIST.sp,
             color = color,
         ),
+        // Action labels must stay on one line: a squeezed Row used to break
+        // e.g. "shuffle" into a vertical letter column at the screen edge.
+        maxLines = 1,
+        softWrap = false,
         modifier = Modifier
             .pointerInput(Unit) { detectTapGestures(onTap = { onClick() }) }
             .padding(vertical = 4.dp, horizontal = 2.dp),
@@ -123,7 +127,20 @@ internal fun PassPicker(hand: List<SolCard>, onConfirm: (List<SolCard>) -> Unit)
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             hand.forEach { c ->
                 val selected = c in picked
-                Box(modifier = Modifier.pointerInput(c) { detectTapGestures(onTap = { if (selected) picked.remove(c) else if (picked.size < 3) picked.add(c) }) }) {
+                Box(
+                    modifier = Modifier.pointerInput(c) {
+                        detectTapGestures(
+                            onTap = {
+                                // Read the live selection list at tap time; the
+                                // previous code captured `selected` at
+                                // composition and could add duplicates.
+                                val next = HeartsEngine.togglePassPick(picked.toList(), c)
+                                picked.clear()
+                                picked.addAll(next)
+                            },
+                        )
+                    },
+                ) {
                     SolCardView(if (selected) c.copy(faceUp = true) else c.copy(faceUp = false), width = 26.dp, height = 34.dp) {}
                 }
             }

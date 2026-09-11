@@ -44,6 +44,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.heretek.dorado_hd.design.DoradoAccent
 import com.heretek.dorado_hd.design.DoradoColors
 import com.heretek.dorado_hd.design.DoradoTokens
@@ -54,6 +57,7 @@ import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.ceil
 
 /*
@@ -95,19 +99,46 @@ fun FingerpaintApp() {
     var brush by remember { mutableStateOf(FingerpaintBrush()) }
     var playerCount by remember { mutableStateOf(2) }
     var recorded by remember { mutableStateOf(false) }
+    val liveStrokes = remember { mutableStateMapOf<Long, FingerpaintStroke>() }
     val scores by graph.games.top("fingerpaint", 5).collectAsState(initial = emptyList())
 
     LaunchedEffect(Unit) {
         saved = graph.appState.get("fingerpaint")?.let { FingerpaintEngine.decode(it) }
     }
 
-    LaunchedEffect(session) {
-        val current = session ?: return@LaunchedEffect
-        delay(500)
+    suspend fun persist(current: FingerpaintSession) {
         if (current.phase == FingerpaintPhase.GAME_OVER) {
             graph.appState.clear("fingerpaint")
+            saved = null
         } else {
             graph.appState.put("fingerpaint", FingerpaintEngine.encode(current))
+            // Keep the menu's "continue" entry in sync with the saved snapshot.
+            saved = current
+        }
+    }
+
+    // Periodic snapshot: the 250 ms round tick used to restart the 500 ms
+    // debounce before it elapsed, so the save never ran (A-29).
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1000)
+            session?.let { persist(it) }
+        }
+    }
+
+    // Flush on the way out (backgrounding or leaving the mini-app).
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
+                scope.launch { session?.let { persist(it) } }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            liveStrokes.clear()
+            scope.launch { session?.let { persist(it) } }
         }
     }
 
@@ -142,6 +173,7 @@ fun FingerpaintApp() {
         val names = (1..playerCount).map { "player $it" }
         session = FingerpaintEngine.startRound(FingerpaintEngine.newSession(names, seed), seed)
         brush = FingerpaintBrush()
+        liveStrokes.clear()
         recorded = false
         screen = "game"
         bank.play("select")
@@ -152,6 +184,7 @@ fun FingerpaintApp() {
         val seed = System.currentTimeMillis().toInt()
         session = FingerpaintEngine.startRound(FingerpaintEngine.newSession(names, seed), seed)
         brush = FingerpaintBrush()
+        liveStrokes.clear()
         recorded = false
         bank.play("select")
     }
@@ -160,6 +193,7 @@ fun FingerpaintApp() {
         val restored = saved ?: return
         session = restored
         brush = FingerpaintBrush()
+        liveStrokes.clear()
         recorded = restored.phase == FingerpaintPhase.GAME_OVER
         screen = if (restored.mode == FingerpaintMode.SOLO) "solo" else "game"
     }
@@ -172,6 +206,7 @@ fun FingerpaintApp() {
                 val seed = System.currentTimeMillis().toInt()
                 session = FingerpaintEngine.soloSession(seed)
                 brush = FingerpaintBrush()
+                liveStrokes.clear()
                 recorded = false
                 screen = "solo"
                 bank.play("select")
@@ -206,6 +241,7 @@ fun FingerpaintApp() {
             session = current,
             brush = brush,
             palette = palette,
+            liveStrokes = liveStrokes,
             onBrush = { brush = it },
             onSession = { session = it },
             onMenu = { screen = "menu"; bank.play("back") },
@@ -218,6 +254,7 @@ fun FingerpaintApp() {
         session = current,
         brush = brush,
         palette = palette,
+        liveStrokes = liveStrokes,
         onBrush = { brush = it },
         onSession = { session = it },
         onRestart = { restart() },
@@ -291,6 +328,7 @@ private fun FingerpaintGame(
     session: FingerpaintSession,
     brush: FingerpaintBrush,
     palette: List<Color>,
+    liveStrokes: MutableMap<Long, FingerpaintStroke>,
     onBrush: (FingerpaintBrush) -> Unit,
     onSession: (FingerpaintSession) -> Unit,
     onRestart: () -> Unit,
@@ -309,6 +347,16 @@ private fun FingerpaintGame(
             onSession(session.copy(document = next))
             bank.play(if (stroke.tool == FingerpaintTool.ERASER) "whoosh" else "pop")
         }
+    }
+
+    /** Commits any live stroke before the new brush replaces the old one (A-29). */
+    fun commitBrush(next: FingerpaintBrush) {
+        if (liveStrokes.isNotEmpty()) {
+            val document = FingerpaintEngine.commitStrokes(session.document, liveStrokes.values.toList())
+            if (document !== session.document) onSession(session.copy(document = document))
+            liveStrokes.clear()
+        }
+        onBrush(next)
     }
 
     fun submitGuess(index: Int) {
@@ -372,6 +420,7 @@ private fun FingerpaintGame(
                     palette = palette,
                     enabled = session.phase == FingerpaintPhase.DRAW,
                     onCommit = { commitStroke(it) },
+                    liveStrokes = liveStrokes,
                     modifier = Modifier.fillMaxWidth().weight(1f),
                 )
                 Spacer(Modifier.height(4.dp))
@@ -379,7 +428,7 @@ private fun FingerpaintGame(
                     brush = brush,
                     palette = palette,
                     document = session.document,
-                    onBrush = onBrush,
+                    onBrush = { commitBrush(it) },
                     onDocument = { onSession(session.copy(document = it)) },
                     bank = bank,
                 )
@@ -456,12 +505,23 @@ private fun FingerpaintSolo(
     session: FingerpaintSession,
     brush: FingerpaintBrush,
     palette: List<Color>,
+    liveStrokes: MutableMap<Long, FingerpaintStroke>,
     onBrush: (FingerpaintBrush) -> Unit,
     onSession: (FingerpaintSession) -> Unit,
     onMenu: () -> Unit,
     bank: SfxBank,
 ) {
     val colors = LocalDoradoColors.current
+
+    fun commitBrush(next: FingerpaintBrush) {
+        if (liveStrokes.isNotEmpty()) {
+            val document = FingerpaintEngine.commitStrokes(session.document, liveStrokes.values.toList())
+            if (document !== session.document) onSession(session.copy(document = document))
+            liveStrokes.clear()
+        }
+        onBrush(next)
+    }
+
     DetailScaffold(title = "fingerpaint · solo") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -484,6 +544,7 @@ private fun FingerpaintSolo(
                         bank.play(if (stroke.tool == FingerpaintTool.ERASER) "whoosh" else "pop")
                     }
                 },
+                liveStrokes = liveStrokes,
                 modifier = Modifier.fillMaxWidth().weight(1f),
             )
             Spacer(Modifier.height(4.dp))
@@ -491,7 +552,7 @@ private fun FingerpaintSolo(
                 brush = brush,
                 palette = palette,
                 document = session.document,
-                onBrush = onBrush,
+                onBrush = { commitBrush(it) },
                 onDocument = { onSession(session.copy(document = it)) },
                 bank = bank,
             )
@@ -704,18 +765,21 @@ private fun FingerpaintCanvas(
     palette: List<Color>,
     enabled: Boolean,
     onCommit: (FingerpaintStroke) -> Unit,
+    liveStrokes: MutableMap<Long, FingerpaintStroke>,
     modifier: Modifier,
 ) {
     val colors = LocalDoradoColors.current
-    val live = remember { mutableStateMapOf<Long, FingerpaintStroke>() }
     val commit = rememberUpdatedState(onCommit)
+    // Read the live brush so switching it never restarts the gesture and
+    // orphans the stroke in progress (A-29).
+    val activeBrush = rememberUpdatedState(brush)
     Canvas(
         modifier = modifier
             .background(colors.elevated)
             .border(0.5.dp, colors.border)
-            .pointerInput(brush, enabled) {
+            .pointerInput(enabled) {
                 if (!enabled) return@pointerInput
-                live.clear()
+                liveStrokes.clear()
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent()
@@ -724,18 +788,18 @@ private fun FingerpaintCanvas(
                             val position = change.position
                             when {
                                 change.pressed && !change.previousPressed ->
-                                    live[id] = FingerpaintEngine.beginStroke(0, brush, position.x, position.y)
+                                    liveStrokes[id] = FingerpaintEngine.beginStroke(0, activeBrush.value, position.x, position.y)
 
                                 change.pressed -> {
-                                    val stroke = live[id]
-                                    live[id] = if (stroke == null) {
-                                        FingerpaintEngine.beginStroke(0, brush, position.x, position.y)
+                                    val stroke = liveStrokes[id]
+                                    liveStrokes[id] = if (stroke == null) {
+                                        FingerpaintEngine.beginStroke(0, activeBrush.value, position.x, position.y)
                                     } else {
                                         FingerpaintEngine.extendStroke(stroke, position.x, position.y)
                                     }
                                 }
 
-                                else -> live.remove(id)?.let { commit.value(it) }
+                                else -> liveStrokes.remove(id)?.let { commit.value(it) }
                             }
                         }
                     }
@@ -744,7 +808,7 @@ private fun FingerpaintCanvas(
     ) {
         drawRect(colors.background)
         for (stroke in document.strokes) drawFingerpaintStroke(stroke, palette)
-        for (stroke in live.values) {
+        for (stroke in liveStrokes.values) {
             if (stroke.tool == FingerpaintTool.ERASER) {
                 drawFingerpaintEraseTrail(stroke, colors.textSecondary.copy(alpha = 0.4f))
             } else {

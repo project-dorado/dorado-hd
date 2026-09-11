@@ -405,6 +405,14 @@ private fun DayTimeline(
             .fillMaxWidth()
             .verticalScroll(rememberScrollState()),
     ) {
+        if (occurrences.isEmpty()) {
+            EdgeCropText(
+                text = "no appointments",
+                fontSize = DoradoTokens.TYPE_LIST.dp,
+                color = colors.textInactive,
+            )
+            Spacer(Modifier.height(4.dp))
+        }
         if (allDay.isNotEmpty()) {
             EdgeCropText(text = "all day", fontSize = DoradoTokens.TYPE_CAPTION.dp, color = colors.textSecondary)
             allDay.forEach { occ ->
@@ -526,7 +534,12 @@ private fun MonthGrid(
         Instant.ofEpochMilli(it.startAt).atZone(ZoneId.systemDefault()).toLocalDate()
     }
     val cells = CalendarEngine.monthCells(month)
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
         Row(Modifier.fillMaxWidth()) {
             listOf("s", "m", "t", "w", "t", "f", "s").forEach { d ->
                 EdgeCropText(

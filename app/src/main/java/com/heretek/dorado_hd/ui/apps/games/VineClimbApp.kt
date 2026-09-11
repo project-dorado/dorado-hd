@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -15,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -24,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -65,11 +69,13 @@ fun VineClimbApp() {
 
     var screen by remember { mutableStateOf("menu") }
     var game by remember { mutableStateOf<VineClimbEngine.State?>(null) }
+    val latestGame = rememberUpdatedState(game)
     var highScore by remember { mutableStateOf(0) }
     var soundOn by remember { mutableStateOf(true) }
     var paused by remember { mutableStateOf(false) }
     var recorded by remember { mutableStateOf(false) }
     var newRecord by remember { mutableStateOf(false) }
+    var loaded by remember { mutableStateOf(false) }
     val scores by graph.games.top("vine-climb", 5).collectAsState(initial = emptyList())
 
     fun play(name: String) {
@@ -79,9 +85,16 @@ fun VineClimbApp() {
     LaunchedEffect(Unit) {
         highScore = graph.appState.get("vine-climb.high")?.toIntOrNull() ?: 0
         soundOn = graph.appState.get("vine-climb.sound") != "0"
+        loaded = true
     }
-    LaunchedEffect(soundOn) { graph.appState.put("vine-climb.sound", if (soundOn) "1" else "0") }
-    LaunchedEffect(highScore) { graph.appState.put("vine-climb.high", highScore.toString()) }
+    // Gate the writers until the stored options have loaded, so the defaults
+    // can never clobber an existing profile on a cold start.
+    LaunchedEffect(soundOn, loaded) {
+        if (loaded) graph.appState.put("vine-climb.sound", if (soundOn) "1" else "0")
+    }
+    LaunchedEffect(highScore, loaded) {
+        if (loaded) graph.appState.put("vine-climb.high", highScore.toString())
+    }
 
     val active = screen == "game" && game != null && !paused && game?.gameOverShown == false
     LaunchedEffect(active) {
@@ -155,29 +168,35 @@ fun VineClimbApp() {
     val current = game ?: return
     DetailScaffold(title = "vine climb", onBack = { screen = "menu"; paused = false }) {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 BasicText(
                     text = "score ${current.score.toString().padStart(6, '0')}",
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
                 )
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.width(12.dp))
                 BasicText(
                     text = "best ${maxOf(highScore, current.score)}",
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
                 )
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.width(12.dp))
                 VineClimbButton("pause") { paused = true }
             }
             Spacer(Modifier.height(3.dp))
             BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
-                val viewW = constraints.maxWidth.toFloat()
-                val viewH = constraints.maxHeight.toFloat()
                 Canvas(
                     Modifier
                         .fillMaxSize()
                         .pointerInput(current.gameOverShown, paused) {
                             detectTapGestures { offset ->
-                                if (paused || current.gameOverShown) return@detectTapGestures
+                                val state = latestGame.value ?: return@detectTapGestures
+                                if (paused || state.gameOverShown) return@detectTapGestures
+                                val viewW = size.width.toFloat()
+                                val viewH = size.height.toFloat()
                                 val scale = min(viewW / VineClimbEngine.VIEW_W.toFloat(), viewH / VineClimbEngine.VIEW_H.toFloat())
                                 val ox = (viewW - VineClimbEngine.VIEW_W * scale) / 2f
                                 val oy = (viewH - VineClimbEngine.VIEW_H * scale) / 2f
@@ -186,12 +205,12 @@ fun VineClimbApp() {
                                 when {
                                     vx >= VineClimbEngine.VIEW_W - 56f && vy <= 50f -> paused = true
                                     vy >= 352f && vx <= 136f -> {
-                                        game = VineClimbEngine.tick(current, VineClimbEngine.Input(left = true))
+                                        game = VineClimbEngine.tick(state, VineClimbEngine.Input(left = true))
                                         play("jump")
                                     }
 
                                     vy >= 352f -> {
-                                        game = VineClimbEngine.tick(current, VineClimbEngine.Input(right = true))
+                                        game = VineClimbEngine.tick(state, VineClimbEngine.Input(right = true))
                                         play("jump")
                                     }
                                 }

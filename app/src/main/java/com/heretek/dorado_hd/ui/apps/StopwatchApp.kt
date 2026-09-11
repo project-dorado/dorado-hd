@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +37,7 @@ import com.heretek.dorado_hd.design.components.EdgeCropText
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.components.DetailScaffold
 import java.util.Locale
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -91,6 +93,13 @@ object StopwatchEngine {
 
     const val MODE_STOPWATCH = "stopwatch"
     const val MODE_TIMER = "timer"
+
+    /** Persistence cadence: one snapshot per second instead of one per tick. */
+    const val SNAPSHOT_INTERVAL_MS = 1_000L
+
+    /** True when [nowMs] is at least [SNAPSHOT_INTERVAL_MS] past the last write. */
+    fun snapshotDue(lastWriteMs: Long, nowMs: Long, intervalMs: Long = SNAPSHOT_INTERVAL_MS): Boolean =
+        nowMs - lastWriteMs >= intervalMs
 
     fun start(state: StopwatchState, nowWall: Long): StopwatchState {
         if (state.running) return state
@@ -299,8 +308,29 @@ fun StopwatchApp() {
         }
         loaded = true
     }
-    LaunchedEffect(sw, cd, mode, loaded) {
+    // Persist only when a meaningful field changes (start/pause/lap/reset or
+    // countdown expiry) and take a 1 s snapshot while a clock is ticking.
+    // Writing on every state emission would issue ~30 Room writes/s.
+    LaunchedEffect(
+        loaded, mode, sw.running, sw.accumulatedMs, sw.laps,
+        cd.running, cd.remainingMs, cd.alarming, cd.alarmStartedAtWall,
+    ) {
         if (loaded) graph.appState.put("stopwatch", StopwatchEngine.serialize(sw, cd, mode))
+    }
+    val snapshot = rememberUpdatedState(StopwatchEngine.serialize(sw, cd, mode))
+    LaunchedEffect(loaded, sw.running || cd.running) {
+        if (!loaded || !(sw.running || cd.running)) return@LaunchedEffect
+        while (true) {
+            delay(StopwatchEngine.SNAPSHOT_INTERVAL_MS)
+            graph.appState.put("stopwatch", snapshot.value)
+        }
+    }
+    DisposableEffect(loaded) {
+        onDispose {
+            if (loaded) scope.launch(NonCancellable) {
+                graph.appState.put("stopwatch", snapshot.value)
+            }
+        }
     }
     LaunchedEffect(sw.running, cd.running) {
         while (sw.running || cd.running) {

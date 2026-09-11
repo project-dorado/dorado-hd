@@ -114,6 +114,14 @@ object SliderPuzzleEngine {
     }
 
     /**
+     * Clock tick helper: the elapsed timer must not move while the puzzle is
+     * paused, so pause flips [running] off and the caller routes every tick
+     * through here.
+     */
+    fun advanceClock(elapsedMs: Long, dtMs: Long, running: Boolean): Long =
+        if (running) elapsedMs + dtMs else elapsedMs
+
+    /**
      * Fresh solvable board: exactly 200..300 uniformly-chosen legal blank
      * slides away from the solved layout, so every start is reachable.
      */

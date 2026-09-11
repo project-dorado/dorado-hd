@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -20,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -99,7 +102,12 @@ fun ChordFinderApp() {
                 onSelect = { page = it },
             )
             if (page == 0) {
-                Column(Modifier.fillMaxSize().padding(horizontal = DoradoTokens.EDGE.dp)) {
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = DoradoTokens.EDGE.dp)
+                        .verticalScroll(rememberScrollState()),
+                ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         SnappingColumn(
                             label = "root",
@@ -328,19 +336,27 @@ private fun ChordMetronomePage(synth: MiniSynth) {
     var running by remember { mutableStateOf(false) }
     var beat by remember { mutableStateOf(0) }
 
-    LaunchedEffect(running, bpm) {
+    // Keyed on `running` only: a BPM change adjusts the next interval but
+    // must not restart the loop and reset the beat phase.
+    val liveBpm = rememberUpdatedState(bpm)
+    LaunchedEffect(running) {
         if (!running) return@LaunchedEffect
-        var index = 0
+        var index = beat
         while (isActive) {
             beat = index
             val accent = ChordFinderEngine.isAccent(index)
             synth.playSamples(if (accent) metronomeClick(true) else bank.samples("tick"))
             index = (index + 1) % ChordFinderEngine.ACCENT_EVERY
-            delay(ChordFinderEngine.intervalMs(bpm).toLong())
+            delay(ChordFinderEngine.intervalMs(liveBpm.value).toLong())
         }
     }
 
-    Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(DoradoTokens.EDGE.dp)
+            .verticalScroll(rememberScrollState()),
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             EdgeCropText(
                 text = "$bpm bpm",

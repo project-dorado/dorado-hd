@@ -73,17 +73,22 @@ fun RunAndJumpApp() {
     var hintVisible by remember { mutableStateOf(false) }
     var seenHints by remember { mutableStateOf(emptySet<Int>()) }
     var recorded by remember { mutableStateOf(false) }
+    var loaded by remember { mutableStateOf(false) }
     val scores by graph.games.top("run-and-jump", 5).collectAsState(initial = emptyList())
 
     LaunchedEffect(Unit) {
         progress = graph.appState.get("run-and-jump")?.let { RnJEngine.decodeProgress(it) } ?: RnJProgress()
+        loaded = true
     }
-    LaunchedEffect(progress) {
+    LaunchedEffect(progress, loaded) {
+        if (!loaded) return@LaunchedEffect
         graph.appState.put("run-and-jump", RnJEngine.encodeProgress(progress))
     }
 
+    // The countdown must keep stepping while dead: RnJEngine.step owns deadMs
+    // and turns it into a respawn. Gating on deadMs <= 0 froze the run.
     val active = screen == "game" && game != null && !paused && pendingSpeed == null && !hintVisible &&
-        game?.finished == false && (game?.deadMs ?: 0L) <= 0L
+        game?.finished == false
     LaunchedEffect(active) {
         if (!active) return@LaunchedEffect
         var last = 0L

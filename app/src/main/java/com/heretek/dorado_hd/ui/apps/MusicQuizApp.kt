@@ -66,6 +66,7 @@ fun MusicQuizApp() {
     var round by remember { mutableStateOf<QuizEngine.QuizState?>(null) }
     var recorded by remember { mutableStateOf(false) }
     var paused by remember { mutableStateOf(false) }
+    var mixError by remember { mutableStateOf<String?>(null) }
 
     DisposableEffect(Unit) {
         synth.start()
@@ -114,7 +115,18 @@ fun MusicQuizApp() {
             round = state
             recorded = false
             paused = false
+            mixError = null
             screen = QuizScreen.ROUND
+        } else {
+            // Never fail silently: tell the user why the round did not start.
+            val valid = pool.count { QuizEngine.isContentValid(it) }
+            mixError = if (valid < difficulty.optionCount) {
+                "can't start — \"$mixName\" has $valid valid track${if (valid == 1) "" else "s"}; " +
+                    "${difficulty.optionCount} needed for ${difficulty.name.lowercase()}"
+            } else {
+                "can't start a round with this mix"
+            }
+            cue("error")
         }
     }
 
@@ -134,8 +146,10 @@ fun MusicQuizApp() {
                     soundLevel = soundLevel,
                     mixName = mixName,
                     highScores = highScores.filter { it.meta == QuizEngine.highScoreKey(mixName, difficulty) },
+                    error = mixError,
                     onToggleDifficulty = {
                         difficulty = if (difficulty == QuizEngine.Difficulty.NORMAL) QuizEngine.Difficulty.HARDCORE else QuizEngine.Difficulty.NORMAL
+                        mixError = null
                         cue("select")
                         persist()
                     },
@@ -147,7 +161,7 @@ fun MusicQuizApp() {
                 QuizScreen.CHOOSE_MIX -> QuizMixPicker(
                     tracks = tracks,
                     current = mixName,
-                    onPick = { name -> mixName = name; persist(); cue("select"); screen = QuizScreen.MENU },
+                    onPick = { name -> mixName = name; mixError = null; persist(); cue("select"); screen = QuizScreen.MENU },
                     onBack = { screen = QuizScreen.MENU },
                 )
                 QuizScreen.ROUND -> {
@@ -160,6 +174,7 @@ fun MusicQuizApp() {
                             soundLevel = soundLevel,
                             mixName = mixName,
                             highScores = emptyList(),
+                            error = mixError,
                             onToggleDifficulty = {},
                             onToggleBonus = {},
                             onCycleSound = {},
@@ -278,6 +293,7 @@ private fun QuizMenu(
     soundLevel: Int,
     mixName: String,
     highScores: List<com.heretek.dorado_hd.data.db.GameScoreEntity>,
+    error: String?,
     onToggleDifficulty: () -> Unit,
     onToggleBonus: () -> Unit,
     onCycleSound: () -> Unit,
@@ -297,6 +313,9 @@ private fun QuizMenu(
         EdgeCropText(text = "sound: ${soundLabels[soundLevel]}", fontSize = DoradoTokens.TYPE_LIST.dp, modifier = Modifier.pointerInput(Unit) { tap { onCycleSound() } })
         if (tracks.count { QuizEngine.isContentValid(it) } < difficulty.optionCount) {
             EdgeCropText(text = "need more content for this mode", fontSize = DoradoTokens.TYPE_NOW_META.dp, color = colors.textInactive)
+        }
+        if (error != null) {
+            EdgeCropText(text = error, fontSize = DoradoTokens.TYPE_NOW_META.dp, color = colors.accentBright)
         }
         Spacer(Modifier.height(4.dp))
         EdgeCropText(

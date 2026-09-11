@@ -269,7 +269,16 @@ fun FingerPhysicsApp() {
                 } else if (current.status == FpStatus.WON) {
                     FpOverlay(
                         "level clear · ${current.medal.name.lowercase()}",
-                        "next" to { startLevel(FingerPhysicsEngine.level(current.mode, min(current.slot + 1, 9))) },
+                        "next" to {
+                            val next = FingerPhysicsEngine.nextSlot(current.slot)
+                            if (next != null) {
+                                startLevel(FingerPhysicsEngine.level(current.mode, next))
+                            } else {
+                                paused = false
+                                game = null
+                                screen = "levels"
+                            }
+                        },
                         "replay" to { startLevel(current.level) },
                         "main menu" to { game = null; screen = "menu" },
                     )
@@ -283,7 +292,7 @@ fun FingerPhysicsApp() {
             }
             Spacer(Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
-                FpButton("drop", Modifier.weight(1f), enabled = current.spawnRemaining > 0 && current.status == FpStatus.PLAYING) {
+                FpButton("drop", Modifier.weight(1f), enabled = current.spawnRemaining > 0 && current.status == FpStatus.PLAYING && !paused) {
                     FingerPhysicsEngine.spawnNext(current)
                 }
                 FpButton("retry", Modifier.weight(1f), enabled = !paused) { startLevel(current.level) }

@@ -1,6 +1,7 @@
 package com.heretek.dorado_hd.ui.apps.games
 
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -90,20 +92,19 @@ fun SpadesApp() {
         }
     }
 
-    if (state.gameOver && !recorded) {
+    // Record from an effect with a once-guard instead of during composition;
+    // wait for the final round to score so the recorded total is final.
+    LaunchedEffect(state.gameOver, state.roundScored) {
+        if (!state.gameOver || !state.roundScored || recorded) return@LaunchedEffect
         recorded = true
         val human = state.score.first
         val won = state.winnerTeam == 0
         bank.play(if (won) "win" else "lose")
-        LaunchedEffect(Unit) {
-            scope.launch {
-                graph.games.record(
-                    "spades",
-                    human,
-                    "target=${state.target} ${if (won) "win" else if (state.winnerTeam == null) "tie" else "loss"}",
-                )
-            }
-        }
+        graph.games.record(
+            "spades",
+            human,
+            "target=${state.target} ${if (won) "win" else if (state.winnerTeam == null) "tie" else "loss"}",
+        )
     }
 
     DetailScaffold(title = "spades") {
@@ -237,7 +238,10 @@ private fun TablePanel(
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textPrimary),
             )
             if (state.currentPlayer == SpadesSeat.SOUTH) {
-                Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                ) {
                     if (!revealed) {
                         SpadesAction("reveal cards", colors.accent) { onReveal() }
                         if (blindNilEnabled) SpadesAction("blind nil", colors.accent) { onBid(0, true) }

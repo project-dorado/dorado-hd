@@ -53,7 +53,9 @@ import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.apps.MiniSynth
 import com.heretek.dorado_hd.ui.apps.SfxBank
 import com.heretek.dorado_hd.ui.components.DetailScaffold
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.min
 
 /* ============================================================ */
@@ -93,13 +95,14 @@ fun SliderPuzzleApp() {
     LaunchedEffect(running) {
         while (running) {
             delay(100)
-            elapsed += 100
+            elapsed = SliderPuzzleEngine.advanceClock(elapsed, 100L, running)
         }
     }
 
-    // 60 Hz slide interpolation while a tapped tile is animating.
-    LaunchedEffect(screen) {
-        if (screen != "game") return@LaunchedEffect
+    // 60 Hz slide interpolation while a tapped tile is animating. Pause holds
+    // the animation too, so this loop is keyed on `paused`.
+    LaunchedEffect(screen, paused) {
+        if (screen != "game" || paused) return@LaunchedEffect
         while (true) {
             delay(16)
             val current = game ?: continue
@@ -107,12 +110,24 @@ fun SliderPuzzleApp() {
         }
     }
 
-    LaunchedEffect(game?.cells, game?.moves, elapsed, loaded) {
-        if (!loaded) return@LaunchedEffect
-        val current = game ?: return@LaunchedEffect
-        if (current.solved) return@LaunchedEffect
-        delay(500)
-        graph.appState.put("slider-puzzle", SliderPuzzleEngine.encode(current.copy(elapsedMs = elapsed)))
+    // Periodic snapshot: a debounce keyed on `elapsed` could never land (100 ms
+    // ticks beat the 500 ms delay), and a pending write died with the screen.
+    LaunchedEffect(screen, paused, loaded, game?.solved) {
+        if (!loaded || screen != "game" || paused || game?.solved != false) return@LaunchedEffect
+        while (true) {
+            delay(2000)
+            val snapshot = game ?: break
+            if (snapshot.solved) break
+            graph.appState.put("slider-puzzle", SliderPuzzleEngine.encode(snapshot.copy(elapsedMs = elapsed)))
+        }
+    }
+
+    fun persistRun() {
+        val snapshot = game ?: return
+        if (snapshot.solved) return
+        scope.launch(NonCancellable) {
+            graph.appState.put("slider-puzzle", SliderPuzzleEngine.encode(snapshot.copy(elapsedMs = elapsed)))
+        }
     }
 
     LaunchedEffect(game?.solved) {
@@ -166,7 +181,7 @@ fun SliderPuzzleApp() {
     val current = game ?: return
     val solved = current.solved
 
-    DetailScaffold(title = "slider puzzle · ${current.size.label}", onBack = { paused = true }) {
+    DetailScaffold(title = "slider puzzle · ${current.size.label}", onBack = { paused = true; running = false }) {
         Box(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -241,7 +256,7 @@ fun SliderPuzzleApp() {
                     Spacer(Modifier.width(10.dp))
                     EdgeText("peek", if (peek) colors.accent else colors.textSecondary) { peek = !peek }
                     Spacer(Modifier.weight(1f))
-                    EdgeText("pause", colors.textPrimary) { paused = true }
+                    EdgeText("pause", colors.textPrimary) { paused = true; running = false }
                 }
             }
 
@@ -261,9 +276,16 @@ fun SliderPuzzleApp() {
                     peek = peek,
                     onNumbers = { showNumbers = !showNumbers },
                     onPeek = { peek = !peek },
-                    onResume = { paused = false },
+                    onResume = { paused = false; running = true },
                     onRestart = { startNew(current.size) },
-                    onMenu = { screen = "menu"; game = null; saved = null; paused = false; showResults = false },
+                    onMenu = {
+                        persistRun()
+                        screen = "menu"
+                        game = null
+                        saved = null
+                        paused = false
+                        showResults = false
+                    },
                 )
             }
         }

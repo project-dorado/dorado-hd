@@ -60,7 +60,11 @@ fun CalculatorApp() {
     var state by remember { mutableStateOf(CalculatorState()) }
     val tilt = rememberTilt()
     var explicitLandscape by remember { mutableStateOf<Boolean?>(null) }
-    val tiltLandscape = tilt.value.available && abs(tilt.value.rollDeg) > 45f
+    // Default to the portrait/basic pad unless the device is genuinely
+    // landscape. The accelerometer's roll is ~90° when the handset is held
+    // upright in portrait, so landscape is signalled by gravity on the X axis
+    // (pitch) instead — flat/portrait readings keep the basic pad.
+    val tiltLandscape = tilt.value.available && abs(tilt.value.pitchDeg) > 45f && abs(tilt.value.rollDeg) < 45f
     val landscape = explicitLandscape ?: tiltLandscape
 
     val onKey: (String) -> Unit = { key ->
@@ -192,6 +196,8 @@ private fun KeyButton(label: String, modifier: Modifier = Modifier, onClick: (St
                 fontSize = DoradoTokens.TYPE_LIST.sp,
                 color = if (accent) colors.accent else colors.textPrimary,
             ),
+            maxLines = 1,
+            softWrap = false,
         )
     }
 }

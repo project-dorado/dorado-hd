@@ -9,7 +9,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
@@ -22,6 +25,82 @@ import java.nio.IntBuffer
 import java.util.IdentityHashMap
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
+
+/**
+ * Pure mark-and-sweep eviction policy for identity-keyed resource caches.
+ *
+ * Keys are [touch]ed while in use; after [maxIdleFrames] frames without a
+ * touch they are reported by [evictable] and dropped by the owner. This
+ * bounds the cache to the identities used by the current window of frames, so
+ * an app that mints new [MeshData]/[TextureData] each frame cannot grow GPU
+ * memory without limit. No Android types, so the policy is unit-testable.
+ */
+class FrameSweepCache(private val maxIdleFrames: Int = 2) {
+    private val seen = IdentityHashMap<Any, Int>()
+    private var frame = 0
+
+    fun touch(key: Any) {
+        seen[key] = frame
+    }
+
+    fun tick() {
+        frame++
+    }
+
+    /** Drops and returns every key idle for more than [maxIdleFrames]. */
+    fun evictable(): List<Any> {
+        val cutoff = frame - maxIdleFrames
+        val out = ArrayList<Any>()
+        val iterator = seen.entries.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (entry.value < cutoff) {
+                out += entry.key
+                iterator.remove()
+            }
+        }
+        return out
+    }
+
+    fun size(): Int = seen.size
+
+    fun clear() {
+        seen.clear()
+        frame = 0
+    }
+}
+
+/**
+ * Atomically rebuilds [Scene3d]: while [build] runs the GL thread's
+ * synchronized snapshot blocks, so it can never sample a half-cleared scene.
+ */
+fun Scene3d.rebuild(build: Scene3d.() -> Unit) {
+    synchronized(this) {
+        clear()
+        build()
+    }
+}
+
+/** True while the hosting lifecycle is at least RESUMED (audio/physics gate). */
+@Composable
+fun rememberIsResumed(): Boolean {
+    val owner = LocalLifecycleOwner.current
+    var resumed by remember(owner) {
+        mutableStateOf(owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+    }
+    DisposableEffect(owner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> resumed = true
+                Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> resumed = false
+                else -> Unit
+            }
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
+    }
+    return resumed
+}
 
 /**
  * OpenGL ES 3.0 renderer for [Scene3d]. CPU-side meshes are uploaded lazily and
@@ -47,13 +126,25 @@ class GlSceneRenderer(private val scene: Scene3d) : GLSurfaceView.Renderer {
     private var uFogDensity = 0
     private var uFogColor = 0
     private var uCameraPos = 0
+    private var uTexture = 0
+
+    private class UploadedMesh(
+        val positions: FloatBuffer,
+        val normals: FloatBuffer,
+        val uvs: FloatBuffer,
+        val indices: IntBuffer,
+    )
 
     private val textureIds = IdentityHashMap<TextureData, Int>()
-    private val buffers = IdentityHashMap<MeshData, Triple<FloatBuffer, FloatBuffer, IntBuffer>>()
+    private val buffers = IdentityHashMap<MeshData, UploadedMesh>()
+    private val meshSweep = FrameSweepCache()
+    private val textureSweep = FrameSweepCache()
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         textureIds.clear()
         buffers.clear()
+        meshSweep.clear()
+        textureSweep.clear()
         program = buildProgram(VERTEX_SHADER, FRAGMENT_SHADER)
         uMvp = GLES30.glGetUniformLocation(program, "uMvp")
         uModel = GLES30.glGetUniformLocation(program, "uModel")
@@ -67,10 +158,21 @@ class GlSceneRenderer(private val scene: Scene3d) : GLSurfaceView.Renderer {
         uFogDensity = GLES30.glGetUniformLocation(program, "uFogDensity")
         uFogColor = GLES30.glGetUniformLocation(program, "uFogColor")
         uCameraPos = GLES30.glGetUniformLocation(program, "uCameraPos")
+        uTexture = GLES30.glGetUniformLocation(program, "uTexture")
         GLES30.glEnable(GLES30.GL_DEPTH_TEST)
         GLES30.glEnable(GLES30.GL_CULL_FACE)
         GLES30.glCullFace(GLES30.GL_BACK)
         GLES30.glDisable(GLES30.GL_BLEND)
+    }
+
+    /** Deletes GPU objects and clears all CPU caches (GL thread only). */
+    fun release() {
+        val ids = textureIds.values.toIntArray()
+        if (ids.isNotEmpty()) GLES30.glDeleteTextures(ids.size, ids, 0)
+        textureIds.clear()
+        buffers.clear()
+        meshSweep.clear()
+        textureSweep.clear()
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
@@ -102,7 +204,8 @@ class GlSceneRenderer(private val scene: Scene3d) : GLSurfaceView.Renderer {
             if (!node.visible) continue
             val material = node.material
             val mesh = node.mesh
-            uploadMesh(mesh)
+            val uploaded = uploadMesh(mesh)
+            meshSweep.touch(mesh)
             val world = node.transform
             val mvp = viewProjection * world
             GLES30.glUniformMatrix4fv(uMvp, 1, false, mvp.m, 0)
@@ -114,41 +217,60 @@ class GlSceneRenderer(private val scene: Scene3d) : GLSurfaceView.Renderer {
             GLES30.glUniform1f(uFogDensity, scene.fogDensity)
             val texture = material.texture
             if (texture != null) {
+                textureSweep.touch(texture)
                 GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
                 GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, uploadTexture(texture))
-                GLES30.glUniform1i(GLES30.glGetUniformLocation(program, "uTexture"), 0)
+                GLES30.glUniform1i(uTexture, 0)
                 GLES30.glUniform1f(uUseTexture, 1f)
             } else {
                 GLES30.glUniform1f(uUseTexture, 0f)
             }
             GLES30.glBindVertexArray(0)
-            buffers[mesh]?.let { (pos, nrm, idx) ->
-                val stride = 0
-                // positions (location 0)
-                GLES30.glEnableVertexAttribArray(0)
-                GLES30.glVertexAttribPointer(0, 3, GLES30.GL_FLOAT, false, stride, pos)
-                // normals (location 1)
-                GLES30.glEnableVertexAttribArray(1)
-                GLES30.glVertexAttribPointer(1, 3, GLES30.GL_FLOAT, false, stride, nrm)
-                GLES30.glEnableVertexAttribArray(2)
-                GLES30.glVertexAttribPointer(2, 2, GLES30.GL_FLOAT, false, stride, makeFloatBuffer(mesh.uvs))
-                GLES30.glDrawElements(GLES30.GL_TRIANGLES, idx.capacity(), GLES30.GL_UNSIGNED_INT, idx)
-                GLES30.glDisableVertexAttribArray(0)
-                GLES30.glDisableVertexAttribArray(1)
-                GLES30.glDisableVertexAttribArray(2)
+            val stride = 0
+            // positions (location 0)
+            GLES30.glEnableVertexAttribArray(0)
+            GLES30.glVertexAttribPointer(0, 3, GLES30.GL_FLOAT, false, stride, uploaded.positions)
+            // normals (location 1)
+            GLES30.glEnableVertexAttribArray(1)
+            GLES30.glVertexAttribPointer(1, 3, GLES30.GL_FLOAT, false, stride, uploaded.normals)
+            // uvs (location 2)
+            GLES30.glEnableVertexAttribArray(2)
+            GLES30.glVertexAttribPointer(2, 2, GLES30.GL_FLOAT, false, stride, uploaded.uvs)
+            GLES30.glDrawElements(GLES30.GL_TRIANGLES, uploaded.indices.capacity(), GLES30.GL_UNSIGNED_INT, uploaded.indices)
+            GLES30.glDisableVertexAttribArray(0)
+            GLES30.glDisableVertexAttribArray(1)
+            GLES30.glDisableVertexAttribArray(2)
+        }
+        sweepCaches()
+    }
+
+    /**
+     * Evicts mesh/texture identities not seen for a few frames, deleting their
+     * GPU objects. Bounded caches are what keep per-frame scene identities from
+     * leaking GPU memory forever.
+     */
+    private fun sweepCaches() {
+        meshSweep.tick()
+        for (key in meshSweep.evictable()) {
+            buffers.remove(key as MeshData)
+        }
+        textureSweep.tick()
+        for (key in textureSweep.evictable()) {
+            textureIds.remove(key as TextureData)?.let { id ->
+                GLES30.glDeleteTextures(1, intArrayOf(id), 0)
             }
         }
     }
 
-    private fun uploadMesh(mesh: MeshData) {
-        if (!buffers.containsKey(mesh)) {
-            buffers[mesh] = Triple(
+    private fun uploadMesh(mesh: MeshData): UploadedMesh =
+        buffers.getOrPut(mesh) {
+            UploadedMesh(
                 makeFloatBuffer(mesh.positions),
                 makeFloatBuffer(mesh.normals),
+                makeFloatBuffer(mesh.uvs),
                 makeIntBuffer(mesh.indices),
             )
         }
-    }
 
     private fun uploadTexture(data: TextureData): Int {
         textureIds[data]?.let { return it }
@@ -264,10 +386,11 @@ fun Scene3dView(
     val context: Context = androidx.compose.ui.platform.LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    val glView = remember(scene) {
+    val renderer = remember(scene) { GlSceneRenderer(scene) }
+    val glView = remember(scene, renderer) {
         GLSurfaceView(context).apply {
             setEGLContextClientVersion(3)
-            setRenderer(GlSceneRenderer(scene))
+            setRenderer(renderer)
             renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
             if (onPick != null) {
                 setOnTouchListener { view, event ->
@@ -296,6 +419,7 @@ fun Scene3dView(
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
             glView.onPause()
+            glView.queueEvent { renderer.release() }
         }
     }
 

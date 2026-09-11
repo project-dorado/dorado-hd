@@ -179,6 +179,28 @@ object AudiosurfEngine {
     const val SYNTHETIC_DURATION_MS = 180_000L
     const val LANE_SNAP_PER_MS = 0.02f
 
+    /** Grace period before a player-synced ride falls back to the wall clock. */
+    const val STALL_TIMEOUT_MS = 1_500L
+
+    /**
+     * Target position for a player-synced step. While [playerPositionMs] is
+     * advancing it wins; once the player has been stalled for
+     * [STALL_TIMEOUT_MS] the ride advances by the wall clock at
+     * [speedScale], so a dead or paused player can never soft-lock the ride
+     * before FINISH (A-27).
+     */
+    fun syncedTarget(
+        currentPositionMs: Long,
+        playerPositionMs: Long,
+        dtMs: Long,
+        speedScale: Float,
+        stalledMs: Long,
+    ): Long {
+        if (playerPositionMs > currentPositionMs) return playerPositionMs
+        if (stalledMs < STALL_TIMEOUT_MS) return currentPositionMs
+        return currentPositionMs + (dtMs * speedScale).toLong()
+    }
+
     /**
      * Maps analysis features to a ride profile. [features] is null when no
      * analysis exists (empty library, decode failure); the deterministic

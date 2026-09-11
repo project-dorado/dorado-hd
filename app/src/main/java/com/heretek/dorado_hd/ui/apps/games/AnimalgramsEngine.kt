@@ -273,6 +273,13 @@ object AnimalgramsEngine {
 
     fun reset(progress: AnagramProgress): AnagramProgress = progress.copy(found = emptyMap())
 
+    /**
+     * Options-row labels: the active choice carries the star, so the row
+     * always shows which setting is currently in effect.
+     */
+    fun soundOptionLabels(soundOn: Boolean): Pair<String, String> =
+        if (soundOn) "on*" to "off" else "on" to "off*"
+
     fun encodeProgress(progress: AnagramProgress): String {
         val parts = ArrayList<String>()
         for (animal in ALL_ANIMALS) {
