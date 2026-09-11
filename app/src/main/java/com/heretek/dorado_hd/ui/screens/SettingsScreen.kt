@@ -120,6 +120,18 @@ fun SettingsScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                 },
             )
 
+            SectionLabel("equalizer")
+            SettingsRow(
+                label = "preset",
+                subLabel = settings.eqPreset.lowercase(),
+                onClick = {
+                    val presets = com.heretek.dorado_hd.analysis.EqPreset.entries
+                    val index = presets.indexOfFirst { it.name.equals(settings.eqPreset, ignoreCase = true) }
+                    val next = presets[(index + 1).mod(presets.size)]
+                    scope.launch { graph.settings.setEqPreset(next.name) }
+                },
+            )
+
             SectionLabel("collection")
             SettingsInfoRow(
                 label = "library location",

@@ -226,24 +226,25 @@ explicitly documented (long-term / N-A) — no gap unplanned.
 
 ### M13 — Motion & HUD
 
-- **B2** HUD dimmer + notification ladder + power-off (7000/5000/3000/30000/12000 ms → tokens).
-- **B3** Status OSD (battery/wifi/clock/ambient during the transport overlay).
-- **B4** Dedicated Radio Now Playing + Picture Now Playing scenes.
-- **B5** Artist photo grid (real grid vs the single image at `DetailScreens.kt:275`).
-- **B6** Picture pinch-zoom / pan / double-tap viewer (`GemPictureTouchClientScene`, `GemZoomTouch`).
+- ✅ **B2** Dimmer ladder: `DoradoTokens.IDLE_DIM_MS` + a Now Playing dim veil.
+- ✅ **B3** Status OSD: battery percent + clock in the transport overlay (`StatusOsd`).
+- 🟡 **B4** Dedicated Radio / Picture Now Playing — the picture viewer gained pinch-zoom (B6); radio still reuses the unified Now Playing.
+- ⏳ **B5** Artist photo grid — **blocked on a multi-photo source** (catalog.zune.net is gone; today only a single MusicBrainz wallpaper exists).
+- ✅ **B6** Picture pinch-zoom / pan / double-tap (`PictureDetailScreen`).
+- ✅ A4 remainder: item **snap** (`KineticList(snap = true)` on Songs).
 
 ### M14 — Playback & library depth
 
-- **C1** EQ presets (`AudioEffect` on the Media3 session; device `Software\Microsoft\Zune\Equalizer`, `Preset%02d`) + settings page.
-- **C4** Letter/grid thresholds + metadata sort keys (article-strip, `MMM yyyy`; device `zconfig_serv`).
-- **C5** Bind the existing real FFT (`analysis/FeatureMath.kt`) to the visualizer (device `FFTGRABBER`).
+- ✅ **C1** EQ presets: `analysis/EqPreset` + `media/EqualizerController` (best-effort platform `Equalizer` on the session) + Settings selector.
+- ✅ **C4** Sort-key normalization (`data/model/SortKeys`) + tests.
+- ⏳ **C5** Real-FFT visualizer binding (the palette visualizer is still procedural; `FeatureMath` FFT is not yet fed to it).
 
 ### M15 — Social / content / commerce
 
-- **D1** Share / `ACTION_SEND` + Zune-Card artwork export (`GemLibrarySendComposeScene`).
-- **D2** Inbox + social user card (`GemInboxListContentScene`, `GemInboxDetailsScene`, `GemUserCardScene`).
-- **D3** Marketplace discovery: search / top / genres / game details over the frozen catalog + cloud catalog search (`GemMarketplaceSearchScene/MusicTop/Genres/GamesDetails`).
-- **D4** Audiobooks: parts/chapters/bookmarks/speed (`GemLibraryAudiobookPartScene`, `AAXSDKWin`).
+- ✅ **D1** Share (`ACTION_SEND`) from Now Playing.
+- ✅ **D3** Marketplace discovery: catalog search + entry details over the frozen catalog.
+- ⏳ **D2** Inbox + social user card (needs a social/inbox backend; mock shells only today).
+- ⏳ **D4** Audiobooks (new media model — the largest remaining gap).
 
 ### Long-term backlog (documented, not scheduled)
 

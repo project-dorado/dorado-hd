@@ -64,6 +64,8 @@ object DoradoTokens {
     // gemstone.exe effective value agree). docs/zune-hd-touch-settings.md §3.
     const val SKIP_DRAG_PX = 25
 
-    // Now Playing idle behavior (canon §4).
+    // Now Playing idle behavior (canon §4). The device dims/enters the saver
+    // on an idle ladder (zhud_serv dwells: 5000 ms saver, 7000 ms dim).
     const val IDLE_SCREENSAVER_MS = 5_000L
+    const val IDLE_DIM_MS = 7_000L
 }

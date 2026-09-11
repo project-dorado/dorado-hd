@@ -119,6 +119,7 @@ class DoradoApp : Application() {
             awaitRedirect = { _, timeoutMs -> cloudSignInCallback.await(timeoutMs) },
         )
         val cloudUpdates = com.heretek.dorado_hd.cloud.CloudUpdateService(settings = { latestSettings.get() })
+        val equalizer = com.heretek.dorado_hd.media.EqualizerController()
 
         graph = DoradoGraph(
             library, quickplay, settings, settings.settings, controller, nav,
@@ -141,6 +142,11 @@ class DoradoApp : Application() {
             .onEach {
                 artistImages.settingsSnapshot = it
                 latestSettings.set(it)
+                // M14: apply the device equalizer preset to the playback session.
+                equalizer.apply(
+                    com.heretek.dorado_hd.analysis.EqPreset.fromName(it.eqPreset),
+                    com.heretek.dorado_hd.media.PlaybackSession.audioSessionId,
+                )
             }
             .launchIn(appScope)
 

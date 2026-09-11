@@ -64,6 +64,8 @@ fun <T> KineticList(
     listState: LazyListState = rememberLazyListState(),
     bottomPadding: Dp = 0.dp,
     showAlphabet: Boolean = true,
+    /** Snap the fling to the item grid (device `XuiTouchSnapToTarget`). */
+    snap: Boolean = false,
 ) {
     val colors = LocalDoradoColors.current
     val scope = rememberCoroutineScope()
@@ -93,7 +95,11 @@ fun <T> KineticList(
             state = listState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = bottomPadding),
-            flingBehavior = rememberZuneFlingBehavior(),
+            flingBehavior = if (snap) {
+                androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(listState)
+            } else {
+                rememberZuneFlingBehavior()
+            },
         ) {
             itemsIndexed(
                 items,

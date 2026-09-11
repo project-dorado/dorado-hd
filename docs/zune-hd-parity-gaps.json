@@ -26,10 +26,11 @@
       "axis": "device",
       "priority": 2,
       "effort": "M",
-      "status": "missing",
+      "status": "done",
       "device_evidence": "gemstone.exe GemPictureTouchClientScene, GemZoomTouch",
       "hd_state": "static ContentScale.Fit (ui/screens/MediaScreens.kt:657)",
-      "milestone": "M13"
+      "milestone": "M13",
+      "resolution": "Pinch-zoom/pan/double-tap in PictureDetailScreen (M13)."
     },
     {
       "id": "np-scrubber",
@@ -73,10 +74,11 @@
       "axis": "device",
       "priority": 6,
       "effort": "M",
-      "status": "missing",
+      "status": "partial",
       "device_evidence": "zhud_serv.dll HudDimmerScene/HudOffSwitchScene; batteryIcon/wifiIcon/Clock/Ambient; dwells 7000/5000/3000/30000/12000ms",
       "hd_state": "none",
-      "milestone": "M13"
+      "milestone": "M13",
+      "resolution": "Dimmer veil + battery/clock status OSD done (M13); notification ladder/power-off pending."
     },
     {
       "id": "eq-presets",
@@ -84,10 +86,11 @@
       "axis": "device",
       "priority": 7,
       "effort": "M",
-      "status": "missing",
+      "status": "done",
       "device_evidence": "zmedia_serv.dll Software\\Microsoft\\Zune\\Equalizer, Preset%02d",
       "hd_state": "no AudioEffect/Equalizer",
-      "milestone": "M14"
+      "milestone": "M14",
+      "resolution": "EqPreset + EqualizerController + Settings selector (M14, best-effort platform EQ)."
     },
     {
       "id": "share-send",
@@ -95,10 +98,11 @@
       "axis": "device",
       "priority": 8,
       "effort": "M",
-      "status": "missing",
+      "status": "done",
       "device_evidence": "gemstone.exe GemLibrarySendComposeScene, GemLibrarySendFriendsListScene",
       "hd_state": "none (roadmap M5)",
-      "milestone": "M15"
+      "milestone": "M15",
+      "resolution": "ACTION_SEND share sheet from Now Playing (M15)."
     },
     {
       "id": "audiobooks",
@@ -109,7 +113,8 @@
       "status": "missing",
       "device_evidence": "gemstone.exe GemLibraryAudiobookPartScene; AAXSDKWin.dll/audible.dll",
       "hd_state": "no audiobook model",
-      "milestone": "M15"
+      "milestone": "long-term",
+      "resolution": "New media model; largest remaining gap. Long-term."
     },
     {
       "id": "marketplace-discovery",
@@ -117,10 +122,11 @@
       "axis": "device",
       "priority": 10,
       "effort": "L",
-      "status": "missing",
+      "status": "done",
       "device_evidence": "gemstone.exe GemMarketplaceSearchScene/MusicTopScene/MusicGenresContentScene/GamesDetailsScene; znet_serv.dll catalog endpoints",
       "hd_state": "frozen 62-entry OfficialCatalog (ui/screens/MarketplaceScreens.kt:322)",
-      "milestone": "M15"
+      "milestone": "M15",
+      "resolution": "Catalog search + entry details over the frozen catalog (M15)."
     },
     {
       "id": "builtin-playlists",
@@ -142,7 +148,8 @@
       "status": "missing",
       "device_evidence": "gemstone.exe GemInboxListContentScene/GemInboxDetailsScene/GemUserCardScene",
       "hd_state": "mock shells only (ui/apps/mocks/Mocks.kt:90)",
-      "milestone": "M15"
+      "milestone": "long-term",
+      "resolution": "Needs a social/inbox backend; mock shells only. Long-term."
     },
     {
       "id": "pinlock-wifi",
@@ -185,11 +192,11 @@
       "axis": "device",
       "priority": 16,
       "effort": "S",
-      "status": "partial",
+      "status": "done",
       "device_evidence": "xuidll.dll FUN_4184C310 cap 32.0; XuiTouchSnapToTarget@0x41833134; FUN_41848FC4 rubber-band",
       "hd_state": "no cap/snap; relies on platform overscroll",
       "milestone": "M12",
-      "resolution": "Velocity cap implemented (DoradoMotion.KINETIC_MAX_VELOCITY + ZuneFling); item snap still pending (M13)."
+      "resolution": "Velocity cap (ZuneFling) + item snap (KineticList snap) (M12/M13)."
     }
   ],
   "na": [

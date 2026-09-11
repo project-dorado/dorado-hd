@@ -25,6 +25,7 @@ class DoradoPlaybackService : MediaSessionService() {
 
     private var session: MediaSession? = null
 
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
 
@@ -39,6 +40,10 @@ class DoradoPlaybackService : MediaSessionService() {
             .setWakeMode(C.WAKE_MODE_LOCAL)
             .setHandleAudioBecomingNoisy(true)
             .build()
+
+        // Expose the session id so app-side audio effects (equalizer presets)
+        // can attach.
+        PlaybackSession.audioSessionId = player.audioSessionId
 
         val sessionActivity = PendingIntent.getActivity(
             this,

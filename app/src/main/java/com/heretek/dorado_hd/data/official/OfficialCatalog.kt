@@ -22,6 +22,15 @@ object OfficialCatalog {
     val READING = "reading"
     val NETWORKING = "networking"
 
+    /** Case-insensitive title/description search over the frozen catalog. */
+    fun search(query: String): List<OfficialApp> {
+        val q = query.trim().lowercase()
+        if (q.isEmpty()) return emptyList()
+        return all.filter {
+            it.title.lowercase().contains(q) || it.description.lowercase().contains(q)
+        }
+    }
+
     val all: List<OfficialApp> = listOf(
         OfficialApp("3D Picture Puzzle", "PicturePuzzle3D.exe", GAMES, "Twist your mind in this exciting sliding picture puzzle game!"),
         OfficialApp("A Beanstalk Tale", "BeanstalkTale.exe", GAMES, "Jump up the mighty beanstalk."),

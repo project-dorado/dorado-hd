@@ -365,6 +365,7 @@ private fun SongsTab() {
         key = { it.mediaId },
         letter = { firstLetterOf(it.title) },
         bottomPadding = 96.dp,
+        snap = true,
         rowContent = { track, index ->
             TrackRow(
                 track = track,

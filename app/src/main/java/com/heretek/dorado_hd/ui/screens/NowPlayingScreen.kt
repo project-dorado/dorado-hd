@@ -104,6 +104,7 @@ fun NowPlayingScreen(canvasWidth: Dp) {
 
     var overlay by remember { mutableStateOf(false) }
     var screensaver by remember { mutableStateOf(false) }
+    var dim by remember { mutableStateOf(false) }
     var interactionKey by remember { mutableStateOf(0) }
 
     val current = track
@@ -115,9 +116,17 @@ fun NowPlayingScreen(canvasWidth: Dp) {
         if (!overlay) screensaver = true
     }
 
+    // Continued idle → dim (device zhud_serv dim dwell).
+    LaunchedEffect(interactionKey, current?.mediaId) {
+        if (current == null) return@LaunchedEffect
+        delay(DoradoTokens.IDLE_DIM_MS)
+        if (!overlay) dim = true
+    }
+
     fun poke() {
         interactionKey++
         screensaver = false
+        dim = false
     }
 
     if (current == null) {
@@ -144,6 +153,7 @@ fun NowPlayingScreen(canvasWidth: Dp) {
                     // (device combined dismiss + overlay) or not.
                     detectTapGestures(onTap = {
                         screensaver = false
+                        dim = false
                         overlay = true
                         interactionKey++
                     })
@@ -312,6 +322,15 @@ fun NowPlayingScreen(canvasWidth: Dp) {
             }
         }
 
+        // Dim ladder (device zhud_serv dim dwell) — a matte veil before sleep.
+        AnimatedVisibility(
+            visible = dim && !overlay,
+            enter = fadeIn(DoradoMotion.pivot()),
+            exit = fadeOut(DoradoMotion.pivot()),
+        ) {
+            Box(Modifier.fillMaxSize().background(colors.background))
+        }
+
         // The screensaver: slowly drifting metadata over the photography.
         AnimatedVisibility(
             visible = screensaver,
@@ -325,6 +344,7 @@ fun NowPlayingScreen(canvasWidth: Dp) {
                         detectTapGestures(
                             onTap = {
                                 screensaver = false
+                                dim = false
                                 overlay = true
                                 interactionKey++
                             },
@@ -347,6 +367,7 @@ fun NowPlayingScreen(canvasWidth: Dp) {
                 durationMs = durationMs,
                 onDismiss = {
                     overlay = false
+                    dim = false
                     interactionKey++
                 },
             )
@@ -543,6 +564,12 @@ private fun TransportOverlay(
                 modifier = Modifier.size(22.dp),
             )
         }
+        // Passive status OSD (device zhud_serv batteryIcon/Clock).
+        StatusOsd(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = DoradoTokens.EDGE.dp, top = 40.dp),
+        )
         // Volume up (top)
         Box(
             Modifier
@@ -632,6 +659,30 @@ private fun TransportOverlay(
             contentAlignment = Alignment.Center,
         ) {
             OverlayGlyph(text = "\u2261")
+        }
+
+        // Share (device GemLibrarySendCompose) — system share sheet.
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(end = DoradoTokens.EDGE.dp, top = 40.dp)
+                .clickable {
+                    val track = graph.controller.nowPlaying.value ?: return@clickable
+                    val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(
+                            android.content.Intent.EXTRA_TEXT,
+                            "${track.title} — ${track.artist} (${track.album})",
+                        )
+                    }
+                    context.startActivity(android.content.Intent.createChooser(send, "share"))
+                },
+        ) {
+            EdgeCropText(
+                text = "share",
+                fontSize = DoradoTokens.TYPE_LIST_SECONDARY.dp,
+                color = colors.accent,
+            )
         }
 
         // Scrubber + elapsed/remaining (device HUD ProgressSlider).
@@ -789,6 +840,33 @@ private fun TimeLabel(text: String) {
             color = colors.textSecondary,
         ),
     )
+}
+
+/** Passive status OSD: battery percent + clock (device `zhud_serv` batteryIcon/Clock). */
+@Composable
+private fun StatusOsd(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val colors = LocalDoradoColors.current
+    val battery = remember {
+        val intent = context.registerReceiver(
+            null,
+            android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED),
+        )
+        val level = intent?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = intent?.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1) ?: -1
+        if (level >= 0 && scale > 0) level * 100 / scale else -1
+    }
+    val clock = remember { java.time.LocalTime.now().toString().take(5) }
+    Box(modifier) {
+        androidx.compose.foundation.text.BasicText(
+            text = (if (battery >= 0) "$battery%  " else "") + clock,
+            style = TextStyle(
+                fontFamily = Selawik,
+                fontSize = DoradoTokens.TYPE_CAPTION.sp,
+                color = colors.textSecondary,
+            ),
+        )
+    }
 }
 
 @Composable
