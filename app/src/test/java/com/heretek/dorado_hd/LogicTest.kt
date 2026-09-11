@@ -16,6 +16,7 @@ import com.heretek.dorado_hd.ui.apps.games.CheckersPiece
 import com.heretek.dorado_hd.ui.apps.games.CheckersState
 import com.heretek.dorado_hd.ui.apps.games.ChessColor
 import com.heretek.dorado_hd.ui.apps.games.ChessEngine
+import com.heretek.dorado_hd.ui.apps.games.ChessMove
 import com.heretek.dorado_hd.ui.apps.games.ChessPiece
 import com.heretek.dorado_hd.ui.apps.games.ChessPieceType
 import com.heretek.dorado_hd.ui.apps.games.ChessState
@@ -24,7 +25,9 @@ import com.heretek.dorado_hd.ui.apps.games.HeartsSeat
 import com.heretek.dorado_hd.ui.apps.games.HeartsState
 import com.heretek.dorado_hd.ui.apps.games.HexColor
 import com.heretek.dorado_hd.ui.apps.games.HexicEngine
+import com.heretek.dorado_hd.ui.apps.games.PokerAction
 import com.heretek.dorado_hd.ui.apps.games.PokerEngine
+import com.heretek.dorado_hd.ui.apps.games.PokerPhase
 import com.heretek.dorado_hd.ui.apps.games.ReversiEngine
 import com.heretek.dorado_hd.ui.apps.games.SolCard
 import com.heretek.dorado_hd.ui.apps.games.SolSuit
@@ -244,10 +247,20 @@ class LogicTest {
     /* ============ Phase 4 / Sudoku ============ */
 
     @Test
-    fun `sudoku generator produces a valid filled board`() {
+    fun `sudoku generator produces a valid puzzle and matching solution`() {
         val b = SudokuEngine.newGame(seed = 1L)
         assertEquals(9, b.rows.size)
-        b.rows.forEach { row -> assertEquals(9, row.size); assertEquals((1..9).toSet(), row.toSet()) }
+        // The playable grid is the carved puzzle (contains blanks)…
+        assertTrue("puzzle should contain blanks", b.rows.flatten().contains(0))
+        // …the given mask marks the clues (non-zero cells)…
+        b.rows.forEachIndexed { r, row ->
+            row.forEachIndexed { c, v ->
+                assertTrue(v in 0..9)
+                assertEquals("given mask mismatch at $r,$c", v != 0, b.given[r][c])
+            }
+        }
+        // …and the stored solution is complete and valid.
+        b.solution.forEach { row -> assertEquals((1..9).toSet(), row.toSet()) }
         assertEquals(81, b.given.flatten().size)
     }
 
@@ -257,10 +270,22 @@ class LogicTest {
     fun `hexic rotate cycles through three colors`() {
         val b = HexicEngine.newBoard(size = 5, rng = kotlin.random.Random(1))
         val start = b[2][2]
-        HexicEngine.rotate(b, 2, 2)
-        val next = b[2][2]
+        val nextBoard = HexicEngine.rotate(b, 2, 2)
+        val next = nextBoard[2][2]
         val after = HexColor.values()
         assertEquals(after[(start.ordinal + 1) % 3], next)
+        // The source board is untouched (observable state requires copies).
+        assertEquals(start, b[2][2])
+    }
+
+    @Test
+    fun `hexic clearing terminates and does not re-detect cleared cells`() {
+        // A board where every tile matches would loop forever if cleared cells
+        // still counted as a cluster (the old A-fill bug).
+        val b = Array(4) { Array(4) { HexColor.A } }
+        assertTrue(HexicEngine.clusters(b).isNotEmpty())
+        val cleared = HexicEngine.clearAndScore(b, HexicEngine.clusters(b))
+        assertTrue("cleared cells must not form a cluster", HexicEngine.clusters(cleared).isEmpty())
     }
 
     @Test
@@ -401,6 +426,75 @@ class LogicTest {
         assertEquals("quads should be category 8", 8, quadsR)
         assertEquals("full house should be category 7", 7, fh)
         assertEquals("straight should be category 5", 5, str)
+    }
+
+    /* ============ UI/UX audit regressions ============ */
+
+    @Test
+    fun `hearts passing completes for every seat and starts the round`() {
+        val g = HeartsEngine.newGame(rng = kotlin.random.Random(4))
+        val south = g.hands[HeartsSeat.SOUTH]!!.take(3)
+        val passed = HeartsEngine.passCards(g, HeartsSeat.SOUTH, south)
+        val done = HeartsEngine.completePassing(passed, kotlin.random.Random(5))
+        assertNull("passing must close so play can begin", done.pendingPassFrom)
+        HeartsEngine.heartsSeats.forEach { assertEquals(13, done.hands[it]!!.size) }
+    }
+
+    @Test
+    fun `spades scoreRound applies bids and bags per team`() {
+        val base = SpadesEngine.newGame(rng = kotlin.random.Random(9))
+        val tricks = mapOf(
+            SpadesSeat.SOUTH to List(5) { SolCard(SolSuit.CLUB, 2, true) },
+            SpadesSeat.NORTH to List(3) { SolCard(SolSuit.CLUB, 3, true) },
+            SpadesSeat.WEST to List(3) { SolCard(SolSuit.CLUB, 4, true) },
+            SpadesSeat.EAST to List(2) { SolCard(SolSuit.CLUB, 5, true) },
+        )
+        val bids = mapOf(SpadesSeat.SOUTH to 4, SpadesSeat.NORTH to 2, SpadesSeat.WEST to 3, SpadesSeat.EAST to 1)
+        val scored = SpadesEngine.scoreRound(base.copy(bids = bids, tricksTaken = tricks, done = true))
+        // S-N: 40 + 20 with 2 bags = 60; W-E: 30 + 10 with 1 bag = 40.
+        assertEquals(60 to 40, scored.score)
+        assertEquals(2 to 1, scored.teamBags)
+    }
+
+    @Test
+    fun `checkers declares the mover the winner when the opponent has no moves`() {
+        val b = Array(8) { arrayOfNulls<CheckersPiece?>(8) }
+        b[0][1] = com.heretek.dorado_hd.ui.apps.games.checkersPiece(CheckersColor.RED, false)
+        val s = CheckersState(b, CheckersColor.RED, null, null)
+        val after = CheckersEngine.apply(s, 0 to 1, 1 to 0)
+        assertEquals(CheckersColor.RED, after.winner)
+    }
+
+    @Test
+    fun `chess castling with a missing rook does not crash and capture revokes rights`() {
+        val b = Array(8) { arrayOfNulls<ChessPiece?>(8) }
+        b[0][4] = ChessPiece(ChessPieceType.K, ChessColor.WHITE)
+        val s = ChessState(b, ChessColor.WHITE, 0b1111, null, 0, 1, "")
+        val after = ChessEngine.apply(s, ChessMove(0, 4, 0, 6, castleKingSide = true), skipCheck = true)
+        assertEquals(ChessPieceType.K, after.board[0][6]?.type)
+
+        // A black queen capturing the white h1 rook clears the white kingside right.
+        val b2 = Array(8) { arrayOfNulls<ChessPiece?>(8) }
+        b2[0][7] = ChessPiece(ChessPieceType.R, ChessColor.WHITE)
+        b2[1][6] = ChessPiece(ChessPieceType.Q, ChessColor.BLACK)
+        val s2 = ChessState(b2, ChessColor.BLACK, 0b1111, null, 0, 1, "")
+        val after2 = ChessEngine.apply(s2, ChessMove(1, 6, 0, 7), skipCheck = true)
+        assertEquals(0, after2.castling and 0b0001)
+    }
+
+    @Test
+    fun `poker check then call advances to the flop and resets street contributions`() {
+        val s = PokerEngine.newGame(rng = kotlin.random.Random(3))
+        // Human (big blind) checks; AI (small blind) still owes and acts.
+        val afterCheck = PokerEngine.applyAction(s, PokerAction.CHECK)
+        assertEquals(PokerPhase.PREFLOP, afterCheck.phase)
+        assertEquals(false, afterCheck.actor)
+        val flop = PokerEngine.applyAction(afterCheck, PokerAction.CALL)
+        assertEquals(PokerPhase.FLOP, flop.phase)
+        assertEquals(3, flop.community.size)
+        assertEquals(0, flop.playerContributed)
+        assertEquals(0, flop.aiContributed)
+        assertEquals(0, flop.currentBet)
     }
 
     /* ============ Sprint 1 — design invariant guards ============ */

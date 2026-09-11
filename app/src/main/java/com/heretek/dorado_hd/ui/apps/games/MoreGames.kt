@@ -1,5 +1,6 @@
 package com.heretek.dorado_hd.ui.apps.games
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +32,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
@@ -40,8 +42,10 @@ import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.components.DetailScaffold
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -162,6 +166,21 @@ object HeartsEngine {
         return state.copy(hands = newHands)
     }
 
+    /**
+     * Complete the passing phase after the human picked their three cards:
+     * the other three seats pass three random cards and the phase closes
+     * (the old code left `pendingPassFrom` set forever, blocking the round).
+     */
+    fun completePassing(state: HeartsState, rng: Random): HeartsState {
+        var s = state
+        for (seat in heartsSeats) {
+            if (seat == HeartsSeat.SOUTH) continue
+            val picks = (s.hands[seat] ?: continue).shuffled(rng).take(3)
+            s = passCards(s, seat, picks)
+        }
+        return s.copy(pendingPassFrom = null)
+    }
+
     /** A trivial AI: play a random legal card, preferring to dump hearts and the queen of spades. */
     fun aiPlay(state: HeartsState, rng: Random): HeartsState {
         val legal = legalPlays(state, state.currentPlayer)
@@ -189,6 +208,8 @@ data class SpadesState(
     val bidder: SpadesSeat,
     val score: Pair<Int, Int>, // S+N, W+E
     val bagCount: Int,
+    val teamBags: Pair<Int, Int>, // S+N, W+E
+    val spadesBroken: Boolean,
     val biddingDone: Boolean,
     val done: Boolean,
 )
@@ -218,25 +239,25 @@ object SpadesEngine {
             bidder = SpadesSeat.WEST,
             score = 0 to 0,
             bagCount = 0,
+            teamBags = 0 to 0,
+            spadesBroken = false,
             biddingDone = false,
             done = false,
         )
     }
 
-    /** Cards the player may play. Must follow suit; if void in ledSuit and spades broken, any card. */
+    /** Cards the player may play: follow suit if possible; otherwise anything
+     *  (spades are simply trump and may be led once broken). */
     fun legalPlays(state: SpadesState, seat: SpadesSeat): List<SolCard> {
         val hand = state.hands[seat].orEmpty()
-        if (state.trick.isEmpty()) return hand // any card when leading
+        if (state.trick.isEmpty()) {
+            if (state.spadesBroken) return hand
+            val nonSpades = hand.filter { it.suit != SolSuit.SPADE }
+            return if (nonSpades.isNotEmpty()) nonSpades else hand
+        }
         val ledSuit = state.trick.first().second.suit
         val follow = hand.filter { it.suit == ledSuit }
-        if (follow.isNotEmpty()) return follow
-        // Void in led-suit. Must play spade if any (after spades broken).
-        val trickCards = state.trick.map { it.second }
-        val spadesBroken = state.hands.values.flatten().any { it.suit == SolSuit.SPADE } &&
-            (trickCards + state.tricksTaken.values.flatten()).any { it.suit == SolSuit.SPADE && it !in trickCards }
-        if (spadesBroken) return hand // any card
-        val spades = hand.filter { it.suit == SolSuit.SPADE }
-        return if (spades.isNotEmpty()) spades else hand
+        return if (follow.isNotEmpty()) follow else hand
     }
 
     fun bid(state: SpadesState, n: Int, nil: Boolean = false, blind: Boolean = false): SpadesState {
@@ -256,49 +277,53 @@ object SpadesEngine {
 
     fun play(state: SpadesState, card: SolCard): SpadesState {
         require(card in legalPlays(state, state.currentPlayer))
+        val spadesBroken = state.spadesBroken || card.suit == SolSuit.SPADE
         val newHands = state.hands.toMutableMap()
         val hand = newHands[state.currentPlayer]!!.toMutableList()
         hand.remove(card)
         newHands[state.currentPlayer] = hand
         val newTrick = state.trick + (state.currentPlayer to card)
-        if (newTrick.size < 4) return state.copy(hands = newHands, trick = newTrick, currentPlayer = next(state.currentPlayer))
-        // Trick done — spades trump if no other suit won (here: highest of led-suit wins; spade always beats if not led-suit and is spade).
+        if (newTrick.size < 4) return state.copy(hands = newHands, trick = newTrick, currentPlayer = next(state.currentPlayer), spadesBroken = spadesBroken)
+        // Trick done: highest spade wins, otherwise highest of the led suit.
         val ledSuit = newTrick.first().second.suit
-        val hasSpade = newTrick.any { it.second.suit == SolSuit.SPADE }
-        val winner = if (ledSuit == SolSuit.SPADE || !hasSpade) {
-            newTrick.filter { it.second.suit == ledSuit }.maxBy { it.second.rank }
-        } else {
-            newTrick.filter { it.second.suit == SolSuit.SPADE }.maxBy { it.second.rank }
-        }
+        val spades = newTrick.filter { it.second.suit == SolSuit.SPADE }
+        val winner = if (spades.isNotEmpty()) spades.maxBy { it.second.rank }
+        else newTrick.filter { it.second.suit == ledSuit }.maxBy { it.second.rank }
         val newTricks = state.tricksTaken.toMutableMap()
         newTricks[winner.first] = (newTricks[winner.first]!!) + newTrick.map { it.second }
         val allEmpty = SpadesSeat.values().all { newHands[it]!!.isEmpty() }
-        if (!allEmpty) return state.copy(hands = newHands, trick = emptyList(), currentPlayer = winner.first, tricksTaken = newTricks)
-        return state.copy(hands = newHands, trick = emptyList(), tricksTaken = newTricks, done = true, currentPlayer = winner.first)
+        if (!allEmpty) return state.copy(hands = newHands, trick = emptyList(), currentPlayer = winner.first, tricksTaken = newTricks, spadesBroken = spadesBroken)
+        return state.copy(hands = newHands, trick = emptyList(), tricksTaken = newTricks, done = true, currentPlayer = winner.first, spadesBroken = spadesBroken)
     }
 
+    /** Round scoring: bid*10 per made bid, -10 per undertrick, nil ±100, and
+     *  a -100 team penalty per completed 10 bags. Returns a scored copy. */
     fun scoreRound(state: SpadesState): SpadesState {
-        var (s1, s2) = state.score
-        var bag = state.bagCount
+        var s1 = state.score.first
+        var s2 = state.score.second
+        var (bags1, bags2) = state.teamBags
         for (seat in SpadesSeat.values()) {
-            val bid = state.bids[seat]!!
-            val tricks = state.tricksTaken[seat]!!
-            val bags = (tricks.size - bid).coerceAtLeast(0)
-            val partner = partner(seat).second
-            val seatPoints = when {
-                state.nilBid[seat]!! -> if (tricks.isEmpty()) if (state.blindNil[seat]!!) 200 else 100 else -100
-                else -> bid * 10 + bags
+            val bid = state.bids[seat] ?: 0
+            val tricks = state.tricksTaken[seat]?.size ?: 0
+            val onTeamOne = seat == SpadesSeat.SOUTH || seat == SpadesSeat.NORTH
+            var points: Int
+            if (state.nilBid[seat] == true) {
+                points = if (tricks == 0) if (state.blindNil[seat] == true) 200 else 100 else -100
+            } else {
+                val delta = tricks - bid
+                points = bid * 10
+                if (onTeamOne) {
+                    if (delta >= 0) bags1 += delta else s1 -= (-delta) * 10
+                } else {
+                    if (delta >= 0) bags2 += delta else s2 -= (-delta) * 10
+                }
             }
-            if (seat == SpadesSeat.SOUTH || seat == SpadesSeat.NORTH) s1 += seatPoints else s2 += seatPoints
-            bag += bags
+            if (onTeamOne) s1 += points else s2 += points
         }
-        // Bag penalty: every 10 bags costs -100 to the team.
-        val team1Bags = (s1 / 100) * 100
-        if (team1Bags > 0 && team1Bags % 100 == 0 && s1 < team1Bags) s1 -= 100
-        val team2Bags = (s2 / 100) * 100
-        if (team2Bags > 0 && team2Bags % 100 == 0 && s2 < team2Bags) s2 -= 100
-        // Reset bag count (carry handled by re-counting tricks each round).
-        return state.copy(score = s1 to s2, bagCount = 0)
+        // Bag penalties.
+        while (bags1 >= 10) { s1 -= 100; bags1 -= 10 }
+        while (bags2 >= 10) { s2 -= 100; bags2 -= 10 }
+        return state.copy(score = s1 to s2, teamBags = bags1 to bags2, bagCount = bags1 + bags2)
     }
 }
 
@@ -397,7 +422,9 @@ object CheckersEngine {
         }
         val nextColor = if (state.turn == CheckersColor.RED) CheckersColor.BLACK else CheckersColor.RED
         val opponentMoves = legalMoves(CheckersState(newBoard, nextColor, null, null), nextColor)
-        val winner = if (opponentMoves.isEmpty() && state.turn == nextColor) state.turn else null
+        // If the side to move has no legal move, the side that just moved wins
+        // (the old comparison state.turn == nextColor was always false).
+        val winner = if (opponentMoves.isEmpty()) state.turn else null
         return CheckersState(newBoard, nextColor, null, winner)
     }
 
@@ -615,23 +642,40 @@ object ChessEngine {
         if (move.promotion != null) placed = piece.copy(type = move.promotion)
         if (move.castleKingSide) {
             newBoard[move.toR][move.toC] = placed
-            newBoard[move.toR][5] = newBoard[move.toR][7]!! // rook h-file -> f-file
-            newBoard[move.toR][7] = null
+            val rook = newBoard[move.toR][7]
+            if (rook != null) {
+                newBoard[move.toR][5] = rook // rook h-file -> f-file
+                newBoard[move.toR][7] = null
+            }
         } else if (move.castleQueenSide) {
             newBoard[move.toR][move.toC] = placed
-            newBoard[move.toR][3] = newBoard[move.toR][0]!! // rook a-file -> d-file
-            newBoard[move.toR][0] = null
+            val rook = newBoard[move.toR][0]
+            if (rook != null) {
+                newBoard[move.toR][3] = rook // rook a-file -> d-file
+                newBoard[move.toR][0] = null
+            }
         } else {
             newBoard[move.toR][move.toC] = placed
         }
-        val newCastling = when {
+        var newCastling = when {
             piece.type == ChessPieceType.K && piece.color == ChessColor.WHITE -> state.castling and 0b1100
             piece.type == ChessPieceType.K && piece.color == ChessColor.BLACK -> state.castling and 0b0011
-            piece.type == ChessPieceType.R && piece.color == ChessColor.WHITE && move.fromR == 0 && move.fromC == 0 -> state.castling and 0b1110
-            piece.type == ChessPieceType.R && piece.color == ChessColor.WHITE && move.fromR == 0 && move.fromC == 7 -> state.castling and 0b1101
-            piece.type == ChessPieceType.R && piece.color == ChessColor.BLACK && move.fromR == 7 && move.fromC == 0 -> state.castling and 0b1011
-            piece.type == ChessPieceType.R && piece.color == ChessColor.BLACK && move.fromR == 7 && move.fromC == 7 -> state.castling and 0b0111
+            // Bit 0 = WK (h1), bit 1 = WQ (a1), bit 2 = BK (h8), bit 3 = BQ (a8).
+            piece.type == ChessPieceType.R && piece.color == ChessColor.WHITE && move.fromR == 0 && move.fromC == 0 -> state.castling and 0b1101
+            piece.type == ChessPieceType.R && piece.color == ChessColor.WHITE && move.fromR == 0 && move.fromC == 7 -> state.castling and 0b1110
+            piece.type == ChessPieceType.R && piece.color == ChessColor.BLACK && move.fromR == 7 && move.fromC == 0 -> state.castling and 0b0111
+            piece.type == ChessPieceType.R && piece.color == ChessColor.BLACK && move.fromR == 7 && move.fromC == 7 -> state.castling and 0b1011
             else -> state.castling
+        }
+        // Capturing a rook on its home square must also revoke the right:
+        // otherwise a later castle reached `!!` on a missing rook and crashed.
+        if (move.toR == 0) {
+            if (move.toC == 0) newCastling = newCastling and 0b1101 // a1 → WQ
+            if (move.toC == 7) newCastling = newCastling and 0b1110 // h1 → WK
+        }
+        if (move.toR == 7) {
+            if (move.toC == 0) newCastling = newCastling and 0b0111 // a8 → BQ
+            if (move.toC == 7) newCastling = newCastling and 0b1011 // h8 → BK
         }
         val newEP = if (piece.type == ChessPieceType.P && abs(move.toR - move.fromR) == 2) {
             (move.fromR + move.toR) / 2 to move.fromC
@@ -716,8 +760,11 @@ data class PokerState(
     val pot: Int,
     val playerStack: Int,
     val aiStack: Int,
-    val currentBet: Int,             // amount the bettor staked this round
+    val playerContributed: Int,     // chips this seat has put in this street
+    val aiContributed: Int,
+    val currentBet: Int,             // highest street contribution
     val lastRaiseSize: Int,         // minimum raise increment (BB)
+    val acted: Int,                  // bit 1 = player acted, bit 2 = ai acted this street
     val phase: PokerPhase,
     val actor: Boolean,             // true = human, false = AI
     val winner: String?,            // "player" | "ai" | "tie"
@@ -732,87 +779,113 @@ object PokerEngine {
         val deck = freshDeck(rng)
         val playerHole = listOf(deck.removeAt(0), deck.removeAt(0))
         val aiHole = listOf(deck.removeAt(0), deck.removeAt(0))
-        val community = mutableListOf<SolCard>()
-        // Preflop blinds: player posts small (5), AI posts big (10), human acts first preflop? Convention varies.
-        // Here: human is the dealer, so AI posts small blind, player posts big blind and acts first preflop.
+        // Human posts the big blind (10), AI the small blind (5); human acts first preflop.
         return PokerState(
-            deck = deck, playerHole = playerHole, aiHole = aiHole, community = community,
-            pot = 5 + 10,
+            deck = deck, playerHole = playerHole, aiHole = aiHole, community = emptyList(),
+            pot = 15,
             playerStack = 990, aiStack = 985,
-            currentBet = 10, lastRaiseSize = 10,
+            playerContributed = 10, aiContributed = 5,
+            currentBet = 10, lastRaiseSize = 10, acted = 2,
             phase = PokerPhase.PREFLOP, actor = true, winner = null, log = listOf("blinds posted — small 5, big 10"),
         )
     }
 
     fun legalActions(state: PokerState): List<PokerAction> {
         if (state.phase == PokerPhase.DONE || state.phase == PokerPhase.SHOWDOWN) return emptyList()
-        val owed = state.currentBet - amountContributed(state, state.actor)
+        val myContribution = if (state.actor) state.playerContributed else state.aiContributed
+        val owed = (state.currentBet - myContribution).coerceAtLeast(0)
         return if (owed == 0) listOf(PokerAction.CHECK, PokerAction.BET_RAISE, PokerAction.FOLD)
         else listOf(PokerAction.FOLD, PokerAction.CALL, PokerAction.BET_RAISE)
     }
-    private fun amountContributed(state: PokerState, isPlayer: Boolean): Int {
-        // Tracked via pot math. For simplicity, derive from currentBet + round starts. We use a coarse model: preflop blinds=10, post-flop currentBet resets to 0 each round.
-        // Reconstruct from currentBet (caller's owed) and lastRaiseSize — keep it simple: the actor owes `currentBet - lastContribution`.
-        return when {
-            state.phase == PokerPhase.PREFLOP -> if (isPlayer) 10 else 5
-            else -> 0
-        }
-    }
 
     fun applyAction(state: PokerState, action: PokerAction): PokerState {
-        val owed = state.currentBet - amountContributed(state, state.actor)
+        if (state.phase == PokerPhase.DONE || state.phase == PokerPhase.SHOWDOWN) return state
+        val isPlayer = state.actor
+        val who = if (isPlayer) "you" else "ai"
+        val myContribution = if (isPlayer) state.playerContributed else state.aiContributed
+        val myStack = if (isPlayer) state.playerStack else state.aiStack
+        val owed = (state.currentBet - myContribution).coerceAtLeast(0)
+        var acted = state.acted or (if (isPlayer) 1 else 2)
         var newState = when (action) {
-            PokerAction.FOLD -> state.copy(phase = PokerPhase.DONE, winner = if (state.actor) "ai" else "player", log = state.log + "${if (state.actor) "you" else "ai"} fold")
-            PokerAction.CHECK -> advance(state.copy(log = state.log + "${if (state.actor) "you" else "ai"} check"))
+            PokerAction.FOLD -> return state.copy(phase = PokerPhase.DONE, winner = if (isPlayer) "ai" else "player", actor = false, log = state.log + "$who folds")
+            PokerAction.CHECK -> {
+                if (owed > 0) return state
+                state.copy(log = state.log + "$who checks")
+            }
             PokerAction.CALL -> {
-                val paying = min(owed, if (state.actor) state.playerStack else state.aiStack)
-                advance(state.copy(
-                    pot = state.pot + paying,
-                    playerStack = if (state.actor) state.playerStack - paying else state.playerStack,
-                    aiStack = if (state.actor) state.aiStack else state.aiStack - paying,
-                    log = state.log + "${if (state.actor) "you" else "ai"} call $paying",
-                ))
+                val paying = min(owed, myStack)
+                if (isPlayer) state.copy(playerStack = myStack - paying, playerContributed = myContribution + paying) else state.copy(aiStack = myStack - paying, aiContributed = myContribution + paying)
+                    .let { it.copy(pot = state.pot + paying, log = state.log + "$who calls $paying") }
             }
             PokerAction.BET_RAISE -> {
-                val raise = state.lastRaiseSize
-                val total = (if (state.actor) state.playerStack else state.aiStack).coerceAtMost(state.currentBet + raise)
-                val paying = total - amountContributed(state, state.actor)
-                advance(state.copy(
-                    pot = state.pot + paying,
-                    currentBet = total,
-                    lastRaiseSize = raise,
-                    playerStack = if (state.actor) state.playerStack - paying else state.playerStack,
-                    aiStack = if (state.actor) state.aiStack else state.aiStack - paying,
-                    log = state.log + "${if (state.actor) "you" else "ai"} raise to $total",
-                ))
+                val raiseTo = (state.currentBet + state.lastRaiseSize).coerceAtMost(myContribution + myStack)
+                val paying = (raiseTo - myContribution).coerceAtLeast(0)
+                // A raise resets the opponent's "acted" flag — they must respond.
+                acted = if (isPlayer) 1 else 2
+                val updated = if (isPlayer) state.copy(playerStack = myStack - paying, playerContributed = myContribution + paying) else state.copy(aiStack = myStack - paying, aiContributed = myContribution + paying)
+                updated.copy(pot = state.pot + paying, currentBet = maxOf(state.currentBet, raiseTo), log = state.log + "$who raises to $raiseTo")
             }
         }
-        return newState
+        newState = newState.copy(acted = acted)
+        val matched = newState.playerContributed == newState.aiContributed
+        val bothActed = newState.acted == 3
+        return if (matched && bothActed) nextStreet(newState) else newState.copy(actor = !isPlayer)
     }
 
-    private fun advance(state: PokerState): PokerState {
-        // If the other player still owes chips after the action, just flip actor.
-        val otherOwed = state.currentBet - amountContributed(state, !state.actor)
-        if (otherOwed > 0) return state.copy(actor = !state.actor)
-        // Both matched; deal next street or showdown.
-        val next = when (state.phase) {
-            PokerPhase.PREFLOP -> { val c = state.deck.take(3); state.deck.subList(3, state.deck.size).toMutableList().let { d -> state.copy(deck = d, community = state.community + c) }; PokerPhase.FLOP }
-            PokerPhase.FLOP -> { val c = state.deck.take(1); state.deck.subList(1, state.deck.size).toMutableList().let { d -> state.copy(deck = d, community = state.community + c) }; PokerPhase.TURN }
-            PokerPhase.TURN -> { val c = state.deck.take(1); state.deck.subList(1, state.deck.size).toMutableList().let { d -> state.copy(deck = d, community = state.community + c) }; PokerPhase.RIVER }
-            PokerPhase.RIVER -> PokerPhase.SHOWDOWN
-            else -> PokerPhase.SHOWDOWN
+    private fun nextStreet(state: PokerState): PokerState {
+        fun fresh(next: PokerPhase, cards: List<SolCard>): PokerState = state.copy(
+            phase = next,
+            deck = state.deck.drop(cards.size),
+            community = state.community + cards,
+            playerContributed = 0,
+            aiContributed = 0,
+            currentBet = 0,
+            lastRaiseSize = 10,
+            acted = 0,
+            actor = true,
+        )
+        return when (state.phase) {
+            PokerPhase.PREFLOP -> fresh(PokerPhase.FLOP, state.deck.take(3))
+            PokerPhase.FLOP -> fresh(PokerPhase.TURN, state.deck.take(1))
+            PokerPhase.TURN -> fresh(PokerPhase.RIVER, state.deck.take(1))
+            PokerPhase.RIVER -> showdown(state)
+            else -> state
         }
-        if (next == PokerPhase.SHOWDOWN) {
-            val p = scoreHand(state.playerHole + state.community)
-            val a = scoreHand(state.aiHole + state.community)
-            val winner = when {
-                p.first > a.first -> "player"
-                a.first > p.first -> "ai"
-                else -> "tie"
-            }
-            return state.copy(phase = PokerPhase.SHOWDOWN, winner = winner, actor = false, log = state.log + "showdown — you $p, ai $a — $winner wins")
+    }
+
+    private fun showdown(state: PokerState): PokerState {
+        val p = scoreHand(state.playerHole + state.community)
+        val a = scoreHand(state.aiHole + state.community)
+        val cmp = compareHands(p, a)
+        val winner = if (cmp > 0) "player" else if (cmp < 0) "ai" else "tie"
+        val pot = state.pot
+        val playerStack = when (winner) {
+            "player" -> state.playerStack + pot
+            "tie" -> state.playerStack + pot / 2
+            else -> state.playerStack
         }
-        return state.copy(phase = next, actor = state.actor, currentBet = 0, lastRaiseSize = 10)
+        val aiStack = when (winner) {
+            "ai" -> state.aiStack + pot
+            "tie" -> state.aiStack + (pot - pot / 2)
+            else -> state.aiStack
+        }
+        return state.copy(
+            phase = PokerPhase.SHOWDOWN,
+            winner = winner,
+            playerStack = playerStack,
+            aiStack = aiStack,
+            actor = false,
+            log = state.log + "showdown — $winner wins ${pot}",
+        )
+    }
+
+    /** Positive when `a` beats `b`, comparison includes kickers. */
+    private fun compareHands(a: Pair<Int, List<Int>>, b: Pair<Int, List<Int>>): Int {
+        if (a.first != b.first) return a.first.compareTo(b.first)
+        val pa = kickersPadded(a.second)
+        val pb = kickersPadded(b.second)
+        for (i in pa.indices) if (pa[i] != pb[i]) return pa[i].compareTo(pb[i])
+        return 0
     }
 
     /** A simple "tight-passive bluff" AI. */
@@ -919,13 +992,13 @@ fun HeartsApp() {
     val graph = LocalDoradoGraph.current
     val scope = rememberCoroutineScope()
     var state by remember { mutableStateOf(HeartsEngine.newGame()) }
+    var recorded by remember { mutableStateOf(false) }
     val colors = LocalDoradoColors.current
     val seat = HeartsSeat.SOUTH
 
     fun humanAction(s: HeartsState, action: HeartsState.() -> HeartsState) {
-        val next = action(s)
-        var cur = next
-        while (cur.currentPlayer != seat && !cur.done && cur.pendingPassFrom == null) {
+        var cur = action(s)
+        while (cur.currentPlayer != seat && !cur.done) {
             cur = HeartsEngine.aiPlay(cur, Random.Default)
         }
         state = cur
@@ -934,19 +1007,25 @@ fun HeartsApp() {
     val passCards = state.pendingPassFrom == seat
     DetailScaffold(title = "hearts") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            BasicText(text = "scores: ${state.scores.entries.joinToString { "${it.key.name.lowercase()}=${it.value}" }}", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textSecondary))
-            Spacer(Modifier.height(8.dp))
-            // N/W/E hands
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                PlayerHand(state.hands[HeartsSeat.NORTH]!!, align = Alignment.CenterHorizontally, label = "N")
-                PlayerHand(state.hands[HeartsSeat.EAST]!!, align = Alignment.CenterHorizontally, label = "E")
-            }
-            Spacer(Modifier.height(8.dp))
-            // Trick area
+            BasicText(text = "scores: ${state.scores.entries.joinToString { "${it.key.name.lowercase()}=${it.value}" }}", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary))
+            Spacer(Modifier.height(4.dp))
+            // Opponents are summarised by hand size; 13 cards × 3 seats cannot
+            // fit a 448dp row.
+            BasicText(
+                text = HeartsEngine.heartsSeats.filter { it != seat }
+                    .joinToString("   ") { "${it.name.lowercase()} ${state.hands[it]?.size ?: 0}" },
+                style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
+            )
+            Spacer(Modifier.height(4.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                state.trick.forEach { (s, c) -> Column { BasicText(s.name.lowercase(), style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary)); SolCardView(c) {} } }
+                state.trick.forEach { (s, c) ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        BasicText(s.name.lowercase(), style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary))
+                        SolCardView(c, width = 30.dp, height = 40.dp) {}
+                    }
+                }
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
             PlayerHand(
                 hand = state.hands[seat]!!,
                 onCard = { c -> if (!state.done && state.currentPlayer == seat && !passCards) humanAction(state) { HeartsEngine.play(state, c) } },
@@ -955,30 +1034,35 @@ fun HeartsApp() {
                 interactive = state.currentPlayer == seat && !passCards,
             )
             if (passCards) {
-                Spacer(Modifier.height(8.dp))
-                BasicText(text = "pass 3 cards", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.accent))
-                PassPicker(hand = state.hands[seat]!!, onConfirm = { cards -> state = HeartsEngine.passCards(state, seat, cards) })
-            }
-            if (state.done) {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(4.dp))
+                PassPicker(hand = state.hands[seat]!!) { cards ->
+                    state = HeartsEngine.completePassing(
+                        HeartsEngine.passCards(state, seat, cards),
+                        Random.Default,
+                    )
+                }
+            } else if (state.done) {
+                Spacer(Modifier.height(4.dp))
                 BasicText(text = "round complete", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent))
             }
         }
-        if (state.done) {
-            LaunchedEffect(state.done) {
-                scope.launch { graph.games.record("hearts", state.scores.values.sum(), null) }
-            }
+    }
+    if (state.done && !recorded) {
+        recorded = true
+        LaunchedEffect(Unit) {
+            scope.launch { graph.games.record("hearts", state.scores.values.sum(), null) }
         }
     }
 }
 
 @Composable
-private fun PlayerHand(hand: List<SolCard>, onCard: (SolCard) -> Unit = {}, align: Alignment.Horizontal, label: String, interactive: Boolean = true) {
+private fun PlayerHand(hand: List<SolCard>, onCard: (SolCard) -> Unit = {}, align: Alignment.Horizontal, label: String, interactive: Boolean = true, faceDown: Boolean = false) {
     Column(horizontalAlignment = align) {
         BasicText(text = label, style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = LocalDoradoColors.current.textSecondary))
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             hand.forEach { c ->
-                if (interactive) SolCardView(c) { onCard(c) } else SolCardView(c) {}
+                val shown = if (faceDown) c.copy(faceUp = false) else c
+                SolCardView(shown, width = 26.dp, height = 34.dp) { if (interactive) onCard(c) }
             }
         }
     }
@@ -992,7 +1076,7 @@ private fun PassPicker(hand: List<SolCard>, onConfirm: (List<SolCard>) -> Unit) 
             hand.forEach { c ->
                 val selected = c in picked
                 Box(modifier = Modifier.pointerInput(c) { detectTapGestures(onTap = { if (selected) picked.remove(c) else if (picked.size < 3) picked.add(c) }) }) {
-                    SolCardView(if (selected) c.copy(faceUp = true) else c) {}
+                    SolCardView(if (selected) c.copy(faceUp = true) else c.copy(faceUp = false), width = 26.dp, height = 34.dp) {}
                 }
             }
         }
@@ -1007,74 +1091,105 @@ fun SpadesApp() {
     val graph = LocalDoradoGraph.current
     val scope = rememberCoroutineScope()
     var state by remember { mutableStateOf(SpadesEngine.newGame()) }
+    var recorded by remember { mutableStateOf(false) }
     val colors = LocalDoradoColors.current
     val seat = SpadesSeat.SOUTH
-    fun human(s: SpadesState, action: (SpadesState) -> SpadesState) {
-        var cur = action(s)
-        while (!cur.biddingDone && cur.currentPlayer != seat) {
-            val bid = (1..5).random()
-            cur = SpadesEngine.bid(cur, bid)
-        }
-        while (!cur.done && cur.currentPlayer != seat) {
+
+    // The AI seats drive themselves on every state change (the old UI only
+    // advanced when the human tapped something, so a fresh deal stalled).
+    LaunchedEffect(state) {
+        val cur = state
+        if (cur.done || cur.currentPlayer == seat) return@LaunchedEffect
+        delay(300)
+        state = if (!cur.biddingDone) {
+            SpadesEngine.bid(cur, (1..5).random())
+        } else {
             val legal = SpadesEngine.legalPlays(cur, cur.currentPlayer)
-            if (legal.isEmpty()) break
-            cur = SpadesEngine.play(cur, legal.random())
+            if (legal.isEmpty()) cur else SpadesEngine.play(cur, legal.random())
         }
-        state = cur
     }
+
+    LaunchedEffect(state.done) {
+        val cur = state
+        if (cur.done && !recorded) {
+            recorded = true
+            val scored = SpadesEngine.scoreRound(cur)
+            state = scored
+            scope.launch {
+                graph.games.record(
+                    "spades",
+                    scored.score.first,
+                    "S-N ${scored.score.first} · W-E ${scored.score.second}",
+                )
+            }
+        }
+    }
+
     DetailScaffold(title = "spades") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            BasicText(text = "score ${state.score.first} / ${state.score.second}", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent))
+            BasicText(
+                text = "score S-N ${state.score.first} · W-E ${state.score.second}   bags ${state.teamBags.first}/${state.teamBags.second}",
+                style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.accent),
+            )
             Spacer(Modifier.height(4.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                SpadesBidSeat(state, SpadesSeat.NORTH, seat) { human(state) { s -> s } }
-                SpadesBidSeat(state, SpadesSeat.EAST, seat) { human(state) { s -> s } }
-            }
+            BasicText(
+                text = SpadesSeat.values().joinToString("   ") { "${it.name.take(1).lowercase()}:${state.bids[it] ?: 0}" },
+                style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
+            )
             Spacer(Modifier.height(4.dp))
-            if (!state.biddingDone) {
-                if (state.currentPlayer == seat) {
-                    BasicText(text = "your bid:", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textPrimary))
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        (1..13).forEach { n ->
-                            BasicText(text = "$n", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.accent),
-                                modifier = Modifier.pointerInput(n) { detectTapGestures(onTap = { human(state) { SpadesEngine.bid(it, n) } }) })
+            when {
+                !state.biddingDone -> {
+                    if (state.currentPlayer == seat) {
+                        BasicText(text = "your bid:", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textPrimary))
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            (1..13).forEach { n ->
+                                BasicText(text = "$n", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.accent),
+                                    modifier = Modifier.pointerInput(n) { detectTapGestures(onTap = { state = SpadesEngine.bid(state, n) }) })
+                            }
+                        }
+                    } else {
+                        BasicText(text = "ai bidding…", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textSecondary))
+                    }
+                }
+                else -> {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        state.trick.forEach { (s, c) ->
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                BasicText(s.name.lowercase(), style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary))
+                                SolCardView(c, width = 30.dp, height = 40.dp) {}
+                            }
                         }
                     }
-                } else {
-                    BasicText(text = "ai bidding…", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textSecondary))
-                }
-            } else {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    state.trick.forEach { (s, c) -> Column { BasicText(s.name.lowercase(), style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary)); SolCardView(c) {} } }
-                }
-                Spacer(Modifier.height(4.dp))
-                if (state.currentPlayer == seat) {
-                    val legal = SpadesEngine.legalPlays(state, seat)
-                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        legal.forEach { c -> SolCardView(c) { human(state) { SpadesEngine.play(it, c) } } }
+                    Spacer(Modifier.height(4.dp))
+                    if (state.done) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            BasicText(text = "round complete", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.accent), modifier = Modifier.weight(1f))
+                            BasicText(text = "new round", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.accent),
+                                modifier = Modifier.pointerInput(Unit) {
+                                    detectTapGestures(onTap = {
+                                        state = SpadesEngine.newGame().copy(score = state.score, teamBags = state.teamBags)
+                                        recorded = false
+                                    })
+                                })
+                        }
+                    } else if (state.currentPlayer == seat) {
+                        val legal = SpadesEngine.legalPlays(state, seat)
+                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                            legal.forEach { c -> SolCardView(c, width = 26.dp, height = 34.dp) { state = SpadesEngine.play(state, c) } }
+                        }
+                    } else {
+                        BasicText(text = "ai playing…", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textSecondary))
                     }
-                } else {
-                    BasicText(text = "ai playing…", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textSecondary))
                 }
             }
-            Spacer(Modifier.height(4.dp))
-            PlayerHand(state.hands[seat]!!, align = Alignment.CenterHorizontally, label = "you", interactive = state.currentPlayer == seat && state.biddingDone)
-        }
-        if (state.done) {
-            LaunchedEffect(state.done) {
-                val final = SpadesEngine.scoreRound(state)
-                scope.launch { graph.games.record("spades", final.score.first, "team1") }
+            Spacer(Modifier.height(6.dp))
+            BasicText(
+                text = "your hand (${state.hands[seat]?.size ?: 0})",
+                style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                state.hands[seat]!!.forEach { c -> SolCardView(c.copy(faceUp = true), width = 26.dp, height = 34.dp) {} }
             }
-        }
-    }
-}
-
-@Composable
-private fun SpadesBidSeat(state: SpadesState, seat: SpadesSeat, viewer: SpadesSeat, onInteract: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        BasicText(text = "${seat.name.lowercase()}: ${state.bids[seat]}", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = LocalDoradoColors.current.textSecondary))
-        Row(horizontalArrangement = Arrangement.spacedBy(1.dp)) {
-            state.hands[seat]!!.take(5).forEach { SolCardView(it) {} }
         }
     }
 }
@@ -1085,6 +1200,7 @@ fun CheckersApp() {
     val scope = rememberCoroutineScope()
     var state by remember { mutableStateOf(CheckersEngine.newGame()) }
     var selected by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var recorded by remember { mutableStateOf(false) }
     val colors = LocalDoradoColors.current
     val legalMoves = remember(state) { CheckersEngine.legalMoves(state, state.turn) }
     val moveTo = remember(selected, legalMoves) {
@@ -1095,24 +1211,72 @@ fun CheckersApp() {
         state = CheckersEngine.apply(state, from, to)
         selected = null
     }
+
+    // AI moves whenever it is black's turn — keyed on the whole state so a
+    // multi-jump capture chain continues instead of stalling mid-chain.
+    LaunchedEffect(state) {
+        if (state.turn == CheckersColor.BLACK && state.winner == null) {
+            delay(200)
+            val mv = CheckersEngine.aiMove(state)
+            if (mv != null) state = CheckersEngine.apply(state, mv.first, mv.second)
+        }
+    }
+    if (state.winner != null && !recorded) {
+        recorded = true
+        LaunchedEffect(Unit) {
+            scope.launch { graph.games.record("checkers", if (state.winner == CheckersColor.RED) 1 else 0, "winner") }
+        }
+    }
+
     DetailScaffold(title = "checkers") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            BasicText(text = if (state.winner != null) "${state.winner} wins" else "${state.turn} move", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent))
-            Spacer(Modifier.height(8.dp))
+            BasicText(
+                text = when {
+                    state.winner == CheckersColor.RED -> "you win"
+                    state.winner == CheckersColor.BLACK -> "ai wins"
+                    state.turn == CheckersColor.RED -> "your move"
+                    else -> "ai thinking…"
+                },
+                style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
+            )
+            Spacer(Modifier.height(6.dp))
             val ckSelected = selected
             val ckMoveTo = moveTo
             val ckColors = colors
             val darkSquare = colors.tile
             val darkerSquare = colors.background
-            androidx.compose.foundation.Canvas(modifier = Modifier.aspectRatio(1f).fillMaxWidth()) {
-                val s = min(size.width, size.height); val cell = s / 8
+            // Draw and hit-test on the SAME canvas: the old transparent overlay
+            // was a root-level sibling offset by the header, so taps mis-mapped
+            // and covered the back header.
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .pointerInput(state, selected) {
+                        detectTapGestures(onTap = { offset ->
+                            val s = min(size.width, size.height)
+                            val cell = s / 8f
+                            val ox = (size.width - s) / 2f
+                            val oy = (size.height - s) / 2f
+                            val c = ((offset.x - ox) / cell).toInt().coerceIn(0, 7)
+                            val r = ((offset.y - oy) / cell).toInt().coerceIn(0, 7)
+                            val p = state.board[r][c]
+                            if (p != null && p.color == state.turn) selected = r to c
+                            else if (selected != null && (r to c) in moveTo) tryPlay(r to c)
+                        })
+                    },
+            ) {
+                val s = min(size.width, size.height)
+                val cell = s / 8
+                val ox = (size.width - s) / 2
+                val oy = (size.height - s) / 2
                 for (r in 0..7) for (c in 0..7) {
                     val light = (r + c) % 2 == 1
                     drawRect(
                         color = if (ckSelected == r to c) ckColors.accent
                         else if (ckMoveTo.contains(r to c)) ckColors.tilePressed
                         else if (light) darkSquare else darkerSquare,
-                        topLeft = Offset(c * cell, r * cell),
+                        topLeft = Offset(ox + c * cell, oy + r * cell),
                         size = Size(cell, cell),
                     )
                 }
@@ -1122,41 +1286,22 @@ fun CheckersApp() {
                     val radius = cell * if (p.king) 0.42f else 0.36f
                     drawCircle(
                         color = if (p.king) col else col.copy(alpha = 0.85f),
-                        center = Offset(c * cell + cell / 2, r * cell + cell / 2),
+                        center = Offset(ox + c * cell + cell / 2, oy + r * cell + cell / 2),
                         radius = radius,
                     )
                     if (p.king) {
                         drawCircle(
                             color = Color.Black,
-                            center = Offset(c * cell + cell / 2, r * cell + cell / 2),
+                            center = Offset(ox + c * cell + cell / 2, oy + r * cell + cell / 2),
                             radius = cell * 0.18f,
                         )
                     }
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            Row {
-                BasicText(text = "you are red", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary))
-            }
+            Spacer(Modifier.height(4.dp))
+            BasicText(text = "you are red — tap a piece, then a highlighted square", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary))
         }
     }
-    if (state.turn == CheckersColor.BLACK && state.winner == null) {
-        LaunchedEffect(state.turn) { delay(200); val mv = CheckersEngine.aiMove(state); if (mv != null) state = CheckersEngine.apply(state, mv.first, mv.second) }
-    }
-    if (state.winner != null) {
-        LaunchedEffect(state.winner) { scope.launch { graph.games.record("checkers", if (state.winner == CheckersColor.RED) 1 else 0, "winner") } }
-    }
-    // Tap-to-move: a 1:1 transparent overlay so taps route by (r,c) without consuming the canvas drawing.
-    Box(modifier = Modifier.fillMaxWidth().aspectRatio(1f).pointerInput(state, selected) {
-        detectTapGestures(onTap = { offset ->
-            val s = min(size.width, size.height); val cell = s / 8
-            val c = (offset.x / cell).toInt().coerceIn(0, 7)
-            val r = (offset.y / cell).toInt().coerceIn(0, 7)
-            val p = state.board[r][c]
-            if (p != null && p.color == state.turn) selected = r to c
-            else if (selected != null && (r to c) in moveTo) tryPlay(r to c)
-        })
-    })
 }
 
 @Composable
@@ -1164,10 +1309,21 @@ fun ChessApp() {
     val graph = LocalDoradoGraph.current
     val scope = rememberCoroutineScope()
     var state by remember { mutableStateOf(ChessEngine.newGame()) }
+    var recorded by remember { mutableStateOf(false) }
     val colors = LocalDoradoColors.current
     var selected by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     val moves = remember(state) { ChessEngine.legalMoves(state) }
     val targets = remember(selected, moves) { selected?.let { sel -> moves.filter { it.fromR == sel.first && it.fromC == sel.second }.map { it.toR to it.toC } } ?: emptyList() }
+    // One reusable native paint for piece glyphs (letters, so pawns/knights/
+    // kings are distinguishable — the old UI drew identical circles).
+    val piecePaint = remember {
+        android.graphics.Paint().apply {
+            textAlign = android.graphics.Paint.Align.CENTER
+            typeface = android.graphics.Typeface.create(android.graphics.Typeface.SANS_SERIF, android.graphics.Typeface.BOLD)
+            isAntiAlias = true
+        }
+    }
+
     fun click(r: Int, c: Int) {
         if (state.status.isNotEmpty()) return
         if (selected == null) {
@@ -1184,54 +1340,89 @@ fun ChessApp() {
             }
         }
     }
+
+    if (state.turn == ChessColor.BLACK && state.status.isEmpty()) {
+        LaunchedEffect(state) {
+            delay(80)
+            // Search off the main thread; depth 2 keeps the position sane
+            // without ANR-length pauses.
+            val mv = withContext(Dispatchers.Default) { ChessEngine.bestMove(state, depth = 2) }
+            if (mv != null) state = ChessEngine.apply(state, mv)
+        }
+    }
+    val terminal = state.status.startsWith("checkmate") || state.status == "stalemate"
+    if (terminal && !recorded) {
+        recorded = true
+        LaunchedEffect(Unit) {
+            val score = if (state.status.startsWith("checkmate black")) 1 else 0
+            scope.launch { graph.games.record("chess", score, state.status) }
+        }
+    }
+
     DetailScaffold(title = "chess") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            BasicText(text = if (state.status.isNotEmpty()) state.status else if (state.turn == ChessColor.WHITE) "your move" else "ai thinking…", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent))
+            BasicText(
+                text = if (state.status.isNotEmpty()) state.status else if (state.turn == ChessColor.WHITE) "your move" else "ai thinking…",
+                style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
+            )
             Spacer(Modifier.height(4.dp))
             val selectedSq = selected
             val targetSquares = targets
             val chColors = colors
             val lightSquare = colors.tile
             val darkSquare = colors.background
-            androidx.compose.foundation.Canvas(modifier = Modifier.aspectRatio(1f).fillMaxWidth()) {
-                val s = min(size.width, size.height); val cell = s / 8
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .pointerInput(state, selected) {
+                        detectTapGestures(onTap = { offset ->
+                            val s = min(size.width, size.height)
+                            val cell = s / 8f
+                            val ox = (size.width - s) / 2f
+                            val oy = (size.height - s) / 2f
+                            val c = ((offset.x - ox) / cell).toInt().coerceIn(0, 7)
+                            val r = ((offset.y - oy) / cell).toInt().coerceIn(0, 7)
+                            click(r, c)
+                        })
+                    },
+            ) {
+                val s = min(size.width, size.height)
+                val cell = s / 8
+                val ox = (size.width - s) / 2
+                val oy = (size.height - s) / 2
                 for (r in 0..7) for (c in 0..7) {
                     val light = (r + c) % 2 == 0
                     drawRect(
                         color = if (selectedSq == r to c) chColors.accent
                         else if ((r to c) in targetSquares) chColors.tilePressed
                         else if (light) lightSquare else darkSquare,
-                        topLeft = Offset(c * cell, r * cell), size = Size(cell, cell),
+                        topLeft = Offset(ox + c * cell, oy + r * cell), size = Size(cell, cell),
                     )
                 }
+                val paint = piecePaint
                 for (r in 0..7) for (c in 0..7) {
                     val p = state.board[r][c] ?: continue
-                    val col = if (p.color == ChessColor.WHITE) Color.White else Color.Black
-                    drawCircle(col, cell * 0.35f, Offset(c * cell + cell / 2, r * cell + cell / 2))
+                    paint.color = if (p.color == ChessColor.WHITE) android.graphics.Color.WHITE else android.graphics.Color.GRAY
+                    paint.textSize = cell * 0.62f
+                    val cx = ox + c * cell + cell / 2f
+                    val cy = oy + r * cell + cell / 2f - (paint.ascent() + paint.descent()) / 2f
+                    drawContext.canvas.nativeCanvas.drawText(chessGlyph(p.type), cx, cy, paint)
                 }
             }
             Spacer(Modifier.height(4.dp))
-            BasicText(text = "tap a piece, then a target", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary))
+            BasicText(text = "you are white — tap a piece, then a target", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary))
         }
     }
-    if (state.turn == ChessColor.BLACK && state.status.isEmpty()) {
-        LaunchedEffect(state) { delay(80); val mv = ChessEngine.bestMove(state, depth = 3); if (mv != null) state = ChessEngine.apply(state, mv) }
-    }
-    if (state.status.isNotEmpty()) {
-        LaunchedEffect(state.status) {
-            val score = if (state.status.startsWith("checkmate white")) 1 else if (state.status.startsWith("checkmate black")) 0 else 0
-            scope.launch { graph.games.record("chess", score, state.status) }
-        }
-    }
-    // Tap overlay
-    Box(modifier = Modifier.fillMaxWidth().aspectRatio(1f).pointerInput(state, selected) {
-        detectTapGestures(onTap = { offset ->
-            val s = min(size.width, size.height); val cell = s / 8
-            val c = (offset.x / cell).toInt().coerceIn(0, 7)
-            val r = (offset.y / cell).toInt().coerceIn(0, 7)
-            click(r, c)
-        })
-    })
+}
+
+private fun chessGlyph(type: ChessPieceType): String = when (type) {
+    ChessPieceType.P -> "P"
+    ChessPieceType.N -> "N"
+    ChessPieceType.B -> "B"
+    ChessPieceType.R -> "R"
+    ChessPieceType.Q -> "Q"
+    ChessPieceType.K -> "K"
 }
 
 @Composable
@@ -1239,29 +1430,72 @@ fun TexasHoldemApp() {
     val graph = LocalDoradoGraph.current
     val scope = rememberCoroutineScope()
     var state by remember { mutableStateOf(PokerEngine.newGame()) }
+    var recorded by remember { mutableStateOf(false) }
     val colors = LocalDoradoColors.current
+
+    LaunchedEffect(state) {
+        if (!state.actor && state.phase != PokerPhase.DONE && state.phase != PokerPhase.SHOWDOWN) {
+            delay(350)
+            state = PokerEngine.applyAction(state, PokerEngine.aiAction(state, Random.Default))
+        }
+    }
+    val terminal = state.phase == PokerPhase.DONE || state.phase == PokerPhase.SHOWDOWN
+    if (terminal && !recorded) {
+        recorded = true
+        LaunchedEffect(Unit) {
+            val s = when (state.winner) {
+                "player" -> 1
+                "tie" -> 1
+                else -> 0
+            }
+            scope.launch { graph.games.record("texasholdem", s, state.winner) }
+        }
+    }
+
     DetailScaffold(title = "texas hold 'em") {
         Column(Modifier.fillMaxSize().padding(DoradoTokens.EDGE.dp)) {
-            BasicText(text = "pot ${state.pot} • you ${state.playerStack} • ai ${state.aiStack} • ${state.phase}", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.accent))
-            Spacer(Modifier.height(8.dp))
-            BasicText(text = "ai: ${state.aiHole.joinToString("") { it.toString().take(2) }}", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary))
+            BasicText(
+                text = "pot ${state.pot} • you ${state.playerStack} • ai ${state.aiStack} • ${state.phase.name.lowercase()}",
+                style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.accent),
+            )
             Spacer(Modifier.height(4.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                state.community.forEach { SolCardView(it) {} }
+            BasicText(text = "ai", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary))
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                // AI hole cards stay face-down until showdown; ranks are no
+                // longer truncated to unreadable two-char strings.
+                val show = state.phase == PokerPhase.SHOWDOWN || state.phase == PokerPhase.DONE
+                state.aiHole.forEach { c -> SolCardView(if (show) c else c.copy(faceUp = false), width = 26.dp, height = 34.dp) {} }
             }
-            Spacer(Modifier.height(8.dp))
-            BasicText(text = "you: ${state.playerHole.joinToString("") { it.toString().take(2) }}", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.textPrimary))
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                state.playerHole.forEach { SolCardView(it) {} }
+            Spacer(Modifier.height(4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                state.community.forEach { SolCardView(it, width = 26.dp, height = 34.dp) {} }
+                if (state.community.isEmpty()) {
+                    BasicText(text = "community", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary))
+                }
             }
-            Spacer(Modifier.height(8.dp))
-            if (state.phase == PokerPhase.SHOWDOWN || state.phase == PokerPhase.DONE) {
-                BasicText(text = if (state.winner == "tie") "tie" else "${state.winner} wins", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent))
-                BasicText(text = "new hand", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.accent),
-                    modifier = Modifier.pointerInput(Unit) { detectTapGestures(onTap = { state = PokerEngine.newGame() }) })
+            Spacer(Modifier.height(4.dp))
+            BasicText(text = "you", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary))
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                state.playerHole.forEach { SolCardView(it, width = 26.dp, height = 34.dp) {} }
+            }
+            Spacer(Modifier.height(6.dp))
+            if (terminal) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    BasicText(
+                        text = when (state.winner) {
+                            "tie" -> "tie — split pot"
+                            "player" -> "you win"
+                            else -> "ai wins"
+                        },
+                        style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_NOW_META.sp, color = colors.accent),
+                        modifier = Modifier.weight(1f),
+                    )
+                    BasicText(text = "new hand", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.accent),
+                        modifier = Modifier.pointerInput(Unit) { detectTapGestures(onTap = { state = PokerEngine.newGame(); recorded = false }) })
+                }
             } else if (state.actor) {
                 val legal = PokerEngine.legalActions(state)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     legal.forEach { a ->
                         BasicText(text = a.name.lowercase(), style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.accent),
                             modifier = Modifier.pointerInput(a) { detectTapGestures(onTap = { state = PokerEngine.applyAction(state, a) }) })
@@ -1270,15 +1504,6 @@ fun TexasHoldemApp() {
             } else {
                 BasicText(text = "ai thinking…", style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_LIST.sp, color = colors.textSecondary))
             }
-        }
-    }
-    if (!state.actor && state.phase != PokerPhase.DONE && state.phase != PokerPhase.SHOWDOWN) {
-        LaunchedEffect(state) { delay(400); state = PokerEngine.applyAction(state, PokerEngine.aiAction(state, Random.Default)) }
-    }
-    if (state.phase == PokerPhase.DONE) {
-        LaunchedEffect(state.phase) {
-            val s = when (state.winner) { "player" -> 1; "ai" -> 0; else -> 0 }
-            scope.launch { graph.games.record("texasholdem", s, state.winner) }
         }
     }
 }
