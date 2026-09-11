@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,9 +31,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.heretek.dorado_hd.design.LocalDoradoColors
+import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.design.DoradoMotion
 import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.design.components.AlbumArt
@@ -85,6 +88,16 @@ fun AlbumDetailScreen(albumId: Long, canvasWidth: androidx.compose.ui.unit.Dp) {
     }
 
     DetailScaffold(title = album?.title ?: "album") {
+        if (album == null && tracks.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                EdgeCropText(
+                    text = "album not found",
+                    fontSize = DoradoTokens.TYPE_NOW_META.dp,
+                    alpha = 0.4f,
+                )
+            }
+            return@DetailScaffold
+        }
         Column(Modifier.fillMaxSize()) {
             Row(
                 Modifier
@@ -107,28 +120,31 @@ fun AlbumDetailScreen(albumId: Long, canvasWidth: androidx.compose.ui.unit.Dp) {
                         color = LocalDoradoColors.current.textSecondary,
                     )
                     Spacer(Modifier.height(6.dp))
-                    Row {
-                        EdgeCropText(
-                            text = "play",
-                            fontSize = DoradoTokens.TYPE_LIST.dp,
-                            color = LocalDoradoColors.current.accent,
-                            modifier = Modifier
-                                .clickable {
-                                    tracks.firstOrNull()?.let { graph.controller.play(tracks, 0) }
-                                }
-                                .padding(end = 16.dp),
-                        )
-                        EdgeCropText(
-                            text = "shuffle",
-                            fontSize = DoradoTokens.TYPE_LIST.dp,
-                            color = LocalDoradoColors.current.accent,
-                            modifier = Modifier.clickable {
-                                tracks.firstOrNull()?.let {
-                                    graph.controller.play(tracks, 0)
-                                    graph.controller.setShuffle(true)
-                                }
-                            },
-                        )
+                    // Actions only make sense once the album actually has tracks.
+                    if (tracks.isNotEmpty()) {
+                        Row {
+                            EdgeCropText(
+                                text = "play",
+                                fontSize = DoradoTokens.TYPE_LIST.dp,
+                                color = LocalDoradoColors.current.accent,
+                                modifier = Modifier
+                                    .clickable {
+                                        tracks.firstOrNull()?.let { graph.controller.play(tracks, 0) }
+                                    }
+                                    .padding(end = 16.dp),
+                            )
+                            EdgeCropText(
+                                text = "shuffle",
+                                fontSize = DoradoTokens.TYPE_LIST.dp,
+                                color = LocalDoradoColors.current.accent,
+                                modifier = Modifier.clickable {
+                                    tracks.firstOrNull()?.let {
+                                        graph.controller.play(tracks, 0)
+                                        graph.controller.setShuffle(true)
+                                    }
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -139,6 +155,7 @@ fun AlbumDetailScreen(albumId: Long, canvasWidth: androidx.compose.ui.unit.Dp) {
                 items = tracks,
                 key = { it.mediaId },
                 letter = { firstLetterOf(it.title) },
+                bottomPadding = 40.dp,
                 rowContent = { track, index ->
                     TrackRow(
                         track = track,
@@ -336,14 +353,21 @@ private fun ArtistRelated(related: List<com.heretek.dorado_hd.data.model.Artist>
                 fontSize = DoradoTokens.TYPE_NOW_META.dp,
                 color = LocalDoradoColors.current.textSecondary,
             )
-            EdgeCropText(
+            // Multi-line: EdgeCropText is single-line and clipped this sentence.
+            BasicText(
                 text = "related artists are ranked by on-device audio similarity. this artist has no comparable tracks in your library yet.",
-                fontSize = DoradoTokens.TYPE_CAPTION.dp,
-                color = LocalDoradoColors.current.textSecondary,
-                alpha = 0.6f,
+                style = TextStyle(
+                    fontFamily = Selawik,
+                    fontSize = DoradoTokens.TYPE_CAPTION.sp,
+                    color = LocalDoradoColors.current.textSecondary.copy(alpha = 0.6f),
+                    lineHeight = (DoradoTokens.TYPE_CAPTION * 1.35f).sp,
+                ),
             )
             if (artistName != null) {
-                val url = "https://musicbrainz.org/artist/" + (artistName.replace(" ", "%20")) + "?query="
+                // MusicBrainz artist pages are keyed by MBID; the search route
+                // is the only valid entry point for a plain name.
+                val url = "https://musicbrainz.org/search?query=" +
+                    android.net.Uri.encode(artistName) + "&type=artist"
                 EdgeCropText(
                     text = "open musicbrainz for “$artistName”",
                     fontSize = DoradoTokens.TYPE_NOW_META.dp,
@@ -461,6 +485,7 @@ private fun ArtistSongs(
         items = tracks,
         key = { it.mediaId },
         letter = { firstLetterOf(it.title) },
+        bottomPadding = 40.dp,
         rowContent = { track, index ->
             TrackRow(
                 track = track,
@@ -493,27 +518,38 @@ fun GenreScreen(genre: String, canvasWidth: androidx.compose.ui.unit.Dp) {
     }
 
     DetailScaffold(title = genre) {
-        KineticList(
-            items = tracks,
-            key = { it.mediaId },
-            letter = { firstLetterOf(it.title) },
-            rowContent = { track, index ->
-                TrackRow(
-                    track = track,
-                    playing = nowPlayingId?.mediaId == track.mediaId,
-                    onClick = { graph.controller.play(tracks, index) },
-                    onLongClick = {
-                        menus.show(
-                            title = track.title,
-                            actions = trackMenuActions(graph, scope, track) + listOf(
-                                MenuAction("view album") { graph.nav.push(DoradoDestination.Album(track.albumId)) },
-                                MenuAction("view artist") { graph.nav.push(DoradoDestination.Artist(track.artistId)) },
-                            ),
-                        )
-                    },
+        if (tracks.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                EdgeCropText(
+                    text = "no songs in this genre",
+                    fontSize = DoradoTokens.TYPE_NOW_META.dp,
+                    alpha = 0.4f,
                 )
-            },
-        )
+            }
+        } else {
+            KineticList(
+                items = tracks,
+                key = { it.mediaId },
+                letter = { firstLetterOf(it.title) },
+                bottomPadding = 40.dp,
+                rowContent = { track, index ->
+                    TrackRow(
+                        track = track,
+                        playing = nowPlayingId?.mediaId == track.mediaId,
+                        onClick = { graph.controller.play(tracks, index) },
+                        onLongClick = {
+                            menus.show(
+                                title = track.title,
+                                actions = trackMenuActions(graph, scope, track) + listOf(
+                                    MenuAction("view album") { graph.nav.push(DoradoDestination.Album(track.albumId)) },
+                                    MenuAction("view artist") { graph.nav.push(DoradoDestination.Artist(track.artistId)) },
+                                ),
+                            )
+                        },
+                    )
+                },
+            )
+        }
     }
 }
 
@@ -544,6 +580,7 @@ fun PlaylistDetailScreen(playlistId: Long, canvasWidth: androidx.compose.ui.unit
                 items = tracks,
                 key = { it.mediaId },
                 letter = { firstLetterOf(it.title) },
+                bottomPadding = 40.dp,
                 rowContent = { track, index ->
                     TrackRow(
                         track = track,
