@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -12,6 +13,7 @@ import com.heretek.dorado_hd.DoradoApp
 import com.heretek.dorado_hd.DoradoGraph
 import com.heretek.dorado_hd.design.DoradoTheme
 import com.heretek.dorado_hd.design.components.DeviceCanvas
+import com.heretek.dorado_hd.ui.components.MenuController
 import com.heretek.dorado_hd.ui.screens.MiniAppScreen
 
 /**
@@ -37,7 +39,11 @@ fun appGraph(): DoradoGraph =
 fun MiniAppHarness(slug: String, mode: HarnessMode) {
     val graph = appGraph()
     DoradoTheme {
-        CompositionLocalProvider(LocalDoradoGraph provides graph) {
+        val menus = remember { MenuController() }
+        CompositionLocalProvider(
+            LocalDoradoGraph provides graph,
+            com.heretek.dorado_hd.ui.components.LocalContextMenu provides menus,
+        ) {
             Box(Modifier.requiredSize(mode.width, mode.height)) {
                 DeviceCanvas(deviceMode = mode.deviceMode) { canvasWidth, _ ->
                     MiniAppScreen(slug, canvasWidth)
