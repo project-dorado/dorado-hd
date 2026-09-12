@@ -81,5 +81,17 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/now_playing_widget_info" />
         </receiver>
+
+        <!-- Zune Card export (M5): hands the rendered PNG to ACTION_SEND via a
+             content:// URI. Only res/xml/file_paths.xml paths are exposed. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>

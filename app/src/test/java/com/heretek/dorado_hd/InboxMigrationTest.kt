@@ -4,29 +4,27 @@ import android.content.Context
 import androidx.room.Room
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
-import com.heretek.dorado_hd.data.db.AudiobookEntity
 import com.heretek.dorado_hd.data.db.DoradoDatabase
-import com.heretek.dorado_hd.data.db.MIGRATION_6_7
+import com.heretek.dorado_hd.data.db.InboxMessageEntity
 import com.heretek.dorado_hd.data.db.MIGRATION_7_8
-import com.heretek.dorado_hd.data.model.AudiobookProgress
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.lang.reflect.Proxy
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * Guards the v6→v7 audiobook migration (roadmap D4):
- *  1. the SQL emitted by [MIGRATION_6_7] is byte-for-byte (modulo whitespace)
- *     what Room generated for the two new entities, and
- *  2. a real v6 database upgrades and serves audiobook queries.
+ * Guards the v7→v8 inbox migration (roadmap D2):
+ *  1. the SQL emitted by [MIGRATION_7_8] matches what Room generated for the
+ *     `inbox_messages` entity, and
+ *  2. a real v7 database upgrades and serves inbox queries.
  */
 @RunWith(RobolectricTestRunner::class)
-class AudiobookMigrationTest {
+class InboxMigrationTest {
 
     @Test
     fun `migration mirrors the generated room schema`() {
@@ -34,10 +32,10 @@ class AudiobookMigrationTest {
             .findAll(generatedImpl().readText())
             .map { it.groupValues[1] }
             .filter { it.startsWith("CREATE") }
-            .filter { "`audiobooks`" in it || "`audiobook_parts`" in it }
+            .filter { "`inbox_messages`" in it }
             .map(::normalize)
             .toSet()
-        assertEquals("expected five generated statements", 5, generated.size)
+        assertEquals("expected three generated statements", 3, generated.size)
 
         val recorded = mutableListOf<String>()
         val recorder = Proxy.newProxyInstance(
@@ -49,45 +47,48 @@ class AudiobookMigrationTest {
             }
             null
         } as SupportSQLiteDatabase
-        MIGRATION_6_7.migrate(recorder)
+        MIGRATION_7_8.migrate(recorder)
 
         assertEquals(generated, recorded.map(::normalize).toSet())
     }
 
     @Test
-    fun `a v6 database upgrades and serves audiobook queries`() {
+    fun `a v7 database upgrades and serves inbox queries`() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val name = "audiobook-migration-test.db"
+        val name = "inbox-migration-test.db"
         context.deleteDatabase(name)
 
         context.openOrCreateDatabase(name, Context.MODE_PRIVATE, null).use { raw ->
-            V6_SCHEMA.forEach { raw.execSQL(it) }
-            raw.version = 6
+            V7_SCHEMA.forEach { raw.execSQL(it) }
+            raw.version = 7
         }
 
         val db = Room.databaseBuilder(context, DoradoDatabase::class.java, name)
-            // The database is now v8; chain the later inbox migration so the
-            // v6 fixture can still reach the current schema.
-            .addMigrations(MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_7_8)
             .allowMainThreadQueries()
             .build()
         try {
             runBlocking {
-                val id = db.audiobookDao().insertBook(
-                    AudiobookEntity(
-                        groupKey = "dir:/Books/Alpha",
-                        title = "Alpha",
-                        author = "Jane Author",
-                        albumId = 7L,
-                        partCount = 1,
-                        totalDurationMs = 60_000L,
-                        resume = AudiobookProgress.NONE,
-                        bookmark = AudiobookProgress.NONE,
-                        updatedAt = 1L,
+                db.inboxDao().upsertAll(
+                    listOf(
+                        InboxMessageEntity(
+                            id = "11111111-1111-1111-1111-111111111111",
+                            senderAccountId = null,
+                            senderTag = "mira",
+                            recipientTag = "jane",
+                            subject = "hello",
+                            body = "hi there",
+                            isRead = false,
+                            createdAt = 1L,
+                        ),
                     ),
                 )
-                assertNotNull(id)
-                assertEquals(1, db.audiobookDao().books().first().size)
+                val messages = db.inboxDao().messages().first()
+                assertEquals(1, messages.size)
+                assertEquals("hello", messages.single().subject)
+                assertEquals(1, db.inboxDao().unreadCount().first())
+                db.inboxDao().markRead(messages.single().id)
+                assertEquals(0, db.inboxDao().unreadCount().first())
             }
         } finally {
             db.close()
@@ -108,11 +109,8 @@ class AudiobookMigrationTest {
         sql.replace(Regex("\\s+"), " ").replace("( ", "(").replace(" )", ")").trim()
 
     private companion object {
-        /**
-         * The full v6 schema, copied from the v6 Room-generated `createAllTables`
-         * (the v7 migration only adds the two audiobook tables).
-         */
-        val V6_SCHEMA = listOf(
+        /** The full v7 schema (v6 + audiobooks); the v8 migration only adds inbox_messages. */
+        val V7_SCHEMA = listOf(
             "CREATE TABLE IF NOT EXISTS `tracks` (`mediaId` INTEGER NOT NULL, `title` TEXT NOT NULL, `artist` TEXT NOT NULL, `artistId` INTEGER NOT NULL, `album` TEXT NOT NULL, `albumId` INTEGER NOT NULL, `genre` TEXT NOT NULL, `durationMs` INTEGER NOT NULL, `dateAdded` INTEGER NOT NULL, `trackNumber` INTEGER NOT NULL, `year` TEXT NOT NULL, `uri` TEXT NOT NULL, PRIMARY KEY(`mediaId`))",
             "CREATE INDEX IF NOT EXISTS `index_tracks_albumId` ON `tracks` (`albumId`)",
             "CREATE INDEX IF NOT EXISTS `index_tracks_artistId` ON `tracks` (`artistId`)",
@@ -141,6 +139,11 @@ class AudiobookMigrationTest {
             "CREATE TABLE IF NOT EXISTS `scrobble_queue` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `artist` TEXT NOT NULL, `title` TEXT NOT NULL, `album` TEXT NOT NULL, `durationSeconds` INTEGER NOT NULL, `timestampSec` INTEGER NOT NULL)",
             "CREATE TABLE IF NOT EXISTS `play_counts` (`mediaId` INTEGER NOT NULL, `count` INTEGER NOT NULL, `lastPlayedAt` INTEGER NOT NULL, PRIMARY KEY(`mediaId`))",
             "CREATE TABLE IF NOT EXISTS `app_state` (`app` TEXT NOT NULL, `value` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`app`))",
+            "CREATE TABLE IF NOT EXISTS `audiobooks` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `groupKey` TEXT NOT NULL, `title` TEXT NOT NULL, `author` TEXT NOT NULL, `albumId` INTEGER NOT NULL, `partCount` INTEGER NOT NULL, `totalDurationMs` INTEGER NOT NULL, `resume` TEXT NOT NULL, `bookmark` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_audiobooks_groupKey` ON `audiobooks` (`groupKey`)",
+            "CREATE TABLE IF NOT EXISTS `audiobook_parts` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `bookId` INTEGER NOT NULL, `mediaId` INTEGER NOT NULL, `position` INTEGER NOT NULL, `title` TEXT NOT NULL, `durationMs` INTEGER NOT NULL, `uri` TEXT NOT NULL)",
+            "CREATE INDEX IF NOT EXISTS `index_audiobook_parts_bookId` ON `audiobook_parts` (`bookId`)",
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_audiobook_parts_mediaId` ON `audiobook_parts` (`mediaId`)",
         )
     }
 }

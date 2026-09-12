@@ -210,3 +210,33 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
         db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_audiobook_parts_mediaId` ON `audiobook_parts` (`mediaId`)")
     }
 }
+
+/**
+ * Room v7 → v8: local-first Zune inbox cache (roadmap D2). Reads come from the
+ * `inbox_messages` table; a cloud sync refreshes the rows while `isRead` stays
+ * on-device. Existing data untouched. The SQL mirrors Room's expected v8
+ * schema exactly so `RoomOpenHelper` validation passes.
+ */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `inbox_messages` (
+                `id` TEXT NOT NULL,
+                `senderAccountId` TEXT,
+                `senderTag` TEXT NOT NULL,
+                `recipientTag` TEXT NOT NULL,
+                `subject` TEXT NOT NULL,
+                `body` TEXT NOT NULL,
+                `isRead` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                PRIMARY KEY(`id`)
+            )""",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_inbox_messages_recipientTag` ON `inbox_messages` (`recipientTag`)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_inbox_messages_createdAt` ON `inbox_messages` (`createdAt`)",
+        )
+    }
+}

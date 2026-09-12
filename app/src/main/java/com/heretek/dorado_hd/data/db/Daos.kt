@@ -442,3 +442,31 @@ interface AudiobookDao {
     @Query("UPDATE audiobooks SET bookmark = :bookmark, updatedAt = :updatedAt WHERE id = :id")
     suspend fun setBookmark(id: Long, bookmark: String, updatedAt: Long)
 }
+
+/**
+ * Local-first Zune inbox cache (D2). Reads come from Room; [upsertAll] is
+ * called by the repository after a cloud sync. Read state is local.
+ */
+@Dao
+interface InboxDao {
+    @Query("SELECT * FROM inbox_messages ORDER BY createdAt DESC")
+    fun messages(): Flow<List<InboxMessageEntity>>
+
+    @Query("SELECT * FROM inbox_messages WHERE id = :id")
+    suspend fun message(id: String): InboxMessageEntity?
+
+    @Query("SELECT * FROM inbox_messages")
+    suspend fun all(): List<InboxMessageEntity>
+
+    @Query("SELECT COUNT(*) FROM inbox_messages WHERE isRead = 0")
+    fun unreadCount(): Flow<Int>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(messages: List<InboxMessageEntity>)
+
+    @Query("UPDATE inbox_messages SET isRead = 1 WHERE id = :id")
+    suspend fun markRead(id: String)
+
+    @Query("DELETE FROM inbox_messages")
+    suspend fun clear()
+}

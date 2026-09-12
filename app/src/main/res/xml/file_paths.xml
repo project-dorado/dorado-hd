@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Paths exposed through the ${applicationId}.fileprovider authority for the
+     Zune Card export (ACTION_SEND image/png). Only the rendered cards cache is
+     shared; nothing else in the app's storage is reachable. -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="shared_cards" path="cards/" />
+</paths>

@@ -27,8 +27,9 @@ import androidx.room.RoomDatabase
         AppStateEntity::class,
         AudiobookEntity::class,
         AudiobookPartEntity::class,
+        InboxMessageEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = false,
 )
 abstract class DoradoDatabase : RoomDatabase() {
@@ -49,6 +50,7 @@ abstract class DoradoDatabase : RoomDatabase() {
     abstract fun playCountDao(): PlayCountDao
     abstract fun appStateDao(): AppStateDao
     abstract fun audiobookDao(): AudiobookDao
+    abstract fun inboxDao(): InboxDao
 
     companion object {
         @Volatile
@@ -57,7 +59,10 @@ abstract class DoradoDatabase : RoomDatabase() {
         fun get(context: Context): DoradoDatabase =
             instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(context, DoradoDatabase::class.java, "dorado_hd.db")
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                    .addMigrations(
+                        MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
+                        MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
+                    )
                     .build()
                     .also { instance = it }
             }

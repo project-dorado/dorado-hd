@@ -53,6 +53,8 @@ class DoradoGraph(
     val playCounts: com.heretek.dorado_hd.analysis.PlayCountStore,
     val appState: com.heretek.dorado_hd.data.repo.AppStateRepository,
     val audiobooks: com.heretek.dorado_hd.data.repo.AudiobookRepository,
+    val cloudSocial: com.heretek.dorado_hd.cloud.CloudSocialClient,
+    val inbox: com.heretek.dorado_hd.data.repo.InboxRepository,
 ) {
     /**
      * True while a full-bleed presentation (picture viewer) owns the screen
@@ -144,11 +146,13 @@ open class DoradoApp : Application() {
         val equalizer = com.heretek.dorado_hd.media.EqualizerController()
         val appState = com.heretek.dorado_hd.data.repo.AppStateRepository(db)
         val audiobooks = com.heretek.dorado_hd.data.repo.AudiobookRepository(db)
+        val cloudSocial = com.heretek.dorado_hd.cloud.CloudSocialClient(settings = { latestSettings.get() })
+        val inbox = com.heretek.dorado_hd.data.repo.InboxRepository(db, cloudSocial)
 
         graph = DoradoGraph(
             library, quickplay, settings, settings.settings, controller, nav,
             artistImages, artistBios, notes, calendar, alarms, radio, podcasts, games, deviceLink, analysis, mixes, scrobble, lyrics,
-            cloudSignIn, cloudSignInCallback, cloudUpdates, playCountStore, appState, audiobooks,
+            cloudSignIn, cloudSignInCallback, cloudUpdates, playCountStore, appState, audiobooks, cloudSocial, inbox,
         )
 
         if (autoConnectPlayback) {

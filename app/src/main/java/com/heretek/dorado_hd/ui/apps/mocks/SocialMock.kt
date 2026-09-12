@@ -17,28 +17,44 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.heretek.dorado_hd.data.model.Rating
+import com.heretek.dorado_hd.data.repo.InboxMessage
+import com.heretek.dorado_hd.data.repo.InboxRepository
 import com.heretek.dorado_hd.design.DoradoTokens
 import com.heretek.dorado_hd.design.LocalDoradoColors
 import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.design.components.EdgeCropText
+import com.heretek.dorado_hd.social.CardExporter
+import com.heretek.dorado_hd.social.CardRenderer
+import com.heretek.dorado_hd.social.ZuneCardData
+import com.heretek.dorado_hd.ui.LocalDoradoGraph
 import com.heretek.dorado_hd.ui.components.DetailScaffold
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 /**
- * Zune Social (canon §8, offline mock): a small memorial feed plus a user
- * card. The service shut down in 2012, so the feed is frozen local copy and
- * nothing here talks to a network.
+ * Zune Social (canon §8, D2): a local memorial feed, the local-first inbox
+ * cache and the Zune Card. The service shut down in 2012, so nothing here
+ * requires a network; when Dorado Cloud is on the main Social screen syncs the
+ * inbox, and this mini-app renders the same cached rows with an offline label.
  */
 
-private enum class SocialTab { FEED, PROFILE }
+private enum class SocialTab { FEED, INBOX, PROFILE }
 
 private data class SocialEntry(
     val author: String,
@@ -57,10 +73,30 @@ private val FEED: List<SocialEntry> = listOf(
     SocialEntry("oren b.", "joined", "zune social", "archived aug 2012"),
 )
 
+private data class LocalCard(val tracks: Int, val hearts: Int, val plays: Int)
+
 @Composable
 fun SocialApp() {
+    val graph = LocalDoradoGraph.current
     val colors = LocalDoradoColors.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var tab by remember { mutableStateOf(SocialTab.FEED) }
+    var card by remember { mutableStateOf<LocalCard?>(null) }
+    val inbox by graph.inbox.messages().collectAsState(initial = emptyList())
+    val unread by graph.inbox.unreadCount().collectAsState(initial = 0)
+
+    LaunchedEffect(Unit) {
+        val tracks = graph.library.tracks().first()
+        val ratings = graph.quickplay.ratings()
+        val plays = graph.playCounts.counts()
+        card = LocalCard(
+            tracks = tracks.size,
+            hearts = ratings.count { it.value == Rating.HEART.value },
+            plays = plays.values.sum(),
+        )
+    }
+
     DetailScaffold(title = "social") {
         Column(Modifier.fillMaxSize()) {
             Row(
@@ -70,14 +106,15 @@ fun SocialApp() {
                     .padding(horizontal = DoradoTokens.EDGE.dp),
             ) {
                 EdgeCropText(
-                    text = "the zune social service closed in 2012 — local memorial, no network",
+                    text = InboxRepository.OFFLINE_DISABLED,
                     fontSize = DoradoTokens.TYPE_CAPTION.dp,
-                    color = colors.accent,
+                    color = colors.textSecondary,
                     modifier = Modifier.weight(1f),
                 )
                 SocialTab.entries.forEach { item ->
+                    val label = if (item == SocialTab.INBOX && unread > 0) "inbox $unread" else item.name.lowercase()
                     EdgeCropText(
-                        text = item.name.lowercase(),
+                        text = label,
                         fontSize = DoradoTokens.TYPE_NOW_META.dp,
                         color = if (item == tab) colors.textPrimary else colors.textInactive,
                         modifier = Modifier
@@ -89,7 +126,29 @@ fun SocialApp() {
 
             when (tab) {
                 SocialTab.FEED -> FeedTab()
-                SocialTab.PROFILE -> ProfileTab()
+                SocialTab.INBOX -> InboxTab(inbox) { id -> scope.launch { graph.inbox.markRead(id) } }
+                SocialTab.PROFILE -> ProfileTab(
+                    card = card,
+                    onExport = {
+                        card?.let { local ->
+                            val bitmap = CardRenderer(CardRenderer.selawik(context)).render(
+                                ZuneCardData(
+                                    displayName = "you",
+                                    tracks = local.tracks,
+                                    hearts = local.hearts,
+                                    plays = local.plays,
+                                    memberSince = "september 2009",
+                                    offline = true,
+                                    background = colors.background.toArgb(),
+                                    accent = colors.accent.toArgb(),
+                                    textPrimary = colors.textPrimary.toArgb(),
+                                    textSecondary = colors.textSecondary.toArgb(),
+                                ),
+                            )
+                            context.startActivity(CardExporter.shareIntent(context, bitmap, "zune-card"))
+                        }
+                    },
+                )
             }
         }
     }
@@ -132,11 +191,54 @@ private fun FeedTab() {
 }
 
 @Composable
-private fun ProfileTab() {
+private fun InboxTab(inbox: List<InboxMessage>, onMarkRead: (String) -> Unit) {
     val colors = LocalDoradoColors.current
     Column(
         Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = DoradoTokens.EDGE.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Spacer(Modifier.height(4.dp))
+        if (inbox.isEmpty()) {
+            EdgeCropText(
+                text = "no messages — the inbox is empty.",
+                fontSize = DoradoTokens.TYPE_NOW_META.dp,
+                alpha = 0.6f,
+            )
+            return
+        }
+        inbox.forEach { message ->
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onMarkRead(message.id) }
+                    .padding(vertical = 6.dp),
+            ) {
+                EdgeCropText(
+                    text = message.senderTag.ifBlank { "unknown sender" },
+                    fontSize = DoradoTokens.TYPE_LIST_SECONDARY.dp,
+                    color = if (message.isRead) colors.textSecondary else colors.accent,
+                    fontWeight = if (message.isRead) FontWeight.Normal else FontWeight.SemiBold,
+                )
+                EdgeCropText(
+                    text = message.subject.ifBlank { "(no subject)" },
+                    fontSize = DoradoTokens.TYPE_LIST.dp,
+                    color = colors.textPrimary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileTab(card: LocalCard?, onExport: () -> Unit) {
+    val colors = LocalDoradoColors.current
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = DoradoTokens.EDGE.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -157,13 +259,18 @@ private fun ProfileTab() {
             }
         }
         Row(Modifier.fillMaxWidth()) {
-            SocialStat("plays", "4,812", Modifier.weight(1f))
-            SocialStat("hearts", "137", Modifier.weight(1f))
-            SocialStat("badges", "9", Modifier.weight(1f))
-            SocialStat("friends", "42", Modifier.weight(1f))
+            SocialStat("tracks", (card?.tracks ?: 0).toString(), Modifier.weight(1f))
+            SocialStat("hearts", (card?.hearts ?: 0).toString(), Modifier.weight(1f))
+            SocialStat("plays", (card?.plays ?: 0).toString(), Modifier.weight(1f))
         }
+        EdgeCropText(
+            text = "export card",
+            fontSize = DoradoTokens.TYPE_LIST.dp,
+            color = colors.accent,
+            modifier = Modifier.clickable { onExport() },
+        )
         BasicText(
-            text = "zune social kept a running record of what you played and loved. the service is gone; these figures are a local memorial simulation.",
+            text = "zune social kept a running record of what you played and loved. the service is gone; the card is rendered on-device from your own library, with no microsoft art or fonts.",
             style = TextStyle(
                 fontFamily = Selawik,
                 fontSize = DoradoTokens.TYPE_LIST.sp,

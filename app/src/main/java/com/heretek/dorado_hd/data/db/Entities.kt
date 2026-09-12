@@ -242,3 +242,24 @@ data class AudiobookPartEntity(
     val durationMs: Long,
     val uri: String,
 )
+
+/**
+ * Cached Zune inbox message (roadmap D2). Mirrors the dorado-cloud legacy
+ * `InboxMessage` store, but the row is owned locally: a sync refreshes the
+ * content while read state stays on-device so a refresh never resurrects an
+ * unread badge.
+ */
+@Entity(
+    tableName = "inbox_messages",
+    indices = [Index("recipientTag"), Index("createdAt")],
+)
+data class InboxMessageEntity(
+    @PrimaryKey val id: String,
+    val senderAccountId: String?,
+    val senderTag: String,
+    val recipientTag: String,
+    val subject: String,
+    val body: String,
+    val isRead: Boolean,
+    val createdAt: Long,
+)
