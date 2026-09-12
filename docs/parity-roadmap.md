@@ -259,7 +259,10 @@ explicitly documented (long-term / N-A) — no gap unplanned.
 - ✅ **D1** Share (`ACTION_SEND`) from Now Playing.
 - ✅ **D3** Marketplace discovery: catalog search + entry details over the frozen catalog.
 - 🟡 **D2** Social user card: a local **Zune Card** (tracks/hearts/plays) on the Social screen; the inbox still needs a backend (mock shell only).
-- ⏳ **D4** Audiobooks (new media model — the largest remaining gap).
+- ✅ **D4** Audiobooks: `AudiobookGrouping` (genre/directory heuristics) →
+  Room v7 `audiobooks`/`audiobook_parts` + `AudiobookRepository` → music
+  crossbar `audiobooks` pivot (book list, parts, resume/bookmark, 0.75–2.0×
+  speed). Entry-point as post-device extension; canon §3.3/§10 updated.
 
 ### Long-term backlog (documented, not scheduled)
 

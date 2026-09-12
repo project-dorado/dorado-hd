@@ -57,8 +57,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-/** Real Zune HD music crossbar order. */
-private val PIVOTS = listOf("albums", "artists", "playlists", "songs", "genres")
+/**
+ * Real Zune HD music crossbar order (`albums · artists · playlists · songs ·
+ * genres`), plus Dorado-HD's post-device `audiobooks` pivot (canon §10): the
+ * device shipped an audiobook library scene, and a pivot keeps the nine-entry
+ * home menu untouched (canon §3.1).
+ */
+private val PIVOTS = listOf("albums", "artists", "playlists", "songs", "genres", "audiobooks")
 
 @Composable
 fun MusicScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
@@ -73,6 +78,15 @@ fun MusicScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
     var djBusy by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<Track>>(emptyList()) }
+    // Audiobook detail is an in-pivot surface (the Music route owns it), so the
+    // crossbar stays put and the cropped header performs back.
+    var openBookId by remember { mutableStateOf<Long?>(null) }
+
+    val openBook = openBookId
+    if (openBook != null) {
+        AudiobookBookScreen(bookId = openBook, onBack = { openBookId = null })
+        return
+    }
 
     // Debounced indexed search (device zcontent_serv content service).
     LaunchedEffect(query) {
@@ -230,7 +244,8 @@ fun MusicScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                         1 -> ArtistsTab()
                         2 -> PlaylistsTab()
                         3 -> SongsTab()
-                        else -> GenresTab()
+                        4 -> GenresTab()
+                        else -> AudiobooksTab(onOpenBook = { openBookId = it })
                     }
                 }
             }

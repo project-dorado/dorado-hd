@@ -103,10 +103,75 @@ class MediaLibraryScanner(
         }
 
         db.trackDao().upsertAll(found)
-        ScanResult(found.size, removed)
+
+        // Audiobooks (D4) ride a second, wider pass: the music projection above
+        // stays byte-for-byte compatible, while this one also carries the file
+        // path (for directory grouping) and includes non-`IS_MUSIC` spoken-word
+        // files. The pure heuristic decides what actually becomes a book.
+        val audiobookFiles = audiobookCandidates()
+        val books = AudiobookGrouping.group(audiobookFiles)
+        com.heretek.dorado_hd.data.repo.AudiobookRepository(db).rebuild(books)
+
+        ScanResult(found.size, removed, books.size)
     }
 
-    data class ScanResult(val scanned: Int, val removed: Int)
+    /** Long-enough audio files with the metadata the grouping heuristic needs. */
+    private fun audiobookCandidates(): List<AudiobookGrouping.File> {
+        val sdk = android.os.Build.VERSION.SDK_INT
+        val projection = mutableListOf(
+            MediaStore.Audio.Media._ID,
+            MediaStore.Audio.Media.TITLE,
+            MediaStore.Audio.Media.ARTIST,
+            MediaStore.Audio.Media.ALBUM,
+            MediaStore.Audio.Media.ALBUM_ID,
+            MediaStore.Audio.Media.DURATION,
+            MediaStore.Audio.Media.DATE_ADDED,
+            MediaStore.Audio.Media.DATA,
+        )
+        if (sdk >= 30) projection += MediaStore.Audio.Media.GENRE
+
+        val out = mutableListOf<AudiobookGrouping.File>()
+        context.contentResolver.query(
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+            projection.toTypedArray(),
+            "${MediaStore.Audio.Media.DURATION} >= 30000",
+            null,
+            null,
+        )?.use { c ->
+            val iId = c.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+            val iTitle = c.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+            val iArtist = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+            val iAlbum = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+            val iAlbumId = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
+            val iGenre = if (sdk >= 30) c.getColumnIndex(MediaStore.Audio.Media.GENRE) else -1
+            val iDur = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+            val iDate = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
+            val iData = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
+
+            while (c.moveToNext()) {
+                val mediaId = c.getLong(iId)
+                out += AudiobookGrouping.File(
+                    mediaId = mediaId,
+                    title = c.getString(iTitle)?.trim().takeUnless { it.isNullOrEmpty() } ?: "unknown title",
+                    artist = c.getString(iArtist)?.trim().takeUnless { it.isNullOrEmpty() } ?: "unknown artist",
+                    album = c.getString(iAlbum)?.trim().takeUnless { it.isNullOrEmpty() } ?: "unknown album",
+                    albumId = c.getLong(iAlbumId),
+                    genre = if (iGenre >= 0) {
+                        c.getString(iGenre)?.trim().takeUnless { it.isNullOrEmpty() } ?: "unknown"
+                    } else {
+                        "unknown"
+                    },
+                    durationMs = c.getLong(iDur),
+                    dateAdded = c.getLong(iDate),
+                    path = c.getString(iData)?.trim().orEmpty(),
+                    uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, mediaId).toString(),
+                )
+            }
+        }
+        return out
+    }
+
+    data class ScanResult(val scanned: Int, val removed: Int, val books: Int = 0)
 }
 
 fun TrackEntity.toModel(): com.heretek.dorado_hd.data.model.Track =

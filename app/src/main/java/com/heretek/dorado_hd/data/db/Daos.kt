@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Update
 import com.heretek.dorado_hd.data.model.Album
 import com.heretek.dorado_hd.data.model.Artist
 import com.heretek.dorado_hd.data.model.Genre
@@ -390,4 +391,54 @@ interface PlayCountDao {
         val next = (countFor(mediaId) ?: 0) + 1
         upsert(PlayCountEntity(mediaId = mediaId, count = next, lastPlayedAt = now))
     }
+}
+
+/**
+ * Audiobook store (D4). Books are keyed by the scanner's stable `groupKey`
+ * (unique index) so `rebuild` updates metadata and parts while preserving the
+ * resume/bookmark columns.
+ */
+@Dao
+interface AudiobookDao {
+    @Query("SELECT * FROM audiobooks ORDER BY title COLLATE NOCASE")
+    fun books(): Flow<List<AudiobookEntity>>
+
+    @Query("SELECT * FROM audiobooks WHERE id = :id")
+    fun book(id: Long): Flow<AudiobookEntity?>
+
+    @Query("SELECT * FROM audiobooks WHERE id = :id")
+    suspend fun bookNow(id: Long): AudiobookEntity?
+
+    @Query("SELECT * FROM audiobooks")
+    suspend fun allBooks(): List<AudiobookEntity>
+
+    @Query("SELECT * FROM audiobook_parts WHERE bookId = :bookId ORDER BY position")
+    fun parts(bookId: Long): Flow<List<AudiobookPartEntity>>
+
+    @Query("SELECT * FROM audiobook_parts WHERE bookId = :bookId ORDER BY position")
+    suspend fun partsNow(bookId: Long): List<AudiobookPartEntity>
+
+    @Insert
+    suspend fun insertBook(book: AudiobookEntity): Long
+
+    @Update
+    suspend fun updateBook(book: AudiobookEntity)
+
+    @Insert
+    suspend fun insertParts(parts: List<AudiobookPartEntity>)
+
+    @Query("DELETE FROM audiobook_parts WHERE bookId = :bookId")
+    suspend fun deleteParts(bookId: Long)
+
+    @Query("DELETE FROM audiobook_parts")
+    suspend fun deleteAllParts()
+
+    @Query("DELETE FROM audiobooks WHERE id IN (:ids)")
+    suspend fun deleteBooks(ids: List<Long>)
+
+    @Query("UPDATE audiobooks SET resume = :resume, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun setResume(id: Long, resume: String, updatedAt: Long)
+
+    @Query("UPDATE audiobooks SET bookmark = :bookmark, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun setBookmark(id: Long, bookmark: String, updatedAt: Long)
 }

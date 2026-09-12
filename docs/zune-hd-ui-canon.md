@@ -56,6 +56,11 @@ placeholder.
 ### 3.3 Crossbar ("sub-menus arrayed left to right across the top")
 - Inside `music`: top crossbar row is `albums · artists · playlists · songs ·
   genres` (real Zune order).
+- **Extension (D4):** Dorado-HD appends a sixth `audiobooks` pivot. The device
+  shipped an audiobook library (`GemLibraryAudiobookPartScene`, parity audit
+  §2), but its crossbar position is not recoverable from the sources; keeping
+  books inside the music pivot leaves the nine-entry home menu untouched
+  (§3.1). Labelled a post-device extension per §10.
 - Flick horizontally on the crossbar (or content) to switch pivots; content
   slides horizontally beneath the fixed crossbar.
 - Lists scroll vertically: textual (artists, genres) or grid (albums).
@@ -235,7 +240,9 @@ fade-in on the next item — Media3 has no overlapping crossfade; labelled
 procedural animation remains the fallback), and the **richer lock-screen
 surface** (`DoradoMediaNotificationProvider`: dedicated public low-importance
 channel, compact transport actions from the session layout, album art via the
-session bitmap loader).
+session bitmap loader), and the **audiobook library** (grouped parts, resume
+and bookmark positions, and a 0.75–2.0× reading-speed selector; anchored to the
+device's `GemLibraryAudiobookPartScene`).
 
 **Pending:** live-radio pause-and-cache — tracked in
 `docs/parity-roadmap.md` (M5/M6/M10).

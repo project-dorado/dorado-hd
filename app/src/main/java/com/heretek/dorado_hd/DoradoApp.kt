@@ -52,6 +52,7 @@ class DoradoGraph(
     val cloudUpdates: com.heretek.dorado_hd.cloud.CloudUpdateService,
     val playCounts: com.heretek.dorado_hd.analysis.PlayCountStore,
     val appState: com.heretek.dorado_hd.data.repo.AppStateRepository,
+    val audiobooks: com.heretek.dorado_hd.data.repo.AudiobookRepository,
 ) {
     /**
      * True while a full-bleed presentation (picture viewer) owns the screen
@@ -142,11 +143,12 @@ open class DoradoApp : Application() {
         val cloudUpdates = com.heretek.dorado_hd.cloud.CloudUpdateService(settings = { latestSettings.get() })
         val equalizer = com.heretek.dorado_hd.media.EqualizerController()
         val appState = com.heretek.dorado_hd.data.repo.AppStateRepository(db)
+        val audiobooks = com.heretek.dorado_hd.data.repo.AudiobookRepository(db)
 
         graph = DoradoGraph(
             library, quickplay, settings, settings.settings, controller, nav,
             artistImages, artistBios, notes, calendar, alarms, radio, podcasts, games, deviceLink, analysis, mixes, scrobble, lyrics,
-            cloudSignIn, cloudSignInCallback, cloudUpdates, playCountStore, appState,
+            cloudSignIn, cloudSignInCallback, cloudUpdates, playCountStore, appState, audiobooks,
         )
 
         if (autoConnectPlayback) {
@@ -194,6 +196,28 @@ open class DoradoApp : Application() {
                     runCatching {
                         com.heretek.dorado_hd.widget.NowPlayingWidgetUpdater.update(this@DoradoApp, state)
                     }
+                }
+        }
+
+        // D4: persist the audiobook resume (last part + position). Throttled to
+        // one write per 5 s, plus an immediate write on a part transition, so
+        // the position ticker doesn't hammer the database.
+        appScope.launch {
+            var lastWriteAt = 0L
+            var lastPart = -1
+            combine(
+                controller.currentAudiobookId,
+                controller.currentIndex,
+                controller.positionMs,
+            ) { bookId, part, position -> Triple(bookId, part, position) }
+                .collect { (bookId, part, position) ->
+                    if (bookId == null || part < 0) return@collect
+                    val now = android.os.SystemClock.elapsedRealtime()
+                    val partChanged = part != lastPart
+                    if (!partChanged && now - lastWriteAt < 5_000L) return@collect
+                    lastPart = part
+                    lastWriteAt = now
+                    runCatching { audiobooks.saveResume(bookId, part, position) }
                 }
         }
 

@@ -30,9 +30,11 @@ import kotlinx.coroutines.launch
  * Which presentation the current queue belongs to. `Radio.kt` marks its
  * streams [RADIO] when it starts them; Now Playing uses that explicit signal
  * to show the station identity and a live tag instead of the scrubber
- * (device `GemNowPlayingRadioScene`). Every other surface stays [LIBRARY].
+ * (device `GemNowPlayingRadioScene`). [AUDIOBOOK] marks a book's part queue so
+ * the audiobook speed selector stays in effect across parts and is reset when
+ * any other queue starts.
  */
-enum class PlaybackSource { LIBRARY, RADIO }
+enum class PlaybackSource { LIBRARY, RADIO, AUDIOBOOK }
 
 /**
  * App-side playback coordinator. Bridges the Compose UI to the Media3 session
@@ -86,6 +88,17 @@ class PlaybackController(
     private val _source = MutableStateFlow(PlaybackSource.LIBRARY)
     val source: StateFlow<PlaybackSource> = _source.asStateFlow()
 
+    /** Book currently being read, or null when the queue is not an audiobook. */
+    private val _audiobookId = MutableStateFlow<Long?>(null)
+    val currentAudiobookId: StateFlow<Long?> = _audiobookId.asStateFlow()
+
+    /** Audiobook playback speed (1.0 unless the user picked a step). */
+    private val _speed = MutableStateFlow(1.0f)
+    val speed: StateFlow<Float> = _speed.asStateFlow()
+
+    /** Media ids of the parts of the audiobook queue, for the reset guard. */
+    private var audiobookPartIds: Set<Long> = emptySet()
+
     /** Sleep-timer countdown in ms; 0 when no timer is armed. */
     private val _sleepRemainingMs = MutableStateFlow(0L)
     val sleepRemainingMs: StateFlow<Long> = _sleepRemainingMs.asStateFlow()
@@ -100,6 +113,7 @@ class PlaybackController(
         val token = SessionToken(context, ComponentName(context, DoradoPlaybackService::class.java))
         controller = MediaController.Builder(context, token).buildAsync().await()
         controller?.addListener(listener)
+        controller?.setPlaybackSpeed(_speed.value)
         positionTicker()
     }
 
@@ -127,6 +141,12 @@ class PlaybackController(
             _nowPlaying.value = track
             _durationMs.value = controller?.duration ?: 0L
             candidateReachedThreshold = false
+            // Parts of the audiobook keep the chosen reading speed; anything
+            // else (a hand-off to a music track, an external queue) resets it.
+            if (track == null || track.mediaId !in audiobookPartIds) {
+                if (_audiobookId.value != null) _audiobookId.value = null
+                if (_speed.value != 1.0f) setSpeed(1.0f)
+            }
             if (previous != null && previousReached && previous.mediaId != track?.mediaId) {
                 val finished = previous
                 scope.launch {
@@ -290,6 +310,11 @@ class PlaybackController(
 
     fun play(tracks: List<Track>, startIndex: Int = 0, source: PlaybackSource = PlaybackSource.LIBRARY) {
         if (tracks.isEmpty()) return
+        if (source != PlaybackSource.AUDIOBOOK) {
+            audiobookPartIds = emptySet()
+            _audiobookId.value = null
+            if (_speed.value != 1.0f) setSpeed(1.0f)
+        }
         baseOrder = tracks
         _queue.value = tracks
         _source.value = source
@@ -301,6 +326,34 @@ class PlaybackController(
         if (FadeRamp.effectiveMs(crossfadeMs()) > 0L) player.volume = 0f
         player.play()
         if (FadeRamp.effectiveMs(crossfadeMs()) > 0L) fadeTo(1f, FadeRamp.effectiveMs(crossfadeMs()))
+    }
+
+    /**
+     * Starts a book's part queue (D4). [startPositionMs] seeds playback from
+     * the persisted resume; the source marker keeps the speed selector in
+     * effect for the remaining parts.
+     */
+    fun playAudiobook(
+        bookId: Long,
+        tracks: List<Track>,
+        startIndex: Int = 0,
+        startPositionMs: Long = 0L,
+    ) {
+        if (tracks.isEmpty()) return
+        audiobookPartIds = tracks.map { it.mediaId }.toSet()
+        _audiobookId.value = bookId
+        play(tracks, startIndex.coerceIn(0, tracks.lastIndex), PlaybackSource.AUDIOBOOK)
+        if (startPositionMs > 0L) seekTo(startPositionMs)
+    }
+
+    /**
+     * Applies an audiobook reading speed (Media3 `player.setPlaybackSpeed`).
+     * Non-audiobook queues reset this to 1.0 when they start.
+     */
+    fun setSpeed(speed: Float) {
+        val value = AudiobookSpeeds.clamp(speed)
+        _speed.value = value
+        controller?.setPlaybackSpeed(value)
     }
 
     fun enqueue(track: Track) {

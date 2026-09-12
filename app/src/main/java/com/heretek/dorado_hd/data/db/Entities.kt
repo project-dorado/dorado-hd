@@ -208,3 +208,37 @@ data class PlayCountEntity(
     val count: Int,
     val lastPlayedAt: Long,
 )
+
+/**
+ * Audiobook grouping (D4): one row per book. `groupKey` is the scanner's
+ * stable identity (`album:<id>` or `dir:<path>`) so reseeds preserve the
+ * resume/bookmark positions. Positions are [AudiobookProgress] codecs.
+ */
+@Entity(tableName = "audiobooks", indices = [Index(value = ["groupKey"], unique = true)])
+data class AudiobookEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val groupKey: String,
+    val title: String,
+    val author: String,
+    val albumId: Long,
+    val partCount: Int,
+    val totalDurationMs: Long,
+    val resume: String,
+    val bookmark: String,
+    val updatedAt: Long,
+)
+
+/** One ordered, playable part belonging to an [AudiobookEntity]. */
+@Entity(
+    tableName = "audiobook_parts",
+    indices = [Index("bookId"), Index(value = ["mediaId"], unique = true)],
+)
+data class AudiobookPartEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val bookId: Long,
+    val mediaId: Long,
+    val position: Int,
+    val title: String,
+    val durationMs: Long,
+    val uri: String,
+)

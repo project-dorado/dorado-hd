@@ -170,3 +170,43 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         )
     }
 }
+
+/**
+ * Room v6 → v7: audiobooks (roadmap D4). `audiobooks` groups ordered parts
+ * (`audiobook_parts`) by the scanner's stable `groupKey`; the resume/bookmark
+ * positions persist there as `AudiobookProgress` codecs. Existing data
+ * untouched. The SQL mirrors Room's expected v7 schema exactly.
+ */
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `audiobooks` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `groupKey` TEXT NOT NULL,
+                `title` TEXT NOT NULL,
+                `author` TEXT NOT NULL,
+                `albumId` INTEGER NOT NULL,
+                `partCount` INTEGER NOT NULL,
+                `totalDurationMs` INTEGER NOT NULL,
+                `resume` TEXT NOT NULL,
+                `bookmark` TEXT NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )""",
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_audiobooks_groupKey` ON `audiobooks` (`groupKey`)")
+
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS `audiobook_parts` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `bookId` INTEGER NOT NULL,
+                `mediaId` INTEGER NOT NULL,
+                `position` INTEGER NOT NULL,
+                `title` TEXT NOT NULL,
+                `durationMs` INTEGER NOT NULL,
+                `uri` TEXT NOT NULL
+            )""",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_audiobook_parts_bookId` ON `audiobook_parts` (`bookId`)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_audiobook_parts_mediaId` ON `audiobook_parts` (`mediaId`)")
+    }
+}
