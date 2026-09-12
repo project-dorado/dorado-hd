@@ -281,9 +281,9 @@ class PlaybackController(
             cancelSleepTimer()
             return
         }
-        sleepDeadlineElapsedMs = android.os.SystemClock.elapsedRealtime() + minutes * 60_000L
+        sleepDeadlineElapsedMs = SleepTimer.deadlineMs(android.os.SystemClock.elapsedRealtime(), minutes)
         sleepActive = true
-        _sleepRemainingMs.value = minutes * 60_000L
+        _sleepRemainingMs.value = SleepTimer.remainingMs(sleepDeadlineElapsedMs, android.os.SystemClock.elapsedRealtime())
     }
 
     fun cancelSleepTimer() {
@@ -294,9 +294,9 @@ class PlaybackController(
 
     private fun tickSleepTimer(player: MediaController) {
         if (!sleepActive) return
-        val remaining = (sleepDeadlineElapsedMs - android.os.SystemClock.elapsedRealtime()).coerceAtLeast(0L)
+        val remaining = SleepTimer.remainingMs(sleepDeadlineElapsedMs, android.os.SystemClock.elapsedRealtime())
         _sleepRemainingMs.value = remaining
-        if (remaining > 0L) return
+        if (!SleepTimer.expired(sleepDeadlineElapsedMs, android.os.SystemClock.elapsedRealtime())) return
         sleepActive = false
         // Fade out over a short window, then stop; restore volume for the
         // next manual play.
