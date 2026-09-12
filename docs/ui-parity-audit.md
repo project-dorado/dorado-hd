@@ -140,3 +140,37 @@ The four clock/date exclusions from the original golden set are gone: the
 seam makes those entry frames deterministic. Second-screen goldens remain
 the one deferred item — mid-flow visuals are covered by the interactive
 flow crawl's per-step screenshots.
+
+
+---
+
+## 9. Next-steps program results (Tracks B/C/D)
+
+**Verified on-device:** entry crawl **63/63** (0 crashes, 0 blank) and
+interactive flow crawl **63/63** (primary flow → pause → background/relaunch →
+cold restart), latest run 2026-09-12. Accessibility semantics from Track A also
+made the UI tree readable to the crawl (text nodes now present).
+
+| Item | Evidence |
+|---|---|
+| Fade-through crossfade + sleep timer | `media/FadeRamp.kt` + controller tests; settings ▸ playback |
+| Live FFT visualizer (C5) | `TapRenderersFactory`/`VisualizerBus`/`SpectrumBands`; PCM-tap integration test |
+| Richer lock-screen (M10) | `DoradoMediaNotificationProvider` + Robolectric provider test |
+| Smart DJ, podcast search, Zune-Card export (M5) | music crossbar menu; `PodcastSearch`/`CloudPodcastDirectory`; `CardRenderer`/`CardExporter` |
+| Radio + picture Now Playing, photo grid (M13) | `RadioNowPlaying`, `PicturePresentation`, `ArtistPhotos` |
+| Inbox/user card (D2) | `CloudSocialClient` + local-first `inbox_messages` (DB v8) |
+| Audiobooks (D4) | model/scanner/grouping, DB v7, parts player with speed ladder |
+| Queue engine, built-in playlists, PIN lock | `QueueEngine` + showlist move/next/clear; `BuiltInPlaylists`; `PinLock` + shade keypad |
+| Roster uplift | PGR 12 cars/6 tracks/18 events; Echoes 24 arenas; bowling 8 lanes; Labyrinth at parity |
+
+**Regression the crawl caught:** the audiobook speed restore in
+`PlaybackController.connect()` ran off the application thread, crashing every
+launch (63/63 crawl failures); fixed by resuming controller calls on
+`Dispatchers.Main`. Unit/UI suites did not catch it because tests disable the
+service connection — the on-device gate is the reason this shipped correctly.
+
+**Documented N/A / deferred:** live-radio ±5-min rewind (needs a time-shifting
+server); cloud inbox mark-read (server serves it read-only; read state is
+local); the four remaining emulator titles (two corpus gaps, two dead
+services); desktop i18n remaining locales (deferred registry, 20 shipped);
+organization repository pinning (profile-level manual step).
