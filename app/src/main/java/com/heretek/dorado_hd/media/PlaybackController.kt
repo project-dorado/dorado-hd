@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Which presentation the current queue belongs to. `Radio.kt` marks its
@@ -125,10 +126,15 @@ class PlaybackController(
     suspend fun connect() {
         if (controller != null) return
         val token = SessionToken(context, ComponentName(context, DoradoPlaybackService::class.java))
-        controller = MediaController.Builder(context, token).buildAsync().await()
-        controller?.addListener(listener)
-        controller?.setPlaybackSpeed(_speed.value)
-        positionTicker()
+        val connection = MediaController.Builder(context, token).buildAsync().await()
+        // MediaController enforces the application thread; callers may be on a
+        // background dispatcher (DoradoApp connects from Dispatchers.Default).
+        withContext(Dispatchers.Main) {
+            controller = connection
+            connection.addListener(listener)
+            connection.setPlaybackSpeed(_speed.value)
+            positionTicker()
+        }
     }
 
     private val listener = object : Player.Listener {
