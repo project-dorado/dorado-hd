@@ -257,6 +257,24 @@ object PgrEngine {
                 maxSteerDeg = 35f, colorsArgb = listOf(0x2F7A4E, 0xE8B93A, 0x2A2A2E, 0xD8D8D8),
             ),
             PgrCarDef(
+                id = "lupo-v", name = "lupo v", classLevel = 1, creditCost = 22000, kudosCost = 0,
+                medalsRequired = 0, accel = 5, speedStat = 5, handling = 5, weight = 5, brake = 5,
+                massKg = 1195f, minTorque = 245f, maxTorque = 445f, lowRpm = 1120f, highRpm = 8300f,
+                gears = listOf(3.5f, 2.45f, 1.9f, 1.55f, 1.3f, 1.09f), reverseRatio = 3.25f,
+                finalDrive = 3.58f, radiusFront = 0.32f, radiusRear = 0.33f, wheelbase = 2.58f,
+                trackWidth = 1.88f, areaFront = 0.79f, areaSide = 2.64f, brakeTorque = 7400f,
+                maxSteerDeg = 34.5f, colorsArgb = listOf(0xD14B3C, 0x1E3E73, 0xF0E2C0, 0x28282C),
+            ),
+            PgrCarDef(
+                id = "monte-r", name = "monte r", classLevel = 1, creditCost = 32000, kudosCost = 0,
+                medalsRequired = 1, accel = 5, speedStat = 5, handling = 6, weight = 5, brake = 5,
+                massKg = 1235f, minTorque = 252f, maxTorque = 458f, lowRpm = 1140f, highRpm = 8450f,
+                gears = listOf(3.55f, 2.48f, 1.91f, 1.53f, 1.26f), reverseRatio = 3.3f,
+                finalDrive = 3.62f, radiusFront = 0.32f, radiusRear = 0.34f, wheelbase = 2.62f,
+                trackWidth = 1.9f, areaFront = 0.8f, areaSide = 2.68f, brakeTorque = 7700f,
+                maxSteerDeg = 35.5f, colorsArgb = listOf(0x2E6E8E, 0xE0B23A, 0x30302F, 0xE8E8E8),
+            ),
+            PgrCarDef(
                 id = "tigre-gts", name = "tigre gts", classLevel = 2, creditCost = 30000, kudosCost = 800,
                 medalsRequired = 3, accel = 6, speedStat = 6, handling = 6, weight = 6, brake = 6,
                 massKg = 1320f, minTorque = 297f, maxTorque = 540f, lowRpm = 1200f, highRpm = 8600f,
@@ -275,6 +293,24 @@ object PgrEngine {
                 maxSteerDeg = 36f, colorsArgb = listOf(0xE07B2A, 0x2B2B30, 0x5A6B7A, 0xEFEFEF),
             ),
             PgrCarDef(
+                id = "tempesta-7", name = "tempesta 7", classLevel = 2, creditCost = 60000, kudosCost = 2200,
+                medalsRequired = 7, accel = 7, speedStat = 7, handling = 6, weight = 6, brake = 7,
+                massKg = 1345f, minTorque = 315f, maxTorque = 575f, lowRpm = 1220f, highRpm = 8700f,
+                gears = listOf(3.52f, 2.48f, 1.9f, 1.55f, 1.31f, 1.09f), reverseRatio = 3.38f,
+                finalDrive = 3.68f, radiusFront = 0.33f, radiusRear = 0.34f, wheelbase = 2.66f,
+                trackWidth = 1.95f, areaFront = 0.83f, areaSide = 2.87f, brakeTorque = 8400f,
+                maxSteerDeg = 35f, colorsArgb = listOf(0xB02A2A, 0x2A2E36, 0xE8C24A, 0xF0F0F0),
+            ),
+            PgrCarDef(
+                id = "vortex-s", name = "vortex s", classLevel = 2, creditCost = 72000, kudosCost = 2800,
+                medalsRequired = 8, accel = 7, speedStat = 7, handling = 7, weight = 6, brake = 7,
+                massKg = 1315f, minTorque = 330f, maxTorque = 590f, lowRpm = 1240f, highRpm = 8800f,
+                gears = listOf(3.56f, 2.52f, 1.93f, 1.57f, 1.32f, 1.1f), reverseRatio = 3.42f,
+                finalDrive = 3.72f, radiusFront = 0.33f, radiusRear = 0.35f, wheelbase = 2.69f,
+                trackWidth = 1.97f, areaFront = 0.85f, areaSide = 2.92f, brakeTorque = 8800f,
+                maxSteerDeg = 36.5f, colorsArgb = listOf(0x1E7A5A, 0x101820, 0xC8C8CE, 0xE04B2A),
+            ),
+            PgrCarDef(
                 id = "aquila-sc", name = "aquila sc", classLevel = 3, creditCost = 80000, kudosCost = 3000,
                 medalsRequired = 9, accel = 8, speedStat = 8, handling = 8, weight = 7, brake = 8,
                 massKg = 1290f, minTorque = 363f, maxTorque = 660f, lowRpm = 1300f, highRpm = 9000f,
@@ -291,6 +327,24 @@ object PgrEngine {
                 finalDrive = 3.8f, radiusFront = 0.34f, radiusRear = 0.35f, wheelbase = 2.72f,
                 trackWidth = 2.0f, areaFront = 0.9f, areaSide = 3.1f, brakeTorque = 9600f,
                 maxSteerDeg = 38f, colorsArgb = listOf(0xC8A02E, 0x101014, 0x27443A, 0xD8D8D8),
+            ),
+            PgrCarDef(
+                id = "corsa-nera", name = "corsa nera", classLevel = 3, creditCost = 160000, kudosCost = 9000,
+                medalsRequired = 14, accel = 9, speedStat = 9, handling = 9, weight = 8, brake = 9,
+                massKg = 1220f, minTorque = 380f, maxTorque = 700f, lowRpm = 1320f, highRpm = 9100f,
+                gears = listOf(3.62f, 2.58f, 1.96f, 1.59f, 1.34f, 1.11f), reverseRatio = 3.48f,
+                finalDrive = 3.78f, radiusFront = 0.34f, radiusRear = 0.35f, wheelbase = 2.71f,
+                trackWidth = 1.99f, areaFront = 0.89f, areaSide = 3.05f, brakeTorque = 9400f,
+                maxSteerDeg = 37.5f, colorsArgb = listOf(0x141418, 0xC8A02E, 0x8E1C1C, 0xE8E8E8),
+            ),
+            PgrCarDef(
+                id = "aurora-one", name = "aurora one", classLevel = 3, creditCost = 200000, kudosCost = 12000,
+                medalsRequired = 16, accel = 10, speedStat = 10, handling = 9, weight = 8, brake = 10,
+                massKg = 1195f, minTorque = 410f, maxTorque = 750f, lowRpm = 1350f, highRpm = 9300f,
+                gears = listOf(3.68f, 2.62f, 2.0f, 1.62f, 1.36f, 1.13f), reverseRatio = 3.52f,
+                finalDrive = 3.82f, radiusFront = 0.34f, radiusRear = 0.36f, wheelbase = 2.74f,
+                trackWidth = 2.02f, areaFront = 0.91f, areaSide = 3.12f, brakeTorque = 10000f,
+                maxSteerDeg = 38.5f, colorsArgb = listOf(0xF0F0F0, 0x1A2A4A, 0x2FA08E, 0xE0B23A),
             ),
         )
 
@@ -905,6 +959,42 @@ object PgrEngine {
                 width = 9f,
                 propSeed = 2026497481,
             ),
+            PgrTrackDef(
+                id = "westminster-ring",
+                name = "westminster ring",
+                city = PgrCity.LONDON,
+                controlPoints = listOf(
+                    PgrVec2(0f, 0f), PgrVec2(110f, -35f), PgrVec2(210f, -5f), PgrVec2(260f, 80f),
+                    PgrVec2(230f, 170f), PgrVec2(140f, 215f), PgrVec2(45f, 200f), PgrVec2(-30f, 140f),
+                    PgrVec2(-40f, 55f),
+                ),
+                width = 12f,
+                propSeed = 1118736411,
+            ),
+            PgrTrackDef(
+                id = "shibuya-cross",
+                name = "shibuya cross",
+                city = PgrCity.TOKYO,
+                controlPoints = listOf(
+                    PgrVec2(0f, 0f), PgrVec2(90f, -40f), PgrVec2(185f, -25f), PgrVec2(240f, 40f),
+                    PgrVec2(215f, 110f), PgrVec2(250f, 175f), PgrVec2(175f, 225f), PgrVec2(90f, 195f),
+                    PgrVec2(35f, 235f), PgrVec2(-35f, 190f), PgrVec2(-45f, 95f), PgrVec2(-15f, 25f),
+                ),
+                width = 10f,
+                propSeed = 1338092767,
+            ),
+            PgrTrackDef(
+                id = "midtown-dash",
+                name = "midtown dash",
+                city = PgrCity.NEW_YORK,
+                controlPoints = listOf(
+                    PgrVec2(0f, 0f), PgrVec2(70f, -20f), PgrVec2(150f, -15f), PgrVec2(200f, 25f),
+                    PgrVec2(230f, 90f), PgrVec2(185f, 150f), PgrVec2(120f, 170f), PgrVec2(60f, 150f),
+                    PgrVec2(20f, 185f), PgrVec2(-30f, 150f), PgrVec2(-40f, 75f), PgrVec2(-25f, 25f),
+                ),
+                width = 11f,
+                propSeed = 1717562309,
+            ),
         )
 
         val all: List<PgrTrack> by lazy { defs.map { build(it) } }
@@ -1099,6 +1189,43 @@ object PgrEngine {
                 trackId = "kingsway-loop", laps = MAX_LAPS, difficulty = PgrDifficulty.HARD,
                 prerequisites = listOf("ev10", "ev11"), parMs = 340_000L,
                 rewardCarId = "falco-stradale", blurb = "six laps for the falco stradale.",
+            ),
+            PgrEventDef(
+                id = "ev13", name = "westminster cup", type = PgrEventType.STREET_RACE,
+                trackId = "westminster-ring", laps = 3, difficulty = PgrDifficulty.HARD,
+                prerequisites = listOf("ev09"), parMs = 270_000L,
+                blurb = "the capital's new ring. hold the racing line to the flag.",
+            ),
+            PgrEventDef(
+                id = "ev14", name = "shibuya drift", type = PgrEventType.KUDOS_CHALLENGE,
+                trackId = "shibuya-cross", laps = 3, difficulty = PgrDifficulty.HARD,
+                prerequisites = listOf("ev13"), targetKudos = 3000, parMs = 280_000L,
+                rewardCarId = "tempesta-7", blurb = "chain three thousand kudos for the tempesta 7.",
+            ),
+            PgrEventDef(
+                id = "ev15", name = "midtown overtake", type = PgrEventType.OVERTAKE,
+                trackId = "midtown-dash", laps = 3, difficulty = PgrDifficulty.HARD,
+                prerequisites = listOf("ev13"), targetOvertakes = 6, parMs = 280_000L,
+                rewardCarId = "vortex-s", blurb = "six clean passes unlock the vortex s.",
+            ),
+            PgrEventDef(
+                id = "ev16", name = "elite time trial", type = PgrEventType.TIME_VS_KUDOS,
+                trackId = "westminster-ring", laps = 4, difficulty = PgrDifficulty.HARD,
+                prerequisites = listOf("ev14", "ev15"), limitMs = 240_000L, targetKudos = 2500,
+                parMs = 240_000L, rewardCarId = "corsa-nera",
+                blurb = "beat the clock with kudos in hand for the corsa nera.",
+            ),
+            PgrEventDef(
+                id = "ev17", name = "grand masters", type = PgrEventType.ONE_ON_ONE,
+                trackId = "shibuya-cross", laps = 4, difficulty = PgrDifficulty.HARD,
+                prerequisites = listOf("ev16"), parMs = 300_000L,
+                rewardCarId = "aurora-one", blurb = "one rival, four laps, the aurora one.",
+            ),
+            PgrEventDef(
+                id = "ev18", name = "final showdown", type = PgrEventType.STREET_RACE,
+                trackId = "midtown-dash", laps = MAX_LAPS, difficulty = PgrDifficulty.HARD,
+                prerequisites = listOf("ev16", "ev17"), parMs = 360_000L,
+                blurb = "the last race on the streets of new york. first place only.",
             ),
         )
 

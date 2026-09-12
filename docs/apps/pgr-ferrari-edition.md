@@ -122,9 +122,10 @@ and SFX, and our own ghost data.
   values and combo stash, event win conditions, ghost record/playback,
   credit/unlock rules.
 - Fidelity target: full-parity racing sim mechanics with original cars,
-  cities and events (smaller initial car/event roster). Risks: physics
-  feel parity, AI quality, and the content volume of four cars per class
-  plus multi-segment cities.
+  cities and events. The Dorado-HD roster is closed at the device content
+  counts: 12 cars (four per class), 6 code-defined tracks (two per city) and
+  18 career events. Risks: physics feel parity, AI quality, and track
+  authoring volume.
 
 ## 7. Citation log
 

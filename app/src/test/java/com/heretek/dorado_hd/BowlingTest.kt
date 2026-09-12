@@ -378,16 +378,54 @@ class BowlingTest {
     }
 
     @Test
-    fun `five original lanes carry distinct physics parameters`() {
-        assertEquals(5, BowlingLane.entries.size)
-        assertEquals(5, BowlingBall.entries.size)
-        assertEquals(5, BowlingRival.entries.size)
+    fun `eight original lanes carry distinct physics parameters`() {
+        assertEquals(8, BowlingLane.entries.size)
+        assertEquals(8, BowlingBall.entries.size)
+        assertEquals(8, BowlingRival.entries.size)
         for (lane in BowlingLane.entries) {
             assertTrue(lane.friction > 0f)
             assertTrue(lane.hook > 0f)
             assertTrue(lane.oilLength in 0f..1f)
+            assertTrue(lane.deck in 0f..1f)
+            assertTrue(lane.surfaceRgb != lane.backRgb)
         }
-        assertEquals(5, BowlingLane.entries.map { it.label }.toSet().size)
+        assertEquals(8, BowlingLane.entries.map { it.label }.toSet().size)
+        assertEquals(8, BowlingBall.entries.map { it.label }.toSet().size)
+        assertEquals(8, BowlingRival.entries.map { it.label }.toSet().size)
+        assertEquals(8, BowlingBall.entries.map { it.rgb }.toSet().size)
+        for (ball in BowlingBall.entries) assertTrue(ball.grip > 0f)
+        for (rival in BowlingRival.entries) assertTrue(rival.skill in 0f..1f)
+        val pairs = BowlingLane.entries.map { it.friction to it.hook }.toSet()
+        assertEquals(8, pairs.size)
+    }
+
+    @Test
+    fun `every lane and ball runs a deterministic valid shot`() {
+        for (lane in BowlingLane.entries) {
+            val a = BowlingEngine.simulateShot(lane, List(BOWLING_NUM_PINS) { true }, straight, BowlingBall.COMET, seed = 77)
+            val b = BowlingEngine.simulateShot(lane, List(BOWLING_NUM_PINS) { true }, straight, BowlingBall.COMET, seed = 77)
+            assertEquals(lane.label, a, b)
+            assertTrue("${lane.label} never settled", a.done)
+            assertEquals(BOWLING_NUM_PINS, a.pins.size)
+            assertTrue(a.felledCount() in 0..BOWLING_NUM_PINS)
+            assertFalse(a.ball.x.isNaN())
+        }
+        for (ball in BowlingBall.entries) {
+            val shot = BowlingEngine.simulateShot(BowlingLane.PINERY, List(BOWLING_NUM_PINS) { true }, straight, ball, seed = 78)
+            assertTrue("${ball.label} never settled", shot.done)
+        }
+    }
+
+    @Test
+    fun `every rival throws deterministically and in range`() {
+        for (rival in BowlingRival.entries) {
+            val a = BowlingEngine.cpuThrow(rival, seed = 9, index = 0)
+            val b = BowlingEngine.cpuThrow(rival, seed = 9, index = 0)
+            assertEquals(rival.label, a, b)
+            assertTrue(a.speed in 0.35f..0.95f)
+            assertTrue(a.aim in -1f..1f)
+            assertTrue(a.spin in -1f..1f)
+        }
     }
 
     /* ------------------------------ match flow ------------------------------ */

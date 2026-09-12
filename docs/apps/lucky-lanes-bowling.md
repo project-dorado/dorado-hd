@@ -124,9 +124,10 @@ synthesized music/SFX/voices (no Microsoft assets).
   classifier clamps, deterministic pin simulation replay, unlock matrix,
   CPU turn order.
 - Fidelity target: full-parity mechanics with original content; the
-  campaign ships the 5 original lane themes and a smaller character roster
-  first. Risks: physics tuning for believable pin action, replay camera
-  parity, and the animation/voiceover asset count.
+  Dorado-HD campaign ships 8 original lane themes (each with its own
+  friction/hook/oil parameter set) plus 8 balls and 8 CPU rivals. Risks:
+  physics tuning for believable pin action, replay camera parity, and the
+  animation/voiceover asset count.
 
 ## 7. Citation log
 

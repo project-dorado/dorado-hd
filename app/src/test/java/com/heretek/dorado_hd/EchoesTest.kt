@@ -369,7 +369,8 @@ class EchoesTest {
 
     @Test
     fun `all authored arenas parse with equal rows and floor spawns`() {
-        assertEquals(12, EchoesArenas.ALL.size)
+        assertEquals(24, EchoesArenas.ALL.size)
+        assertEquals(24, EchoesArenas.ALL.map { it.name }.toSet().size)
         for (arena in EchoesArenas.ALL) {
             assertEquals(30, arena.cols)
             assertEquals(17, arena.rows)
@@ -378,6 +379,15 @@ class EchoesTest {
             assertFalse(arena.wallAt((arena.spawn.x / EchoesEngine.TILE).toInt(), (arena.spawn.y / EchoesEngine.TILE).toInt()))
             assertTrue(arena.floorCells.isNotEmpty())
         }
+    }
+
+    @Test
+    fun `arena lookup covers the whole campaign and clamps out of range`() {
+        for (index in EchoesArenas.ALL.indices) {
+            assertEquals(index, EchoesArenas.byId(index).id)
+        }
+        assertEquals(0, EchoesArenas.byId(-1).id)
+        assertEquals(EchoesArenas.ALL.lastIndex, EchoesArenas.byId(9_999).id)
     }
 
     @Test

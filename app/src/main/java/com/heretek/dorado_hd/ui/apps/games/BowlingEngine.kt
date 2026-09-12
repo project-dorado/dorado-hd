@@ -86,7 +86,7 @@ enum class BowlingLength(val label: String, val frames: Int) {
 }
 
 /**
- * Our five original lanes. [friction] is longitudinal deceleration (u/s^2),
+ * Our original lanes. [friction] is longitudinal deceleration (u/s^2),
  * [hook] the lateral acceleration scale (u/s^2), [oilLength] the fraction of
  * the lane before hook engages, [deck] the pin-deck restitution, and the rgb
  * fields drive the original decor palette.
@@ -106,6 +106,9 @@ enum class BowlingLane(
     DUNES("sunset dunes", 38f, 26f, 0.76f, 0.44f, 0x96613A, 0x39220F, 0xFF8B45),
     GROTTO("tidal grotto", 24f, 64f, 0.48f, 0.56f, 0x1E4E48, 0x08211F, 0x5CF2C6),
     ORBIT("stardust station", 14f, 104f, 0.26f, 0.70f, 0x2C2B40, 0x0F0F1A, 0xC9A0FF),
+    TUNDRA("frozen tundra", 34f, 40f, 0.70f, 0.48f, 0x5A6E82, 0x1C2630, 0xBFE3FF),
+    FOUNDRY("iron foundry", 20f, 78f, 0.40f, 0.60f, 0x4A2E22, 0x180C08, 0xFF6B3D),
+    MONSOON("monsoon alley", 26f, 58f, 0.54f, 0.58f, 0x264A5A, 0x0A1A24, 0x59D0E8),
 }
 
 /** Our own ball roster; [grip] scales the hook the timing meter can impart. */
@@ -115,6 +118,9 @@ enum class BowlingBall(val label: String, val rgb: Int, val grip: Float) {
     JADE("jade", 0x2CB57E, 1.0f),
     TIDE("tide", 0x3388E0, 0.95f),
     LASER("laser", 0xC9A0FF, 1.05f),
+    ONYX("onyx", 0x2A2A2E, 0.85f),
+    AMBER("amber", 0xE0A030, 1.1f),
+    FROST("frost", 0x9FE8FF, 0.8f),
 }
 
 /** Original CPU rivals; [skill] 0..1 drives the throw distribution. */
@@ -124,6 +130,9 @@ enum class BowlingRival(val label: String, val skill: Float) {
     MORROW("morrow", 0.63f),
     KESTREL("kestrel", 0.73f),
     VESPER("vesper", 0.82f),
+    ORION("orion", 0.50f),
+    CINDER("cinder", 0.68f),
+    HALCYON("halcyon", 0.90f),
 }
 
 /**

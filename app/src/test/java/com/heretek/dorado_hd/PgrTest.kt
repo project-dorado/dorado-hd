@@ -618,4 +618,78 @@ class PgrTest {
         repeat(PgrEngine.TICS_PER_SECOND) { race = PgrEngine.tickRace(race, null) }
         assertTrue(race.phase == PgrEngine.PgrPhase.RACING)
     }
+
+    // ------------------------------------------------------------------
+    // Content roster (device parity counts)
+    // ------------------------------------------------------------------
+
+    @Test
+    fun `content roster meets the device counts`() {
+        assertEquals(12, PgrEngine.PgrCars.all.size)
+        assertEquals(6, PgrEngine.PgrTracks.all.size)
+        assertEquals(18, PgrEngine.PgrEvents.all.size)
+        assertEquals(4, PgrEngine.PgrCars.all.count { it.classLevel == 1 })
+        assertEquals(4, PgrEngine.PgrCars.all.count { it.classLevel == 2 })
+        assertEquals(4, PgrEngine.PgrCars.all.count { it.classLevel == 3 })
+        assertEquals(
+            PgrEngine.PgrCars.starter,
+            PgrEngine.PgrCars.all.first(),
+        )
+    }
+
+    @Test
+    fun `every authored car, track and event id is unique`() {
+        val carIds = PgrEngine.PgrCars.all.map { it.id }
+        assertEquals(carIds.size, carIds.toSet().size)
+        val trackIds = PgrEngine.PgrTracks.all.map { it.def.id }
+        assertEquals(trackIds.size, trackIds.toSet().size)
+        val eventIds = PgrEngine.PgrEvents.all.map { it.id }
+        assertEquals(eventIds.size, eventIds.toSet().size)
+    }
+
+    @Test
+    fun `every car is unlockable through purchase or a career reward`() {
+        val events = PgrEngine.PgrEvents.all
+        val rewardCars = events.mapNotNull { it.rewardCarId }.toSet()
+        for (car in PgrEngine.PgrCars.all) {
+            val starter = car.id == PgrEngine.PgrCars.starter.id
+            val reward = car.id in rewardCars
+            val purchasable = car.creditCost > 0 && car.medalsRequired <= events.size
+            assertTrue("car ${car.id} is not unlockable", starter || reward || purchasable)
+            if (!starter) assertTrue("car ${car.id} costs nothing", car.creditCost > 0)
+            assertTrue("car ${car.id} medal gate exceeds events", car.medalsRequired <= events.size)
+            assertTrue("car ${car.id} kudos cost is negative", car.kudosCost >= 0)
+        }
+    }
+
+    @Test
+    fun `every event references valid content and the unlock graph is acyclic`() {
+        val events = PgrEngine.PgrEvents.all
+        val ids = events.map { it.id }.toSet()
+        val tracks = PgrEngine.PgrTracks.all.map { it.def.id }.toSet()
+        val cars = PgrEngine.PgrCars.all.map { it.id }.toSet()
+        for (event in events) {
+            assertTrue("event ${event.id} has unknown track", event.trackId in tracks)
+            event.rewardCarId?.let {
+                assertTrue("event ${event.id} rewards unknown car $it", it in cars)
+            }
+            event.prerequisites.forEach {
+                assertTrue("event ${event.id} prerequisite $it unknown", it in ids)
+            }
+            assertTrue("event ${event.id} lap count", event.laps in 1..PgrEngine.MAX_LAPS)
+        }
+        val reachable = HashSet<String>()
+        var changed = true
+        while (changed) {
+            changed = false
+            for (event in events) {
+                if (event.id in reachable) continue
+                if (event.prerequisites.all { it in reachable }) {
+                    reachable += event.id
+                    changed = true
+                }
+            }
+        }
+        assertEquals("career graph must be reachable from its roots", ids, reachable)
+    }
 }

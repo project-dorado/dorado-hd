@@ -105,10 +105,10 @@ synthesized SFX.
   and tunneling guards at max speed, checkpoint rewind, pickup-open-goal
   rule, par-star math, act unlock, save/restore, tilt-to-acceleration
   mapping incl. landscape flip and 1.05 assist.
-- Fidelity target: full-parity mechanics; ship 5 acts of original mazes
-  (target 116 levels, phased authoring). Risks: collision robustness at
-  750 px/s, tilt feel/calibration across devices, and maze authoring
-  volume.
+- Fidelity target: full-parity mechanics; the Dorado-HD roster ships five
+  acts of original mazes — 116 levels (112 scenes + 4 bonus), at parity with
+  the device counts. Risks: collision robustness at 750 px/s, tilt
+  feel/calibration across devices, and maze authoring volume.
 
 ## 7. Citation log
 

@@ -105,9 +105,11 @@ as our own tile layouts.
 - Tests (`app/src/test/java/com/heretek/dorado_hd/`): snapshot replay
   determinism, collision/hit/invulnerability windows, power-up durations,
   mode win/continue rules, unlock ordering, achievement thresholds.
-- Fidelity target: full-parity mechanics with original arenas. Risks:
-  echo-replay determinism across frame rates, the volume of arena content,
-  and multiplayer over the modern stack (scope to local/co-op first).
+- Fidelity target: full-parity mechanics with original arenas. The
+  Dorado-HD roster is closed at 24 original arenas (authored wall plans
+  validated for the 21-unit puck radius). Risks: echo-replay determinism
+  across frame rates, and multiplayer over the modern stack (scope to
+  local/co-op first).
 
 ## 7. Citation log
 

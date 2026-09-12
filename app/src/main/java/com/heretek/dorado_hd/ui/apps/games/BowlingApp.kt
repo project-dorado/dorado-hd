@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -413,34 +412,34 @@ private fun BowlingSetup(
                 text = "lane",
                 style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                BowlingLane.entries.take(3).forEach { option ->
-                    BowlingChip(option.label, option == lane) { onLane(option) }
+            BowlingLane.entries.chunked(3).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    row.forEach { option ->
+                        BowlingChip(option.label, option == lane) { onLane(option) }
+                    }
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                BowlingLane.entries.drop(3).forEach { option ->
-                    BowlingChip(option.label, option == lane) { onLane(option) }
+            BasicText(
+                text = "ball",
+                style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
+            )
+            BowlingBall.entries.chunked(4).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    row.forEach { option ->
+                        BowlingChip(option.label, option == ball) { onBall(option) }
+                    }
                 }
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            if (mode == BowlingMode.BLACKJACK) {
                 BasicText(
-                    text = "ball",
+                    text = "dealer",
                     style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
                 )
-                Spacer(Modifier.width(4.dp))
-                BowlingBall.entries.forEach { option ->
-                    BowlingChip(option.label, option == ball) { onBall(option) }
-                }
-                Spacer(Modifier.width(8.dp))
-                if (mode == BowlingMode.BLACKJACK) {
-                    BasicText(
-                        text = "dealer",
-                        style = TextStyle(fontFamily = Selawik, fontSize = DoradoTokens.TYPE_CAPTION.sp, color = colors.textSecondary),
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    BowlingRival.entries.forEach { option ->
-                        BowlingChip(option.label, option == rival) { onRival(option) }
+                BowlingRival.entries.chunked(4).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        row.forEach { option ->
+                            BowlingChip(option.label, option == rival) { onRival(option) }
+                        }
                     }
                 }
             }
@@ -940,6 +939,17 @@ private class BowlingStage {
                         material = glow,
                     ),
                 )
+            }
+            BowlingLane.TUNDRA -> for (z in listOf(-580f, -380f, -180f)) {
+                scene.add(nodeAt(postMesh, x = -28f, y = 12f, z = z, material = Material3d(shade(rgb(lane.glowRgb), 0.4f))))
+                scene.add(nodeAt(postMesh, x = 28f, y = 12f, z = z, material = Material3d(shade(rgb(lane.glowRgb), 0.4f))))
+            }
+            BowlingLane.FOUNDRY -> for (z in listOf(-560f, -340f, -140f)) {
+                scene.add(nodeAt(beamMesh, y = 24f, z = z, material = Material3d(shade(rgb(lane.glowRgb), 0.35f))))
+            }
+            BowlingLane.MONSOON -> for (z in listOf(-600f, -400f, -200f)) {
+                scene.add(nodeAt(starMesh, x = -25f, y = 3f, z = z, material = glow))
+                scene.add(nodeAt(starMesh, x = 25f, y = 3f, z = z, material = glow))
             }
         }
 

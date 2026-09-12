@@ -479,7 +479,7 @@ private fun PgrMenu(
             )
             Spacer(Modifier.height(6.dp))
             PgrRow("quick race", "car · track · difficulty", onClick = onQuick)
-            PgrRow("career", "12 events · medals unlock the field", onClick = onCareer)
+            PgrRow("career", "${PgrEngine.PgrEvents.all.size} events · medals unlock the field", onClick = onCareer)
             PgrRow("garage", "${profile.cars.size} cars owned", onClick = onGarage)
             PgrRow("records", "lap, race and kudos bests", onClick = onRecords)
             PgrRow("options", "tilt, auto-gas, sound", onClick = onOptions)
