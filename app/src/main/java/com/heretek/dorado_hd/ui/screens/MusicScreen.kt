@@ -4,6 +4,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -42,7 +43,9 @@ import com.heretek.dorado_hd.design.components.AlbumArt
 import com.heretek.dorado_hd.design.components.CrossbarBar
 import com.heretek.dorado_hd.design.components.EdgeCropText
 import com.heretek.dorado_hd.data.model.PinKind
+import com.heretek.dorado_hd.data.model.Playlist
 import com.heretek.dorado_hd.data.model.Track
+import com.heretek.dorado_hd.data.repo.BuiltInPlaylists
 import com.heretek.dorado_hd.design.components.KineticList
 import com.heretek.dorado_hd.design.components.firstLetterOf
 import com.heretek.dorado_hd.design.components.rememberZuneFlingBehavior
@@ -375,60 +378,127 @@ private fun ArtistsTab() {
     )
 }
 
+/** A row in the playlists pivot: a device built-in or a user playlist. */
+private sealed interface PlaylistEntry {
+    val key: String
+    val name: String
+
+    data class BuiltIn(val playlist: BuiltInPlaylists.BuiltInPlaylist) : PlaylistEntry {
+        override val key: String get() = playlist.id
+        override val name: String get() = playlist.title
+    }
+
+    data class User(val playlist: Playlist) : PlaylistEntry {
+        override val key: String get() = "user-${playlist.id}"
+        override val name: String get() = playlist.name
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PlaylistsTab() {
     val graph = LocalDoradoGraph.current
     val menus = LocalContextMenu.current
     val scope = rememberCoroutineScope()
+    val colors = LocalDoradoColors.current
     val playlists by graph.library.playlists().collectAsState(initial = emptyList())
+    val songs by graph.library.tracks().collectAsState(initial = emptyList())
+    val recentIds by graph.quickplay.recentTrackIds().collectAsState(initial = emptyList())
+    var builtIns by remember { mutableStateOf<List<BuiltInPlaylists.BuiltInPlaylist>>(emptyList()) }
 
-    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
+    // Built-ins re-derive whenever the pivot opens or its inputs change —
+    // hearts, persisted play counts and history — the device's "refresh on open".
+    LaunchedEffect(songs, recentIds) {
+        val ratings = graph.quickplay.ratings()
+        val counts = graph.playCounts.counts()
+        builtIns = BuiltInPlaylists.derive(songs, ratings, counts, recentIds)
+    }
+
+    val entries = buildList<PlaylistEntry> {
+        builtIns.forEach { add(PlaylistEntry.BuiltIn(it)) }
+        playlists.forEach { add(PlaylistEntry.User(it)) }
+    }
+
+    Box(Modifier.fillMaxSize()) {
         com.heretek.dorado_hd.design.components.KineticList(
-            items = playlists,
-            key = { it.id },
+            items = entries,
+            key = { it.key },
             letter = { firstLetterOf(it.name) },
             // Leave room for the "+ new playlist" footer so it never covers a row.
             bottomPadding = 56.dp,
-            rowContent = { playlist, _ ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(DoradoTokens.ROW_HEIGHT.dp)
-                        .combinedClickable(
-                            onClick = { graph.nav.push(DoradoDestination.PlaylistDetail(playlist.id)) },
-                            onLongClick = {
-                                menus.show(
-                                    title = playlist.name,
-                                actions = listOf(
-                                    MenuAction("pin to quickplay") {
-                                        scope.launch {
-                                            graph.quickplay.pin(PinKind.PLAYLIST, playlist.id, playlist.name, "${playlist.trackCount} songs", 0)
-                                        }
-                                    },
-                                    MenuAction("delete playlist") {
-                                        scope.launch { graph.library.deletePlaylist(playlist.id) }
-                                    },
-                                ),
-                                )
-                            },
-                        )
-                        .padding(horizontal = DoradoTokens.EDGE.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        EdgeCropText(text = playlist.name, fontSize = DoradoTokens.TYPE_LIST.dp)
-                        EdgeCropText(
-                            text = "${playlist.trackCount} songs",
-                            fontSize = DoradoTokens.TYPE_LIST_SECONDARY.dp,
-                            color = LocalDoradoColors.current.textSecondary,
-                        )
+            rowContent = { entry, _ ->
+                when (entry) {
+                    is PlaylistEntry.BuiltIn -> Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(DoradoTokens.ROW_HEIGHT.dp)
+                            .clickable(enabled = entry.playlist.tracks.isNotEmpty()) {
+                                graph.controller.play(entry.playlist.tracks, 0)
+                            }
+                            .padding(horizontal = DoradoTokens.EDGE.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            // Built-ins are read-only and visually distinct:
+                            // accent title, "built-in" sub-label, no rename/delete.
+                            EdgeCropText(
+                                text = entry.playlist.title,
+                                fontSize = DoradoTokens.TYPE_LIST.dp,
+                                color = colors.accent,
+                            )
+                            EdgeCropText(
+                                text = entry.playlist.subLabel,
+                                fontSize = DoradoTokens.TYPE_LIST_SECONDARY.dp,
+                                color = colors.textSecondary,
+                            )
+                        }
+                    }
+
+                    is PlaylistEntry.User -> Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(DoradoTokens.ROW_HEIGHT.dp)
+                            .combinedClickable(
+                                onClick = { graph.nav.push(DoradoDestination.PlaylistDetail(entry.playlist.id)) },
+                                onLongClick = {
+                                    menus.show(
+                                        title = entry.playlist.name,
+                                        actions = listOf(
+                                            MenuAction("pin to quickplay") {
+                                                scope.launch {
+                                                    graph.quickplay.pin(
+                                                        PinKind.PLAYLIST,
+                                                        entry.playlist.id,
+                                                        entry.playlist.name,
+                                                        "${entry.playlist.trackCount} songs",
+                                                        0,
+                                                    )
+                                                }
+                                            },
+                                            MenuAction("delete playlist") {
+                                                scope.launch { graph.library.deletePlaylist(entry.playlist.id) }
+                                            },
+                                        ),
+                                    )
+                                },
+                            )
+                            .padding(horizontal = DoradoTokens.EDGE.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            EdgeCropText(text = entry.playlist.name, fontSize = DoradoTokens.TYPE_LIST.dp)
+                            EdgeCropText(
+                                text = "${entry.playlist.trackCount} songs",
+                                fontSize = DoradoTokens.TYPE_LIST_SECONDARY.dp,
+                                color = colors.textSecondary,
+                            )
+                        }
                     }
                 }
             },
         )
 
-        if (playlists.isEmpty()) {
+        if (entries.isEmpty()) {
             EdgeCropText(
                 text = "no playlists yet — create one below",
                 fontSize = DoradoTokens.TYPE_LIST.dp,
@@ -487,6 +557,7 @@ private fun SongsTab() {
                     menus.show(
                         title = track.title,
                         actions = trackMenuActions(graph, scope, track) + listOf(
+                            MenuAction("insert next") { graph.controller.insertNext(track) },
                             MenuAction("add to playlist") {
                                 menus.show(
                                     title = "add to playlist",

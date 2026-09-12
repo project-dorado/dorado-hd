@@ -26,6 +26,15 @@ class QuickplayRepository(private val db: DoradoDatabase) {
         list.map { it.toCard() }
     }
 
+    /**
+     * Most-recently played track ids, newest first — the input to the built-in
+     * `recent tracks` playlist. History also carries albums/artists etc., so
+     * only track cards are returned.
+     */
+    fun recentTrackIds(limit: Int = 30): Flow<List<Long>> = history(limit).map { cards ->
+        cards.filter { it.kind == PinKind.TRACK }.map { it.refId }
+    }
+
     suspend fun pin(kind: PinKind, refId: Long, label: String, subLabel: String, artAlbumId: Long) {
         db.pinDao().pin(
             PinEntity(

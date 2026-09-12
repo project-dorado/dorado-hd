@@ -6,9 +6,16 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.heretek.dorado_hd.data.security.PinLock
 import com.heretek.dorado_hd.design.DoradoAccent
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 
 private val Context.dataStore by preferencesDataStore(name = "dorado_hd_settings")
 
@@ -42,7 +49,20 @@ data class DoradoSettings(
     val crossfadeSeconds: Int = 0,
     /** M10 — sleep-timer preset in minutes (0 = no timer armed). */
     val sleepTimerMinutes: Int = 0,
-)
+    /**
+     * Screen lock (device `GemSettingPinLockScene`). Only the PBKDF2 hash,
+     * salt and iteration count are persisted — never the PIN. An empty
+     * [pinHash] means no PIN is configured.
+     */
+    val pinHash: String = "",
+    val pinSalt: String = "",
+    val pinIterations: Int = PinLock.DEFAULT_ITERATIONS,
+    /** Require the PIN after the app is backgrounded (vs. "lock now" only). */
+    val autoLockEnabled: Boolean = true,
+) {
+    /** True when a screen-lock credential is stored. */
+    val hasPin: Boolean get() = pinHash.isNotEmpty()
+}
 
 class SettingsRepository(private val context: Context) {
     private object Keys {
@@ -67,6 +87,21 @@ class SettingsRepository(private val context: Context) {
         val EQ_PRESET = stringPreferencesKey("eq_preset")
         val CROSSFADE_SECONDS = intPreferencesKey("crossfade_seconds")
         val SLEEP_TIMER_MINUTES = intPreferencesKey("sleep_timer_minutes")
+        val PIN_HASH = stringPreferencesKey("pin_hash")
+        val PIN_SALT = stringPreferencesKey("pin_salt")
+        val PIN_ITERATIONS = intPreferencesKey("pin_iterations")
+        val AUTO_LOCK = booleanPreferencesKey("auto_lock")
+    }
+
+    /**
+     * In-memory "lock now" signal (not persisted). Settings ▸ device emits it;
+     * `DoradoRoot` collects it and raises the wake shade.
+     */
+    private val _lockRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val lockRequests: SharedFlow<Unit> = _lockRequests.asSharedFlow()
+
+    fun requestLockNow() {
+        _lockRequests.tryEmit(Unit)
     }
 
     val settings: Flow<DoradoSettings> = context.dataStore.data.map { p ->
@@ -92,6 +127,10 @@ class SettingsRepository(private val context: Context) {
             eqPreset = p[Keys.EQ_PRESET] ?: "FLAT",
             crossfadeSeconds = p[Keys.CROSSFADE_SECONDS] ?: 0,
             sleepTimerMinutes = p[Keys.SLEEP_TIMER_MINUTES] ?: 0,
+            pinHash = p[Keys.PIN_HASH] ?: "",
+            pinSalt = p[Keys.PIN_SALT] ?: "",
+            pinIterations = p[Keys.PIN_ITERATIONS] ?: PinLock.DEFAULT_ITERATIONS,
+            autoLockEnabled = p[Keys.AUTO_LOCK] ?: true,
         )
     }
 
@@ -118,4 +157,47 @@ class SettingsRepository(private val context: Context) {
     suspend fun setEqPreset(value: String) = context.dataStore.edit { it[Keys.EQ_PRESET] = value }
     suspend fun setCrossfadeSeconds(value: Int) = context.dataStore.edit { it[Keys.CROSSFADE_SECONDS] = value }
     suspend fun setSleepTimerMinutes(value: Int) = context.dataStore.edit { it[Keys.SLEEP_TIMER_MINUTES] = value }
+
+    // ---- screen lock (device GemSettingPinLockScene / HudPinLockScene) ----
+
+    suspend fun setAutoLock(enabled: Boolean) = context.dataStore.edit { it[Keys.AUTO_LOCK] = enabled }
+
+    /**
+     * Validates and stores a fresh salted PBKDF2 credential. The PIN itself is
+     * never written. Returns false when [pin] is not 4–6 digits.
+     */
+    suspend fun setPin(pin: String): Boolean {
+        if (!PinLock.isValid(pin)) return false
+        val stored = withContext(Dispatchers.Default) { PinLock.hashNew(pin) }
+        context.dataStore.edit {
+            it[Keys.PIN_HASH] = PinLock.encode(stored.hash)
+            it[Keys.PIN_SALT] = PinLock.encode(stored.salt)
+            it[Keys.PIN_ITERATIONS] = stored.iterations
+        }
+        return true
+    }
+
+    suspend fun clearPin() = context.dataStore.edit {
+        it.remove(Keys.PIN_HASH)
+        it[Keys.PIN_SALT] = ""
+        it[Keys.PIN_ITERATIONS] = PinLock.DEFAULT_ITERATIONS
+    }
+
+    /** Verifies a PIN against the stored hash. True when no PIN is configured. */
+    suspend fun verifyPin(pin: String): Boolean {
+        val current = settings.first()
+        if (!current.hasPin) return true
+        return withContext(Dispatchers.Default) {
+            runCatching {
+                PinLock.verify(
+                    pin,
+                    PinLock.Stored(
+                        hash = PinLock.decode(current.pinHash),
+                        salt = PinLock.decode(current.pinSalt),
+                        iterations = current.pinIterations,
+                    ),
+                )
+            }.getOrDefault(false)
+        }
+    }
 }

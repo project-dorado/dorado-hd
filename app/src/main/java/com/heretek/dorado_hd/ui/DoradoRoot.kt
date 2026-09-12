@@ -21,10 +21,12 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -77,17 +79,35 @@ fun DoradoRoot() {
     val menus = remember { MenuController() }
     val activity = androidx.activity.compose.LocalActivity.current
     var shaded by remember { mutableStateOf(false) }
+    var pinRequired by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    // "lock now" from Settings ▸ device raises the shade immediately.
+    val hasPin by rememberUpdatedState(settings.hasPin)
+    LaunchedEffect(Unit) {
+        graph.settings.lockRequests.collect {
+            pinRequired = hasPin
+            shaded = true
+        }
+    }
+
     // Wake shade (canon §5): cover the UI after the app leaves the foreground;
-    // user slides the shade up to reveal the interface.
-    DisposableEffect(lifecycleOwner) {
+    // user slides the shade up to reveal the interface. With a PIN configured
+    // the shade requires the keypad; disabling auto-lock leaves backgrounding
+    // unlocked and reserves the lock for the explicit "lock now" action.
+    DisposableEffect(lifecycleOwner, settings.hasPin, settings.autoLockEnabled) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 // ON_STOP means the app is genuinely backgrounded; ON_PAUSE
                 // also fires for permission dialogs and singleTask deep-link
                 // relaunches, which used to raise the shade over the app.
-                Lifecycle.Event.ON_STOP -> shaded = true
+                Lifecycle.Event.ON_STOP -> {
+                    val pin = settings.hasPin
+                    if (!pin || settings.autoLockEnabled) {
+                        pinRequired = pin
+                        shaded = true
+                    }
+                }
                 else -> Unit
             }
         }
@@ -120,7 +140,15 @@ fun DoradoRoot() {
                         MiniPlayer(canvasWidth)
                     }
                     com.heretek.dorado_hd.ui.components.ContextMenuOverlay(menus)
-                    LockShade(visible = shaded, onUnlock = { shaded = false })
+                    LockShade(
+                        visible = shaded,
+                        onUnlock = {
+                            shaded = false
+                            pinRequired = false
+                        },
+                        pinRequired = pinRequired,
+                        verifyPin = { pin -> graph.settings.verifyPin(pin) },
+                    )
                 }
             }
         }

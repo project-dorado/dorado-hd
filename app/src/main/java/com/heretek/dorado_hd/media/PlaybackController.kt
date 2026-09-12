@@ -99,6 +99,20 @@ class PlaybackController(
     /** Media ids of the parts of the audiobook queue, for the reset guard. */
     private var audiobookPartIds: Set<Long> = emptySet()
 
+    /**
+     * Pure queue order + played-history stack (device `CMediaQueueBase` /
+     * `CTrackListQueue`). Media3 remains the playback engine; every queue
+     * mutation is mirrored through [applyQueueMutation].
+     */
+    private val queueEngine = QueueEngine<Track>(idOf = { it.mediaId })
+
+    /**
+     * The most recent device-style playback event (`ZMediaQueue/MediaItem*`).
+     * In-memory only; a StateFlow so consumers always see the latest event.
+     */
+    private val _playbackEvent = MutableStateFlow<PlaybackEvent?>(null)
+    val playbackEvent: StateFlow<PlaybackEvent?> = _playbackEvent.asStateFlow()
+
     /** Sleep-timer countdown in ms; 0 when no timer is armed. */
     private val _sleepRemainingMs = MutableStateFlow(0L)
     val sleepRemainingMs: StateFlow<Long> = _sleepRemainingMs.asStateFlow()
@@ -120,11 +134,17 @@ class PlaybackController(
     private val listener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _isPlaying.value = isPlaying
+            val id = _nowPlaying.value?.mediaId ?: return
+            _playbackEvent.value = if (isPlaying) PlaybackEvent.Playing(id) else PlaybackEvent.Paused(id)
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
             if (playbackState == Player.STATE_READY) {
                 _durationMs.value = controller?.duration ?: 0L
+            }
+            if (playbackState == Player.STATE_ENDED) {
+                val id = _nowPlaying.value?.mediaId ?: return
+                _playbackEvent.value = PlaybackEvent.Stopped(id)
             }
         }
 
@@ -137,8 +157,10 @@ class PlaybackController(
             val previousReached = candidateReachedThreshold
             val index = controller?.currentMediaItemIndex ?: return
             _currentIndex.value = index
+            queueEngine.setCurrentIndex(index)
             val track = _queue.value.getOrNull(index)
             _nowPlaying.value = track
+            if (track != null) queueEngine.recordPlayed(track)
             _durationMs.value = controller?.duration ?: 0L
             candidateReachedThreshold = false
             // Parts of the audiobook keep the chosen reading speed; anything
@@ -178,6 +200,13 @@ class PlaybackController(
                 if (player != null && _isPlaying.value) {
                     val position = player.currentPosition.coerceAtLeast(0)
                     _positionMs.value = position
+                    _nowPlaying.value?.let { track ->
+                        _playbackEvent.value = PlaybackEvent.Positioned(
+                            mediaId = track.mediaId,
+                            positionMs = position,
+                            durationMs = _durationMs.value,
+                        )
+                    }
                     if (reachedScrobbleThreshold(position, _durationMs.value)) {
                         candidateReachedThreshold = true
                     }
@@ -316,11 +345,14 @@ class PlaybackController(
             if (_speed.value != 1.0f) setSpeed(1.0f)
         }
         baseOrder = tracks
-        _queue.value = tracks
+        queueEngine.reset(tracks, startIndex)
+        _queue.value = queueEngine.items
+        _currentIndex.value = queueEngine.currentIndex
         _source.value = source
+        val safeStart = queueEngine.currentIndex.coerceAtLeast(0)
         val items = tracks.map { it.toMediaItem() }
         val player = controller ?: return
-        player.setMediaItems(items, startIndex, 0L)
+        player.setMediaItems(items, safeStart, 0L)
         player.prepare()
         fadeOutTriggered = false
         if (FadeRamp.effectiveMs(crossfadeMs()) > 0L) player.volume = 0f
@@ -356,11 +388,16 @@ class PlaybackController(
         controller?.setPlaybackSpeed(value)
     }
 
+    /** Appends [track] to the end of the queue (the "play next" long-press action). */
     fun enqueue(track: Track) {
-        val player = controller ?: return
-        player.addMediaItem(track.toMediaItem())
-        _queue.value = _queue.value + track
+        applyQueueMutation(queueEngine.append(track))
         if (baseOrder.isEmpty()) baseOrder = _queue.value
+    }
+
+    /** Inserts [track] immediately after the current item (device showlist insert). */
+    fun insertNext(track: Track) {
+        applyQueueMutation(queueEngine.insertNext(track))
+        if (!_shuffle.value) baseOrder = _queue.value
     }
 
     fun toggle() {
@@ -380,8 +417,27 @@ class PlaybackController(
         skipWithFade { it.seekToNextMediaItem() }
     }
 
+    /**
+     * Device previous behavior: within the first few seconds step back through
+     * the played-history stack; after that restart the current track. Falls
+     * back to a restart when the history entry is no longer queued.
+     */
     fun previous() {
-        skipWithFade { it.seekToPreviousMediaItem() }
+        val position = _positionMs.value
+        if (position > PREVIOUS_RESTART_THRESHOLD_MS) {
+            seekTo(0L)
+            return
+        }
+        val id = queueEngine.back() ?: run {
+            seekTo(0L)
+            return
+        }
+        val index = _queue.value.indexOfFirst { it.mediaId == id }
+        if (index >= 0) {
+            skipWithFade { it.seekTo(index, 0L) }
+        } else {
+            seekTo(0L)
+        }
     }
 
     fun seekTo(positionMs: Long) {
@@ -395,10 +451,52 @@ class PlaybackController(
 
     /** Removes the queue entry at [index] (the device's showlist/queue list). */
     fun removeAt(index: Int) {
-        val queueNow = _queue.value
-        if (index !in queueNow.indices) return
-        controller?.removeMediaItem(index)
-        _queue.value = queueNow.toMutableList().also { it.removeAt(index) }
+        val removed = _queue.value.getOrNull(index) ?: return
+        applyQueueMutation(queueEngine.removeAt(index))
+        baseOrder = baseOrder.filterNot { it.mediaId == removed.mediaId }
+    }
+
+    /** Reorders the queue (device `ZDKMedia_Queue_MoveTo`). */
+    fun moveInQueue(from: Int, to: Int) {
+        applyQueueMutation(queueEngine.move(from, to))
+        if (!_shuffle.value) baseOrder = _queue.value
+    }
+
+    /** Empties the queue and its played history. */
+    fun clearQueue() {
+        applyQueueMutation(queueEngine.clear())
+        baseOrder = emptyList()
+    }
+
+    /** Snapshot of the played-history ids (oldest → newest). */
+    fun playedHistory(): List<Long> = queueEngine.history
+
+    /** True while the device-style `previous()` would step back a track. */
+    fun canGoBackInHistory(): Boolean = queueEngine.canGoBack()
+
+    /** Mirrors a pure [QueueMutation] onto Media3 and the exposed StateFlows. */
+    private fun applyQueueMutation(mutation: QueueMutation<Track>) {
+        val player = controller
+        when (mutation) {
+            is QueueMutation.None -> Unit
+            is QueueMutation.Append -> {
+                if (player != null) {
+                    mutation.evictAt?.let { player.removeMediaItem(it) }
+                    player.addMediaItem(mutation.item.toMediaItem())
+                }
+            }
+            is QueueMutation.Insert -> {
+                if (player != null) {
+                    mutation.evictAt?.let { player.removeMediaItem(it) }
+                    player.addMediaItem(mutation.index, mutation.item.toMediaItem())
+                }
+            }
+            is QueueMutation.Move -> player?.moveMediaItem(mutation.from, mutation.to)
+            is QueueMutation.Remove -> player?.removeMediaItem(mutation.index)
+            is QueueMutation.Clear -> player?.clearMediaItems()
+        }
+        _queue.value = queueEngine.items
+        _currentIndex.value = queueEngine.currentIndex
     }
 
     fun setShuffle(enabled: Boolean) {
@@ -416,6 +514,8 @@ class PlaybackController(
                 listOfNotNull(current) + rest
             }
             _queue.value = newOrder
+            queueEngine.reset(newOrder, 0)
+            _currentIndex.value = queueEngine.currentIndex
             player.setMediaItems(newOrder.map { it.toMediaItem() }, 0, 0L)
             player.prepare()
             if (_isPlaying.value) player.play()
@@ -427,6 +527,8 @@ class PlaybackController(
             val ratings = quickplay.ratings()
             val newOrder = smartShuffleOrder(baseOrder, ratings, _nowPlaying.value)
             _queue.value = newOrder
+            queueEngine.reset(newOrder, 0)
+            _currentIndex.value = queueEngine.currentIndex
             player.setMediaItems(newOrder.map { it.toMediaItem() }, 0, 0L)
             player.prepare()
             if (_isPlaying.value) player.play()
@@ -460,6 +562,13 @@ class PlaybackController(
     }
 
     companion object {
+        /**
+         * Within this window `previous()` steps back through history; beyond
+         * it the device restarts the current track (Media3's own
+         * `DEFAULT_MAX_SEEK_TO_PREVIOUS_POSITION_MS`).
+         */
+        const val PREVIOUS_RESTART_THRESHOLD_MS = 3_000L
+
         /**
          * Smart DJ ordering (canon §4): the current track leads, hearted
          * tracks follow, then unrated; broken-heart tracks are skipped.

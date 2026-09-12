@@ -31,6 +31,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.heretek.dorado_hd.BuildConfig
+import com.heretek.dorado_hd.data.security.PinLock
 import com.heretek.dorado_hd.design.LocalDoradoColors
 import com.heretek.dorado_hd.design.Selawik
 import com.heretek.dorado_hd.design.DoradoAccent
@@ -59,6 +60,7 @@ fun SettingsScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
     var trackCount by remember { mutableStateOf<Int?>(null) }
     var updateStatus by remember { mutableStateOf<String?>(null) }
     var cloudStatus by remember { mutableStateOf<String?>(null) }
+    var pinStatus by remember { mutableStateOf<String?>(null) }
     androidx.compose.runtime.LaunchedEffect(Unit) { trackCount = graph.library.trackCount() }
 
     // SAF tree picker → recursive import into the library.
@@ -208,6 +210,53 @@ fun SettingsScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                 subLabel = "compute on-device audio features for similarity and mixes",
                 onClick = { scope.launch { graph.analysis.analyzeAll(graph.library.tracks().first()) } },
             )
+
+            SectionLabel("screen lock")
+            SettingsRow(
+                label = if (settings.hasPin) "change pin" else "set pin",
+                subLabel = pinStatus ?: if (settings.hasPin) {
+                    "4–6 digits · stored as a salted pbkdf2 hash, never plaintext"
+                } else {
+                    "protect the wake shade with a 4–6 digit pin"
+                },
+                onClick = {
+                    menus.showPrompt("screen lock pin", "4–6 digits") { value ->
+                        val pin = value.trim()
+                        if (!PinLock.isValid(pin)) {
+                            pinStatus = "pin must be 4–6 digits"
+                        } else {
+                            scope.launch {
+                                graph.settings.setPin(pin)
+                                pinStatus = "pin set"
+                            }
+                        }
+                    }
+                },
+            )
+            if (settings.hasPin) {
+                SettingsToggle(
+                    label = "auto-lock on background",
+                    subLabel = "require the pin after leaving the app",
+                    value = settings.autoLockEnabled,
+                ) { enabled ->
+                    scope.launch { graph.settings.setAutoLock(enabled) }
+                }
+                SettingsRow(
+                    label = "lock now",
+                    subLabel = "show the wake shade immediately",
+                    onClick = { graph.settings.requestLockNow() },
+                )
+                SettingsRow(
+                    label = "clear pin",
+                    subLabel = "remove the screen lock",
+                    onClick = {
+                        scope.launch {
+                            graph.settings.clearPin()
+                            pinStatus = "pin cleared"
+                        }
+                    },
+                )
+            }
 
             SectionLabel("scrobbling")
             SettingsToggle(
