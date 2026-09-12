@@ -92,8 +92,9 @@ A code-verified snapshot (not README claims):
   implementation is a **fade-through** (Media3 cannot overlap items in one
   player): tail fade-out, next-item fade-in. Pure ramp math in
   `media/FadeRamp.kt` with unit tests.
-- Live-radio pause-and-cache ("Live / Rewind ±5 min") — capability-gated on a
-  real-time streaming source.
+- ⛔ **N/A** Live-radio pause-and-cache ("Live / Rewind ±5 min"): rewind needs a
+  time-shifting server; the shipped radio is a progressive Icecast stream, so
+  pause/resume reconnects at the live edge (canon §10/§11).
 - ✅ Lock-screen Now Playing art + controls: `DoradoMediaNotificationProvider`
   (public low-importance channel, compact transport from the session command
   layout, album art via a caching session bitmap loader, content intent to the

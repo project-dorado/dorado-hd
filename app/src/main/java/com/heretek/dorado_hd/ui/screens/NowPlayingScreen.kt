@@ -848,6 +848,7 @@ private fun QueueOverlay(onDismiss: () -> Unit) {
     val colors = LocalDoradoColors.current
     val queue by graph.controller.queue.collectAsState()
     val currentIndex by graph.controller.currentIndex.collectAsState()
+    val menus = com.heretek.dorado_hd.ui.components.LocalContextMenu.current
 
     Box(
         Modifier
@@ -860,11 +861,28 @@ private fun QueueOverlay(onDismiss: () -> Unit) {
                 .fillMaxSize()
                 .padding(DoradoTokens.EDGE.dp),
         ) {
-            EdgeCropText(
-                text = "showlist",
-                fontSize = DoradoTokens.TYPE_NOW_META.dp,
-                color = colors.accent,
-            )
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                EdgeCropText(
+                    text = "showlist",
+                    fontSize = DoradoTokens.TYPE_NOW_META.dp,
+                    color = colors.accent,
+                )
+                androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+                EdgeCropText(
+                    text = "clear",
+                    fontSize = DoradoTokens.TYPE_NOW_META.dp,
+                    color = colors.accent,
+                    modifier = Modifier
+                        .clickable {
+                            graph.controller.clearQueue()
+                            onDismiss()
+                        }
+                        .padding(vertical = 4.dp, horizontal = 2.dp),
+                )
+            }
             LazyColumn(Modifier.fillMaxSize()) {
                 itemsIndexed(queue, key = { index, t -> "$index:${t.mediaId}" }) { index, t ->
                     Row(
@@ -876,7 +894,32 @@ private fun QueueOverlay(onDismiss: () -> Unit) {
                                     graph.controller.seekToIndex(index)
                                     onDismiss()
                                 },
-                                onLongClick = { graph.controller.removeAt(index) },
+                                onLongClick = {
+                                    val actions = buildList {
+                                        if (index > 0) {
+                                            add(com.heretek.dorado_hd.ui.components.MenuAction("move up") {
+                                                graph.controller.moveInQueue(index, index - 1)
+                                            })
+                                        }
+                                        if (index < queue.lastIndex) {
+                                            add(com.heretek.dorado_hd.ui.components.MenuAction("move down") {
+                                                graph.controller.moveInQueue(index, index + 1)
+                                            })
+                                        }
+                                        if (index != currentIndex + 1 && index != currentIndex) {
+                                            add(com.heretek.dorado_hd.ui.components.MenuAction("play next") {
+                                                graph.controller.moveInQueue(
+                                                    index,
+                                                    (currentIndex + 1).coerceIn(0, queue.lastIndex),
+                                                )
+                                            })
+                                        }
+                                        add(com.heretek.dorado_hd.ui.components.MenuAction("remove") {
+                                            graph.controller.removeAt(index)
+                                        })
+                                    }
+                                    menus.show(t.title, actions)
+                                },
                             ),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
