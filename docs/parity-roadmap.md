@@ -77,7 +77,9 @@ A code-verified snapshot (not README claims):
 ### M5 — Social + discovery
 
 - ✅ Now Playing system share sheet (`ACTION_SEND`, artist + title + album).
-- Zune-Card-style artwork export (PNG/JPEG).
+- ✅ Zune-Card-style artwork export: `social/CardRenderer.kt` (deterministic
+  bitmap) + `CardExporter.kt` (`ACTION_SEND` via FileProvider, save to
+  Pictures on API 29+).
 - ✅ On-device podcast search: local subscribed-feed filter plus the
   dorado-cloud podcast directory when enabled (`PodcastSearch.kt`,
   `CloudPodcastDirectory.kt`; graceful local-only labelling).
@@ -258,7 +260,12 @@ explicitly documented (long-term / N-A) — no gap unplanned.
 
 - ✅ **D1** Share (`ACTION_SEND`) from Now Playing.
 - ✅ **D3** Marketplace discovery: catalog search + entry details over the frozen catalog.
-- 🟡 **D2** Social user card: a local **Zune Card** (tracks/hearts/plays) on the Social screen; the inbox still needs a backend (mock shell only).
+- ✅ **D2** Social user card + inbox: local Zune Card (tracks/hearts/plays)
+  with cloud enhancement when signed in (`CloudSocialClient` feed/card),
+  local-first `inbox_messages` Room table (v8) + `InboxRepository` with
+  mark-read and offline labels. Caveat: the cloud serves the legacy inbox
+  read-only, so read state is local-only; the legacy host route must be
+  proxied by the gateway.
 - ✅ **D4** Audiobooks: `AudiobookGrouping` (genre/directory heuristics) →
   Room v7 `audiobooks`/`audiobook_parts` + `AudiobookRepository` → music
   crossbar `audiobooks` pivot (book list, parts, resume/bookmark, 0.75–2.0×
@@ -266,10 +273,15 @@ explicitly documented (long-term / N-A) — no gap unplanned.
 
 ### Long-term backlog (documented, not scheduled)
 
-Recorded so nothing is unplanned; revisit after M15: **PIN/screen-lock**,
-**built-in playlists** (`BuiltIn-*`), **deep queue engine** (capacity/history/
-`MediaItemPositioned` events), **crossfade**, **marketplace backend +
-Passport/subscriptions**.
+Recorded so nothing is unplanned; revisit after M15 — now shipped:
+✅ **PIN/screen-lock** (`data/security/PinLock.kt`, PBKDF2 + attempt limiter;
+settings ▸ screen lock; PIN keypad on the wake shade), ✅ **built-in
+playlists** (`BuiltIn-FavoriteTracks`/`MostPlayedArtists`/`RecentTracks`
+derived from hearts/plays/history in the playlists pivot), ✅ **deep queue
+engine** (`media/QueueEngine.kt`: bounded capacity 500, history 100 with
+branches, insert-next/move/clear, `PlaybackEvent` positioned/playing/paused/
+stopped) and ✅ **fade-through crossfade**. Remaining: **marketplace backend +
+Passport/subscriptions** (N-A).
 
 ### N-A register (documented, never built)
 
@@ -344,8 +356,10 @@ sources stay external (`tools/zune_archive_mirror.py`,
 `tools/zune_app_corpus.py`, `tools/app_mine.py`) and no Microsoft content is
 committed.
 
-**Known deltas (documented per app):** content is re-authored (fewer
-cars/tracks/levels than the shipping binaries), mid-level resume exists where
+**Known deltas (documented per app):** content is re-authored; the roster
+uplift added cars/tracks/events (PGR 12/6/18), arenas (Echoes 24) and lanes
+(bowling 8) while Labyrinth is at parity (112+4 mazes); remaining gaps are
+fewer than the shipping binaries, mid-level resume exists where
 an engine serializes state, and network/multiplayer surfaces are local-only
 because their backends are dead (canon §11 N-A register).
 

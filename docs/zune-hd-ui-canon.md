@@ -139,6 +139,12 @@ Ratings (tri-state heart, from the Zune desktop/HD family):
   in-app `WallpaperManager`-backed shade (`ui/DoradoRoot.kt`,
   `design/components/LockShade.kt`); the Android lock screen remains the OS wake
   surface beneath it.
+- **PIN lock** (device `GemSettingPinLockScene` / `HudPinLockScene`): settings ▸
+  screen lock sets a 4–6 digit PIN (PBKDF2-HMAC-SHA256, salted; never stored in
+  plaintext), an optional auto-lock on backgrounding, and a *lock now* action.
+  With a PIN set the shade presents a numeric keypad (tokenized, zero radius,
+  no Material chrome) with a failure limiter (5 tries → 30 s); system back
+  cannot bypass it. With no PIN the drag-to-unlock path is unchanged.
 
 ## 6. Motion rules
 - Navigation: content slides horizontally with deceleration; deeper screens
@@ -244,8 +250,15 @@ session bitmap loader), and the **audiobook library** (grouped parts, resume
 and bookmark positions, and a 0.75–2.0× reading-speed selector; anchored to the
 device's `GemLibraryAudiobookPartScene`).
 
+Zune-Card artwork **export** (`social/CardRenderer.kt` + `CardExporter.kt`:
+`ACTION_SEND` PNG via FileProvider, save-to-Pictures on API 29+) is an
+extension; built-in playlists (`BuiltIn-*`) and the deep queue engine are
+device-era behaviours, not extensions.
+
 **Pending:** live-radio pause-and-cache — tracked in
-`docs/parity-roadmap.md` (M5/M6/M10).
+`docs/parity-roadmap.md` (M5/M6/M10). **N/A (canon §11):** ±5-minute rewind
+requires a time-shifting server; the shipped radio is a plain progressive
+Icecast stream, so "pause" simply reconnects at the live edge.
 
 - **Lane fling tuning.** The device's kinetic glide is `pos += (dt/1000)·v` at
   62.5 Hz (`xuidll.dll@0x41841D58`; see §6). Dorado-HD approximates it with a
