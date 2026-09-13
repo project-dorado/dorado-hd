@@ -54,15 +54,14 @@ class CloudSocialClientTest {
     }
 
     @Test
-    fun `inbox resolves the handle then parses the legacy atom feed`() = runBlocking {
+    fun `inbox hits the modern json route with bearer and parses messages`() = runBlocking {
         val http = FakeCloudHttp()
-        http.enqueue(200, PROFILE_JSON)
-        http.enqueue(200, ATOM_FEED)
+        http.enqueue(200, INBOX_JSON)
         val client = CloudSocialClient({ settings(true) }, { http })
 
         val inbox = client.inbox(limit = 25)
 
-        assertEquals("messaging/jane/inbox?limit=25", http.lastPath)
+        assertEquals("v1/social/me/inbox?limit=25", http.lastPath)
         assertEquals("Bearer tok", http.lastAuth)
         assertNotNull(inbox)
         assertEquals("jane", inbox!!.zuneTag)
@@ -77,7 +76,6 @@ class CloudSocialClientTest {
     @Test
     fun `unreachable inbox returns null so callers fall back to cache`() = runBlocking {
         val http = FakeCloudHttp()
-        http.enqueue(200, PROFILE_JSON)
         http.enqueue(503, "unavailable")
         val client = CloudSocialClient({ settings(true) }, { http })
 
@@ -94,29 +92,20 @@ class CloudSocialClientTest {
     }
 
     @Test
-    fun `parse atom tolerates non xml`() {
-        assertNull(CloudSocialClient.parseInboxAtom("definitely not xml"))
-        assertEquals(emptyList<Any>(), CloudSocialClient.parseInboxAtom("<?xml version=\"1.0\"?><feed/>"))
+    fun `empty inbox is a successful empty list`() = runBlocking {
+        val http = FakeCloudHttp()
+        http.enqueue(200, "[]")
+        val client = CloudSocialClient({ settings(true) }, { http })
+
+        val inbox = client.inbox()
+
+        assertNotNull(inbox)
+        assertTrue(inbox!!.messages.isEmpty())
+        assertEquals("", inbox.zuneTag)
     }
 
     private companion object {
-        val PROFILE_JSON =
-            """{"accountId":"3fa85f64-5717-4562-b3fc-2c963f66afa6","handle":"jane","displayName":"Jane","bio":"","followers":0,"following":0,"activities":0,"isFollowing":false,"isBlocked":false,"createdAt":"2026-01-01T00:00:00+00:00"}"""
-
-        val ATOM_FEED = """
-            <?xml version="1.0" encoding="utf-8"?>
-            <a:feed xmlns:a="http://www.w3.org/2005/Atom" xmlns="http://schemas.zune.net/social/2007/10">
-              <a:title type="text">jane inbox</a:title>
-              <a:id>jane</a:id>
-              <a:entry>
-                <a:title type="text">hello</a:title>
-                <a:id>11111111-1111-1111-1111-111111111111</a:id>
-                <sender>mira</sender>
-                <subject>hello</subject>
-                <body>hi there</body>
-                <receivedAt>2026-01-02T03:04:05+00:00</receivedAt>
-              </a:entry>
-            </a:feed>
-        """.trimIndent()
+        val INBOX_JSON =
+            """[{"id":"11111111-1111-1111-1111-111111111111","senderTag":"mira","recipientTag":"jane","subject":"hello","body":"hi there","createdAt":"2026-01-02T03:04:05+00:00"}]"""
     }
 }

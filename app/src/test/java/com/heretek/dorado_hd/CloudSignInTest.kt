@@ -56,6 +56,27 @@ class CloudSignInTest {
     }
 
     @Test
+    fun signIn_surfacesEmailVerificationDenial() = runBlocking {
+        var launchedUrl: String? = null
+        val signIn = CloudSignIn(
+            currentSettings = { DoradoSettings(cloudEnabled = false, cloudBaseUrl = "https://cloud.example/") },
+            setEnabled = { },
+            setToken = { },
+            launchBrowser = { launchedUrl = it },
+            awaitRedirect = { _, _ ->
+                mapOf(
+                    "error" to "access_denied",
+                    "error_description" to "The email address for this account has not been verified.",
+                    "state" to stateOf(launchedUrl!!),
+                )
+            },
+        )
+
+        assertFalse(signIn.signIn())
+        assertTrue(signIn.lastError!!.contains("not been verified"))
+    }
+
+    @Test
     fun signIn_returnsFalseWithoutBaseUrl() = runBlocking {
         val signIn = CloudSignIn(
             currentSettings = { DoradoSettings(cloudEnabled = false, cloudBaseUrl = "") },

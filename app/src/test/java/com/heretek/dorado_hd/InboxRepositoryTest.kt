@@ -57,7 +57,7 @@ class InboxRepositoryTest {
     @Test
     fun `sync upserts cloud messages and unread count`() = runBlocking {
         val http = FakeCloudHttp()
-        enqueueInbox(http, ATOM_ONE)
+        enqueueInbox(http, INBOX_ONE)
         val repo = repository(http, enabled = true)
 
         val result = repo.sync()
@@ -73,8 +73,8 @@ class InboxRepositoryTest {
     @Test
     fun `sync preserves local read state across a refresh`() = runBlocking {
         val http = FakeCloudHttp()
-        enqueueInbox(http, ATOM_ONE)
-        enqueueInbox(http, ATOM_ONE)
+        enqueueInbox(http, INBOX_ONE)
+        enqueueInbox(http, INBOX_ONE)
         val repo = repository(http, enabled = true)
 
         repo.sync()
@@ -103,11 +103,10 @@ class InboxRepositoryTest {
     @Test
     fun `unreachable cloud keeps the cache and labels offline`() = runBlocking {
         val http = FakeCloudHttp()
-        enqueueInbox(http, ATOM_ONE)
+        enqueueInbox(http, INBOX_ONE)
         val repo = repository(http, enabled = true)
 
         repo.sync()
-        enqueueProfile(http)
         http.enqueue(503, "unavailable")
         val result = repo.sync()
 
@@ -116,31 +115,12 @@ class InboxRepositoryTest {
         assertEquals(1, repo.messages().first().size)
     }
 
-    private fun enqueueInbox(http: FakeCloudHttp, atom: String) {
-        enqueueProfile(http)
-        http.enqueue(200, atom)
-    }
-
-    private fun enqueueProfile(http: FakeCloudHttp) {
-        http.enqueue(
-            200,
-            """{"accountId":"3fa85f64-5717-4562-b3fc-2c963f66afa6","handle":"jane","displayName":"Jane","bio":"","followers":0,"following":0,"activities":0,"isFollowing":false,"isBlocked":false,"createdAt":"2026-01-01T00:00:00+00:00"}""",
-        )
+    private fun enqueueInbox(http: FakeCloudHttp, json: String) {
+        http.enqueue(200, json)
     }
 
     private companion object {
-        val ATOM_ONE = """
-            <?xml version="1.0" encoding="utf-8"?>
-            <a:feed xmlns:a="http://www.w3.org/2005/Atom" xmlns="http://schemas.zune.net/social/2007/10">
-              <a:entry>
-                <a:title type="text">hello</a:title>
-                <a:id>11111111-1111-1111-1111-111111111111</a:id>
-                <sender>mira</sender>
-                <subject>hello</subject>
-                <body>hi there</body>
-                <receivedAt>2026-01-02T03:04:05+00:00</receivedAt>
-              </a:entry>
-            </a:feed>
-        """.trimIndent()
+        val INBOX_ONE =
+            """[{"id":"11111111-1111-1111-1111-111111111111","senderTag":"mira","recipientTag":"jane","subject":"hello","body":"hi there","createdAt":"2026-01-02T03:04:05+00:00"}]"""
     }
 }

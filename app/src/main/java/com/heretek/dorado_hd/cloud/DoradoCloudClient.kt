@@ -1,5 +1,6 @@
 package com.heretek.dorado_hd.cloud
 
+import java.time.OffsetDateTime
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -330,6 +331,21 @@ class DoradoCloudClient(private val http: CloudHttp) {
         )
     }
 
+    suspend fun getInbox(limit: Int = 50, token: String? = null): List<CloudInboxMessage>? {
+        val value = fetchValue("v1/social/me/inbox?limit=$limit", token) ?: return null
+        return CloudJson.asArray(value).map { entry ->
+            val obj = CloudJson.asObject(entry)
+            CloudInboxMessage(
+                id = CloudJson.stringOr(obj, "id", ""),
+                senderTag = CloudJson.stringOr(obj, "senderTag", ""),
+                recipientTag = CloudJson.stringOr(obj, "recipientTag", ""),
+                subject = CloudJson.stringOr(obj, "subject", ""),
+                body = CloudJson.stringOr(obj, "body", ""),
+                createdAt = parseTimestamp(CloudJson.stringOr(obj, "createdAt", "")),
+            )
+        }
+    }
+
     suspend fun follow(handle: String, token: String? = null): Boolean = action("v1/social/profiles/${enc(handle)}/follow", "POST", token)
 
     suspend fun unfollow(handle: String, token: String? = null): Boolean = action("v1/social/profiles/${enc(handle)}/follow", "DELETE", token)
@@ -385,4 +401,7 @@ class DoradoCloudClient(private val http: CloudHttp) {
 
     private fun enc(value: String): String =
         java.net.URLEncoder.encode(value, "UTF-8").replace("+", "%20")
+
+    private fun parseTimestamp(value: String): Long =
+        runCatching { OffsetDateTime.parse(value).toInstant().toEpochMilli() }.getOrDefault(0L)
 }

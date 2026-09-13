@@ -324,7 +324,7 @@ fun SettingsScreen(canvasWidth: androidx.compose.ui.unit.Dp) {
                         scope.launch {
                             cloudStatus = "signing in…"
                             val ok = graph.cloudSignIn.signIn()
-                            cloudStatus = if (ok) "signed in" else "sign-in failed"
+                            cloudStatus = if (ok) "signed in" else (graph.cloudSignIn.lastError ?: "sign-in failed")
                         }
                     },
                 )

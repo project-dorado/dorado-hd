@@ -20,9 +20,21 @@ class CloudSignIn(
     private val httpFactory: (String) -> CloudHttp = { HttpUrlConnectionCloudHttp(it) },
     private val timeoutMs: Long = 180_000,
 ) {
+    /**
+     * Human-readable reason the last [signIn] failed, or null when it succeeded
+     * or has not run. Surfaced by the settings screen (e.g. an unverified email
+     * comes back as `access_denied`).
+     */
+    var lastError: String? = null
+        private set
+
     suspend fun signIn(): Boolean {
+        lastError = null
         val current = currentSettings()
-        if (current.cloudBaseUrl.isBlank()) return false
+        if (current.cloudBaseUrl.isBlank()) {
+            lastError = "cloud url is not configured"
+            return false
+        }
 
         val pkce = OAuthPkce.createChallenge()
         val state = newState()
@@ -37,16 +49,34 @@ class CloudSignIn(
 
         launchBrowser(authorizeUrl)
 
-        val params = awaitRedirect(REDIRECT_URI, timeoutMs) ?: return false
-        val code = params["code"]?.takeIf { it.isNotBlank() } ?: return false
+        val params = awaitRedirect(REDIRECT_URI, timeoutMs) ?: run {
+            lastError = "sign-in timed out"
+            return false
+        }
         // The state must match exactly (a missing state is not acceptable).
-        if (params["state"] != state) return false
+        if (params["state"] != state) {
+            lastError = "sign-in state did not match"
+            return false
+        }
+        // An error response (e.g. access_denied for an unverified email) carries
+        // no code; surface the server's description instead of failing silently.
+        params["error"]?.takeIf { it.isNotBlank() }?.let { error ->
+            lastError = describeError(error, params["error_description"])
+            return false
+        }
+        val code = params["code"]?.takeIf { it.isNotBlank() } ?: run {
+            lastError = "no authorization code returned"
+            return false
+        }
 
         // The token exchange is blocking HttpURLConnection work; keep it off
         // the main thread or the caller sees NetworkOnMainThreadException.
         val tokens = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             OAuthPkce.exchangeCode(httpFactory(current.cloudBaseUrl), CLIENT_ID, code, pkce.verifier, REDIRECT_URI)
-        } ?: return false
+        } ?: run {
+            lastError = "token exchange failed"
+            return false
+        }
 
         setToken(tokens.accessToken)
         setEnabled(true)
@@ -57,6 +87,14 @@ class CloudSignIn(
         setToken("")
         // Disabling prevents unauthenticated requests after sign-out.
         setEnabled(false)
+    }
+
+    private fun describeError(error: String, description: String?): String {
+        val detail = description?.takeIf { it.isNotBlank() }
+        return when (error) {
+            "access_denied" -> detail?.let { "sign-in denied — $it" } ?: "sign-in denied"
+            else -> detail?.let { "$error — $it" } ?: error
+        }
     }
 
     private fun newState(random: SecureRandom = SecureRandom()): String =
