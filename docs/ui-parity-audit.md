@@ -170,7 +170,6 @@ launch (63/63 crawl failures); fixed by resuming controller calls on
 service connection — the on-device gate is the reason this shipped correctly.
 
 **Documented N/A / deferred:** live-radio ±5-min rewind (needs a time-shifting
-server); cloud inbox mark-read (server serves it read-only; read state is
-local); the four remaining emulator titles (two corpus gaps, two dead
+server); the four remaining emulator titles (two corpus gaps, two dead
 services); desktop i18n remaining locales (deferred registry, 20 shipped);
 organization repository pinning (profile-level manual step).

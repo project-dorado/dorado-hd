@@ -341,10 +341,15 @@ class DoradoCloudClient(private val http: CloudHttp) {
                 recipientTag = CloudJson.stringOr(obj, "recipientTag", ""),
                 subject = CloudJson.stringOr(obj, "subject", ""),
                 body = CloudJson.stringOr(obj, "body", ""),
+                isRead = CloudJson.bool(obj, "isRead"),
                 createdAt = parseTimestamp(CloudJson.stringOr(obj, "createdAt", "")),
             )
         }
     }
+
+    /** Marks one of the signed-in user's inbox messages read; false when not found. */
+    suspend fun markInboxRead(id: String, token: String? = null): Boolean =
+        action("v1/social/me/inbox/${enc(id)}/read", "POST", token)
 
     suspend fun follow(handle: String, token: String? = null): Boolean = action("v1/social/profiles/${enc(handle)}/follow", "POST", token)
 

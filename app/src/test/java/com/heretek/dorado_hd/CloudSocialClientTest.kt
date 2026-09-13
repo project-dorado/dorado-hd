@@ -70,6 +70,7 @@ class CloudSocialClientTest {
         assertEquals("mira", message.senderTag)
         assertEquals("hello", message.subject)
         assertEquals("hi there", message.body)
+        assertFalse(message.isRead)
         assertTrue(message.createdAt > 0)
     }
 
@@ -83,12 +84,16 @@ class CloudSocialClientTest {
     }
 
     @Test
-    fun `mark read reports the remote cannot accept it`() = runBlocking {
+    fun `mark read posts to the modern route`() = runBlocking {
         val http = FakeCloudHttp()
+        http.enqueue(204, "")
         val client = CloudSocialClient({ settings(true) }, { http })
 
-        assertFalse(client.markRead("11111111-1111-1111-1111-111111111111"))
-        assertNull(http.lastPath)
+        assertTrue(client.markRead("11111111-1111-1111-1111-111111111111"))
+
+        assertEquals("v1/social/me/inbox/11111111-1111-1111-1111-111111111111/read", http.lastPath)
+        assertEquals("POST", http.lastMethod)
+        assertEquals("Bearer tok", http.lastAuth)
     }
 
     @Test

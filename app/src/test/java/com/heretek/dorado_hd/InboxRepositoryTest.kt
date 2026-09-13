@@ -71,6 +71,18 @@ class InboxRepositoryTest {
     }
 
     @Test
+    fun `server read state merges into the cache`() = runBlocking {
+        val http = FakeCloudHttp()
+        enqueueInbox(http, INBOX_READ)
+        val repo = repository(http, enabled = true)
+
+        repo.sync()
+
+        assertTrue(repo.messages().first().single().isRead)
+        assertEquals(0, repo.unreadCount().first())
+    }
+
+    @Test
     fun `sync preserves local read state across a refresh`() = runBlocking {
         val http = FakeCloudHttp()
         enqueueInbox(http, INBOX_ONE)
@@ -121,6 +133,9 @@ class InboxRepositoryTest {
 
     private companion object {
         val INBOX_ONE =
-            """[{"id":"11111111-1111-1111-1111-111111111111","senderTag":"mira","recipientTag":"jane","subject":"hello","body":"hi there","createdAt":"2026-01-02T03:04:05+00:00"}]"""
+            """[{"id":"11111111-1111-1111-1111-111111111111","senderTag":"mira","recipientTag":"jane","subject":"hello","body":"hi there","isRead":false,"createdAt":"2026-01-02T03:04:05+00:00"}]"""
+
+        val INBOX_READ =
+            """[{"id":"11111111-1111-1111-1111-111111111111","senderTag":"mira","recipientTag":"jane","subject":"hello","body":"hi there","isRead":true,"createdAt":"2026-01-02T03:04:05+00:00"}]"""
     }
 }

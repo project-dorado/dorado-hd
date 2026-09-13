@@ -265,9 +265,9 @@ explicitly documented (long-term / N-A) — no gap unplanned.
   with cloud enhancement when signed in (`CloudSocialClient` feed/card),
   local-first `inbox_messages` Room table (v8) + `InboxRepository` with
   mark-read and offline labels. The cloud reads the same store through the
-  modern bearer route `GET /v1/social/me/inbox` (JSON), so no legacy gateway
-  host proxying is needed; the inbox is still read-only server-side, so read
-  state stays local-only.
+  modern bearer route `GET /v1/social/me/inbox` (JSON) and marks read through
+  `POST /v1/social/me/inbox/{id}/read`, so no legacy gateway host proxying is
+  needed. Room remains the source of truth; server read state merges in.
 - ✅ **D4** Audiobooks: `AudiobookGrouping` (genre/directory heuristics) →
   Room v7 `audiobooks`/`audiobook_parts` + `AudiobookRepository` → music
   crossbar `audiobooks` pivot (book list, parts, resume/bookmark, 0.75–2.0×

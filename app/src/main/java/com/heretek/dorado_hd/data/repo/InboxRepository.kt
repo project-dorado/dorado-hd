@@ -66,7 +66,7 @@ class InboxRepository(
                 recipientTag = message.recipientTag.ifBlank { inbox.zuneTag },
                 subject = message.subject,
                 body = message.body,
-                isRead = existing[message.id]?.isRead ?: false,
+                isRead = (existing[message.id]?.isRead ?: false) || message.isRead,
                 createdAt = message.createdAt,
             )
         }

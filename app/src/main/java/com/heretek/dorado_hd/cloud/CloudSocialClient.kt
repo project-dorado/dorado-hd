@@ -9,6 +9,7 @@ data class CloudInboxMessage(
     val recipientTag: String,
     val subject: String,
     val body: String,
+    val isRead: Boolean,
     val createdAt: Long,
 )
 
@@ -89,10 +90,14 @@ class CloudSocialClient(
     }
 
     /**
-     * Remote mark-read. The current dorado-cloud inbox is read-only (there is
-     * no mark-read route), so this always reports false; the Room store owns
-     * read state. Kept on the client so a future server route can be wired
-     * without changing callers.
+     * Marks a message read server-side (`POST /v1/social/me/inbox/{id}/read`).
+     * Room remains the source of truth for the UI; this keeps the server's read
+     * state in step and reports false when unavailable. Best-effort by callers.
      */
-    suspend fun markRead(id: String): Boolean = false
+    suspend fun markRead(id: String): Boolean {
+        if (id.isBlank()) return false
+        val auth = token() ?: return false
+        val client = clientOrNull() ?: return false
+        return client.markInboxRead(id, auth)
+    }
 }
