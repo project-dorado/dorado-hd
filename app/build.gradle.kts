@@ -16,6 +16,24 @@ android {
         versionName = "0.1.0"
     }
 
+    val keystorePath = System.getenv("KEYSTORE_PATH") ?: project.findProperty("KEYSTORE_PATH") as? String
+    val keystorePassword = System.getenv("KEYSTORE_PASSWORD") ?: project.findProperty("KEYSTORE_PASSWORD") as? String
+    val keyAlias = System.getenv("KEY_ALIAS") ?: project.findProperty("KEY_ALIAS") as? String
+    val keyPassword = System.getenv("KEY_PASSWORD") ?: project.findProperty("KEY_PASSWORD") as? String
+
+    val releaseSigningConfig = if (keystorePath != null && file(keystorePath).exists() && keystorePassword != null && keyAlias != null && keyPassword != null) {
+        signingConfigs.create("release") {
+            storeFile = file(keystorePath)
+            storePassword = keystorePassword
+            this.keyAlias = keyAlias
+            this.keyPassword = keyPassword
+            enableV1Signing = true
+            enableV2Signing = true
+        }
+    } else {
+        null
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -24,6 +42,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (releaseSigningConfig != null) {
+                signingConfig = releaseSigningConfig
+            }
         }
         debug {
             applicationIdSuffix = ".debug"
